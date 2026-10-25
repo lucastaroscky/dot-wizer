@@ -1,0 +1,5 @@
+{
+  "name": "pontinho",
+  "private": true,
+  "workspaces": ["apps/*", "packages/*"]
+}
