@@ -1,6 +1,6 @@
 import { defineServer, defineRoom, monitor, playground } from "colyseus";
 import { ROOM_NAME } from "@pontinho/protocol";
-import { PontinhoRoom } from "./rooms/PontinhoRoom.js";
+import { PontinhoRoom } from "./rooms/pontinho/PontinhoRoom.js";
 
 const server = defineServer({
   rooms: {

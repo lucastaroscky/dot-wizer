@@ -5,7 +5,7 @@ import Animated, { FadeInDown, FadeOut } from "react-native-reanimated";
 import type { Room } from "@colyseus/sdk";
 import { useRoomMessage, type useRoomState } from "@colyseus/react";
 import type { MoveEvent, PontinhoState } from "@pontinho/protocol";
-import { addToMeld, createDeck, handPoints, replaceJoker, type Meld, type MeldKind } from "@pontinho/rules";
+import { addToMeld, cardById, handPoints, replaceJoker, type Meld, type MeldKind } from "@pontinho/rules";
 import { PlayerPlate } from "./PlayerPlate";
 import { CardFan } from "./CardFan";
 import { Hand } from "./Hand";
@@ -21,24 +21,19 @@ type Props = { room: Room<PontinhoState>; state: GameState; onExit: () => void }
 
 const DOUBLE_TAP_MS = 350;
 const FLIGHT_STAGGER_MS = 40;
-const CARDS_BY_ID = new Map(createDeck().map((card) => [card.id, card]));
-
 type JokerSwap = { cardId: string; meldIndex: number };
 
 function toMeld(meld: GameState["melds"][number]): Meld {
-  return { kind: meld.kind as MeldKind, cards: meld.cards.map((card) => CARDS_BY_ID.get(card.id)!) };
+  return { kind: meld.kind as MeldKind, cards: meld.cards.map((card) => cardById(card.id)) };
 }
 
 function isJokerSwap(meld: Meld, cardId: string) {
-  const card = CARDS_BY_ID.get(cardId);
-  return card !== undefined && !addToMeld(meld, [card]) && replaceJoker(meld, card) !== undefined;
+  const card = cardById(cardId);
+  return !addToMeld(meld, [card]) && replaceJoker(meld, card) !== undefined;
 }
 
 function toCardView(cardId: string) {
-  const card = CARDS_BY_ID.get(cardId);
-  if (!card) {
-    return undefined;
-  }
+  const card = cardById(cardId);
   return { id: card.id, rank: card.rank, suit: card.rank === "JOKER" ? "" : card.suit };
 }
 
@@ -311,7 +306,7 @@ export function Table({ room, state, onExit }: Props) {
         <PlayerPlate name={me?.name ?? ""} points={me?.points} isTurn={isMyTurn} turnDeadline={state.turnDeadline} />
       </View>
 
-      <Text style={styles.handPoints}>{handPoints((me?.hand ?? []).map((card) => CARDS_BY_ID.get(card.id)!))}</Text>
+      <Text style={styles.handPoints}>{handPoints((me?.hand ?? []).map((card) => cardById(card.id)))}</Text>
 
       <View ref={handRef} onLayout={() => measureInto(handRef, (rect) => (handRect.current = rect))}>
         <Hand cards={me?.hand ?? []} selectedIds={selectedIds} onToggle={toggle} onDropOutside={dropOutside} />

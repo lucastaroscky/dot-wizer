@@ -1,11 +1,10 @@
 import { Client, type Room } from "@colyseus/sdk";
-import { addToMeld, canDiscard, createDeck, createMeld, type Card } from "@pontinho/rules";
+import { addToMeld, canDiscard, cardById, findMeldInHand } from "@pontinho/rules";
 import { ROOM_NAME } from "@pontinho/protocol";
-import type { PontinhoRoom } from "../src/rooms/PontinhoRoom.js";
+import type { PontinhoRoom } from "../src/rooms/pontinho/PontinhoRoom.js";
 
 const SERVER_URL = "http://localhost:2567";
 const PLAY_DELAY_MS = 1500;
-const CARDS_BY_ID = new Map(createDeck().map((card) => [card.id, card]));
 const botCount = Number(process.argv[2] ?? 2);
 const seats = Number(process.argv[3] ?? 3);
 
@@ -37,20 +36,6 @@ async function startBot(name: string) {
   });
 }
 
-function findMeld(hand: Card[]) {
-  for (let first = 0; first < hand.length; first++) {
-    for (let second = first + 1; second < hand.length; second++) {
-      for (let third = second + 1; third < hand.length; third++) {
-        const cards = [hand[first], hand[second], hand[third]];
-        if (createMeld(cards, { goingOut: hand.length === 3 })) {
-          return cards;
-        }
-      }
-    }
-  }
-  return undefined;
-}
-
 function play(room: Room<PontinhoRoom>) {
   if (!room.state.hasDrawn) {
     room.send("draw");
@@ -60,9 +45,9 @@ function play(room: Room<PontinhoRoom>) {
   if (!player) {
     return;
   }
-  const hand = player.hand.map((card) => CARDS_BY_ID.get(card.id)!);
-  const table = room.state.melds.map((meld) => ({ kind: meld.kind as "set" | "run", cards: meld.cards.map((card) => CARDS_BY_ID.get(card.id)!) }));
-  const meld = findMeld(hand);
+  const hand = player.hand.map((card) => cardById(card.id));
+  const table = room.state.melds.map((meld) => ({ kind: meld.kind as "set" | "run", cards: meld.cards.map((card) => cardById(card.id)) }));
+  const meld = findMeldInHand(hand);
   if (meld) {
     room.send("meld", { cardIds: meld.map((card) => card.id) });
     return;
