@@ -1,13 +1,13 @@
 import { StyleSheet, View } from "react-native";
 import type { Room } from "@colyseus/sdk";
 import { useRoomState } from "@colyseus/react";
-import type { PontinhoRoom } from "../../../server/src/rooms/PontinhoRoom";
+import type { PontinhoState } from "@pontinho/protocol";
 import { Table, type GameState } from "../table/Table";
 import { WaitingRoom } from "./WaitingRoom";
 import { RoundSummary } from "./RoundSummary";
 import { colors } from "../table/colors";
 
-type Props = { room: Room<PontinhoRoom>; onExit: () => void };
+type Props = { room: Room<PontinhoState>; onExit: () => void };
 
 export function Game({ room, onExit }: Props) {
   const state = useRoomState(room);

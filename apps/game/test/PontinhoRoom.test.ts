@@ -2,7 +2,7 @@ import assert from "assert";
 import { ColyseusTestServer, boot } from "@colyseus/testing";
 import appConfig from "../src/app.config.js";
 import type { PontinhoRoom } from "../src/rooms/PontinhoRoom.js";
-import { CardState } from "../src/rooms/schema/PontinhoState.js";
+import { CardState } from "@pontinho/protocol";
 import errors from "../src/common/messages/errors.json" with { type: "json" };
 
 function required<T>(value: T | undefined): T {

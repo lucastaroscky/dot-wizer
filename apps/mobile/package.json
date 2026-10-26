@@ -6,6 +6,7 @@
     "@colyseus/react": "^0.18.4",
     "@colyseus/sdk": "^0.18.6",
     "@expo/ui": "~58.0.23",
+    "@pontinho/protocol": "*",
     "@pontinho/rules": "*",
     "expo": "~58.0.19",
     "expo-asset": "~58.0.18",
@@ -33,6 +34,8 @@
   },
   "devDependencies": {
     "@types/react": "~19.3.0",
+    "eslint": "^9.39.5",
+    "eslint-config-expo": "~58.0.4",
     "typescript": "~6.0.3"
   },
   "scripts": {
@@ -40,7 +43,9 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "lint": "expo lint"
+    "lint": "expo lint",
+    "check:bundle": "node scripts/check-bundle.mjs",
+    "typecheck": "tsc --noEmit"
   },
   "private": true
 }

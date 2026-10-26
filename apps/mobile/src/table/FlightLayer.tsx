@@ -39,23 +39,25 @@ function FlyingCard({ flight, origin, onLanded }: { flight: Flight; origin: { x:
   const end = centerOf(flight.to);
 
   useEffect(() => {
-    progress.value = withDelay(
-      flight.delay,
-      withTiming(1, { duration: FLIGHT_MS, easing: Easing.out(Easing.cubic), reduceMotion: ReduceMotion.Never }, (finished) => {
-        if (finished) {
-          scheduleOnRN(onLanded, flight.id);
-        }
-      }),
-      ReduceMotion.Never,
+    progress.set(
+      withDelay(
+        flight.delay,
+        withTiming(1, { duration: FLIGHT_MS, easing: Easing.out(Easing.cubic), reduceMotion: ReduceMotion.Never }, (finished) => {
+          if (finished) {
+            scheduleOnRN(onLanded, flight.id);
+          }
+        }),
+        ReduceMotion.Never,
+      ),
     );
   }, [flight, onLanded, progress]);
 
   const style = useAnimatedStyle(() => ({
-    opacity: progress.value === 0 ? 0 : 1,
+    opacity: progress.get() === 0 ? 0 : 1,
     transform: [
-      { translateX: (end.x - start.x) * progress.value },
-      { translateY: (end.y - start.y) * progress.value },
-      { rotate: `${(1 - progress.value) * 12}deg` },
+      { translateX: (end.x - start.x) * progress.get() },
+      { translateY: (end.y - start.y) * progress.get() },
+      { rotate: `${(1 - progress.get()) * 12}deg` },
     ],
   }));
 

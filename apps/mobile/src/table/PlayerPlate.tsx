@@ -22,10 +22,10 @@ export function PlayerPlate({ name, points, eliminated = false, isTurn = false, 
   const info = details(points, eliminated);
 
   useEffect(() => {
-    scale.value = withSpring(isTurn ? 1.06 : 1, { duration: 250, dampingRatio: 0.7 });
+    scale.set(withSpring(isTurn ? 1.06 : 1, { duration: 250, dampingRatio: 0.7 }));
   }, [isTurn, scale]);
 
-  const plateStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
+  const plateStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.get() }] }));
 
   return (
     <Animated.View style={[styles.container, plateStyle, eliminated && styles.eliminated]}>

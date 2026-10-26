@@ -29,10 +29,10 @@ export function Piles({ discardTop, highlightDiscard, onStockPress, onDiscardPre
   const pulse = useSharedValue(0);
 
   useEffect(() => {
-    pulse.value = highlightDiscard ? withRepeat(withTiming(1, { duration: PULSE_MS }), -1, true) : withTiming(0, { duration: 150 });
+    pulse.set(highlightDiscard ? withRepeat(withTiming(1, { duration: PULSE_MS }), -1, true) : withTiming(0, { duration: 150 }));
   }, [highlightDiscard, pulse]);
 
-  const pulseStyle = useAnimatedStyle(() => ({ opacity: pulse.value }));
+  const pulseStyle = useAnimatedStyle(() => ({ opacity: pulse.get() }));
 
   function measureStock() {
     stockRef.current?.measureInWindow((x, y, width, height) => onStockMeasure({ x, y, width, height }));

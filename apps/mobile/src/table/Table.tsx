@@ -4,7 +4,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import Animated, { FadeInDown, FadeOut } from "react-native-reanimated";
 import type { Room } from "@colyseus/sdk";
 import { useRoomMessage, type useRoomState } from "@colyseus/react";
-import type { MoveEvent, PontinhoRoom } from "../../../server/src/rooms/PontinhoRoom";
+import type { MoveEvent, PontinhoState } from "@pontinho/protocol";
 import { addToMeld, createDeck, handPoints, replaceJoker, type Meld, type MeldKind } from "@pontinho/rules";
 import { PlayerPlate } from "./PlayerPlate";
 import { CardFan } from "./CardFan";
@@ -15,9 +15,9 @@ import { FlightLayer, type Flight } from "./FlightLayer";
 import { colors } from "./colors";
 import { WoodButton } from "../ui/WoodButton";
 
-export type GameState = NonNullable<ReturnType<typeof useRoomState<PontinhoRoom>>>;
+export type GameState = NonNullable<ReturnType<typeof useRoomState<PontinhoState>>>;
 
-type Props = { room: Room<PontinhoRoom>; state: GameState; onExit: () => void };
+type Props = { room: Room<PontinhoState>; state: GameState; onExit: () => void };
 
 const DOUBLE_TAP_MS = 350;
 const FLIGHT_STAGGER_MS = 40;

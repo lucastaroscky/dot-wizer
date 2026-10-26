@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useWindowDimensions, View } from "react-native";
-import { Gesture, GestureDetector } from "react-native-gesture-handler";
+import { GestureDetector, useExclusiveGestures, usePanGesture, useTapGesture } from "react-native-gesture-handler";
 import Animated, { useAnimatedStyle, useSharedValue, withSpring, withTiming, type SharedValue } from "react-native-reanimated";
 import { Card, type CardView, CARD_RATIO } from "../cards/Card";
 
@@ -96,24 +96,24 @@ function DraggableCard({ card, index, step, count, cardWidth, selected, dragInde
   const leaveHandDistance = cardWidth * CARD_RATIO * 0.9;
 
   useEffect(() => {
-    lift.value = withSpring(selected ? SELECTED_LIFT : 0, { duration: 250, dampingRatio: 0.65 });
+    lift.set(withSpring(selected ? SELECTED_LIFT : 0, { duration: 250, dampingRatio: 0.65 }));
   }, [selected, lift]);
 
-  const pan = Gesture.Pan()
-    .runOnJS(true)
-    .minDistance(DRAG_START_DISTANCE)
-    .onStart(() => {
+  const pan = usePanGesture({
+    runOnJS: true,
+    minDistance: DRAG_START_DISTANCE,
+    onActivate: () => {
       dropped.current = false;
-      dragIndex.value = index;
-      hoverIndex.value = index;
-    })
-    .onUpdate((event) => {
-      offsetX.value = event.translationX;
-      offsetY.value = event.translationY;
-      hoverIndex.value = Math.min(Math.max(Math.round((index * step + event.translationX) / step), 0), count - 1);
-    })
-    .onEnd((event) => {
-      if (dropped.current) {
+      dragIndex.set(index);
+      hoverIndex.set(index);
+    },
+    onUpdate: (event) => {
+      offsetX.set(event.translationX);
+      offsetY.set(event.translationY);
+      hoverIndex.set(Math.min(Math.max(Math.round((index * step + event.translationX) / step), 0), count - 1));
+    },
+    onDeactivate: (event) => {
+      if (dropped.current || event.canceled) {
         return;
       }
       dropped.current = true;
@@ -121,35 +121,46 @@ function DraggableCard({ card, index, step, count, cardWidth, selected, dragInde
         onDropOutside(card.id, event.absoluteX, event.absoluteY);
         return;
       }
-      onDrop(index, hoverIndex.value);
-    })
-    .onFinalize(() => {
-      offsetX.value = 0;
-      offsetY.value = 0;
-      dragIndex.value = -1;
-      hoverIndex.value = -1;
-    });
+      onDrop(index, hoverIndex.get());
+    },
+    onFinalize: () => {
+      offsetX.set(0);
+      offsetY.set(0);
+      dragIndex.set(-1);
+      hoverIndex.set(-1);
+    },
+  });
 
-  const tap = Gesture.Tap().runOnJS(true).onEnd(onTap);
+  const tap = useTapGesture({
+    runOnJS: true,
+    onDeactivate: (event) => {
+      if (event.canceled) {
+        return;
+      }
+      onTap();
+    },
+  });
+
+  const gesture = useExclusiveGestures(pan, tap);
 
   const animatedStyle = useAnimatedStyle(() => {
-    if (dragIndex.value === index) {
+    if (dragIndex.get() === index) {
       return {
         zIndex: 100,
-        transform: [{ translateX: offsetX.value }, { translateY: offsetY.value }, { rotate: "0deg" }, { scale: 1.08 }],
+        transform: [{ translateX: offsetX.get() }, { translateY: offsetY.get() }, { rotate: "0deg" }, { scale: 1.08 }],
       };
     }
-    if (dragIndex.value === -1) {
-      return { zIndex: index, transform: [{ translateX: 0 }, { translateY: fanDrop + lift.value }, { rotate: fanRotation }, { scale: 1 }] };
+    if (dragIndex.get() === -1) {
+      return { zIndex: index, transform: [{ translateX: 0 }, { translateY: fanDrop + lift.get() }, { rotate: fanRotation }, { scale: 1 }] };
     }
-    const shiftsLeft = dragIndex.value < index && index <= hoverIndex.value;
-    const shiftsRight = hoverIndex.value <= index && index < dragIndex.value;
+    const shiftsLeft = dragIndex.get() < index && index <= hoverIndex.get();
+    const shiftsRight = hoverIndex.get() <= index && index < dragIndex.get();
     const shift = (shiftsLeft ? -step : 0) + (shiftsRight ? step : 0);
     return {
       zIndex: index,
       transform: [
         { translateX: withTiming(shift, { duration: NEIGHBOR_SHIFT_MS }) },
-        { translateY: fanDrop + lift.value },
+        { translateY: fanDrop + lift.get() },
         { rotate: fanRotation },
         { scale: 1 },
       ],
@@ -157,7 +168,7 @@ function DraggableCard({ card, index, step, count, cardWidth, selected, dragInde
   });
 
   return (
-    <GestureDetector gesture={Gesture.Exclusive(pan, tap)}>
+    <GestureDetector gesture={gesture}>
       <Animated.View style={[{ position: "absolute", top: 16, left: index * step, transformOrigin: "bottom center" }, animatedStyle]}>
         <Card card={card} width={cardWidth} selected={selected} />
       </Animated.View>

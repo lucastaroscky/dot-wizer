@@ -1,5 +1,6 @@
 import { Client, type Room } from "@colyseus/sdk";
 import { addToMeld, canDiscard, createDeck, createMeld, type Card } from "@pontinho/rules";
+import { ROOM_NAME } from "@pontinho/protocol";
 import type { PontinhoRoom } from "../src/rooms/PontinhoRoom.js";
 
 const SERVER_URL = "http://localhost:2567";
@@ -13,7 +14,7 @@ for (let bot = 1; bot <= botCount; bot++) {
 }
 
 async function startBot(name: string) {
-  const room = await new Client(SERVER_URL).joinOrCreate<PontinhoRoom>("pontinho", { name, seats, bots: false });
+  const room = await new Client(SERVER_URL).joinOrCreate<PontinhoRoom>(ROOM_NAME, { name, seats, bots: false });
   console.log(`${name} entrou na sala ${room.roomId}`);
   let acting = false;
   let rejoined = false;

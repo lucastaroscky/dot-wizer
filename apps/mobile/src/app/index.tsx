@@ -3,7 +3,7 @@ import { StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Asset } from "expo-asset";
 import { Client, CloseCode, type Room } from "@colyseus/sdk";
-import type { PontinhoRoom } from "../../../server/src/rooms/PontinhoRoom";
+import { ROOM_NAME, type PontinhoState } from "@pontinho/protocol";
 import { CardStyleContext, type CardStyleName } from "../cards/Card";
 import { DECK_IMAGES } from "../cards/deck";
 import { Game } from "../game/Game";
@@ -18,14 +18,14 @@ export default function Index() {
   const [name] = useState(() => `Jogador ${Math.floor(1000 + Math.random() * 9000)}`);
   const [configuring, setConfiguring] = useState(false);
   const [cardStyle, setCardStyle] = useState<CardStyleName>("jumbo");
-  const [room, setRoom] = useState<Room<PontinhoRoom>>();
+  const [room, setRoom] = useState<Room<PontinhoState>>();
   const [error, setError] = useState("");
 
   async function play(settings: MatchSettings) {
     setCardStyle(settings.cardStyle);
     try {
       await Asset.loadAsync(Object.values(DECK_IMAGES[settings.cardStyle]));
-      const joined = await client.joinOrCreate<PontinhoRoom>("pontinho", { name, seats: settings.seats, bots: settings.bots });
+      const joined = await client.joinOrCreate<PontinhoState>(ROOM_NAME, { name, seats: settings.seats, bots: settings.bots });
       joined.onLeave((code) => {
         if (code === CloseCode.CONSENTED) {
           return;

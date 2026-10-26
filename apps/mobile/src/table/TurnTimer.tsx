@@ -10,15 +10,15 @@ export function TurnTimer({ deadline }: { deadline: number }) {
 
   useEffect(() => {
     if (deadline === 0) {
-      progress.value = 0;
+      progress.set(0);
       return;
     }
     const remaining = Math.min(Math.max(deadline - Date.now(), 0), TURN_MS);
-    progress.value = remaining / TURN_MS;
-    progress.value = withTiming(0, { duration: remaining, easing: Easing.linear, reduceMotion: ReduceMotion.Never });
+    progress.set(remaining / TURN_MS);
+    progress.set(withTiming(0, { duration: remaining, easing: Easing.linear, reduceMotion: ReduceMotion.Never }));
   }, [deadline, progress]);
 
-  const barStyle = useAnimatedStyle(() => ({ transform: [{ scaleX: progress.value }] }));
+  const barStyle = useAnimatedStyle(() => ({ transform: [{ scaleX: progress.get() }] }));
 
   return (
     <View style={styles.track}>

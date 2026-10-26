@@ -1,5 +1,4 @@
 import { Room, Delayed, validate, type Client as ColyseusClient } from "colyseus";
-import { z } from "zod";
 import { StateView } from "@colyseus/schema";
 import {
   addToMeld,
@@ -19,37 +18,34 @@ import {
 } from "@pontinho/rules";
 import errors from "../common/messages/errors.json" with { type: "json" };
 import announcements from "../common/messages/announcements.json" with { type: "json" };
-import { CardState, MeldState, Player, PontinhoState } from "./schema/PontinhoState.js";
+import {
+  CardState,
+  createOptionsSchema,
+  discardMessageSchema,
+  joinOptionsSchema,
+  layOffMessageSchema,
+  MAX_PLAYERS,
+  MeldState,
+  meldMessageSchema,
+  MIN_PLAYERS,
+  Player,
+  PontinhoState,
+  takeDiscardMessageSchema,
+  type MoveEvent,
+  type ServerMessages,
+} from "@pontinho/protocol";
 
 const RECONNECTION_SECONDS = 120;
-const MIN_PLAYERS = 3;
-const MAX_PLAYERS = 6;
 const NEXT_ROUND_DELAY_MS = 8_000;
 const BLUFF_MESSAGE_MS = 5_000;
 const TURN_MS = 30_000;
 const BOT_DELAY_MS = 3_000;
 const MAX_MESSAGES_PER_SECOND = 10;
-const MAX_CARDS_PER_ACTION = 14;
-const MAX_NAME_LENGTH = 20;
 
 const DECK = createDeck();
 const CARDS_BY_ID = new Map(DECK.map((card) => [card.id, card]));
 
-const cardIdSchema = z.enum(DECK.map((card) => card.id) as [string, ...string[]]);
-const cardIdsSchema = z.array(cardIdSchema).max(MAX_CARDS_PER_ACTION);
-const meldIndexSchema = z.number().int().min(0);
-const meldSchema = z.object({ cardIds: cardIdsSchema });
-const takeDiscardSchema = z.object({ cardIds: cardIdsSchema, meldIndex: meldIndexSchema.optional() });
-const layOffSchema = z.object({
-  cardIds: cardIdsSchema,
-  meldIndex: meldIndexSchema,
-  jokerTo: z.object({ meldIndex: meldIndexSchema.optional(), cardIds: cardIdsSchema }).optional(),
-});
-const joinSchema = z.object({ name: z.string().trim().min(1).max(MAX_NAME_LENGTH) });
-const createSchema = z.object({ seats: z.number().int().min(MIN_PLAYERS).max(MAX_PLAYERS), bots: z.boolean() });
-export type MoveEvent = { kind: "draw" | "toTable" | "discard"; playerId: string; cardIds: string[] };
-
-type Client = ColyseusClient<{ messages: { invalid: string; move: MoveEvent } }>;
+type Client = ColyseusClient<{ messages: ServerMessages }>;
 
 function toCardState(card: Card) {
   const cardState = new CardState();
@@ -93,7 +89,7 @@ export class PontinhoRoom extends Room<{ state: PontinhoState; client: Client }>
       this.drawFor(client.sessionId, player);
     },
 
-    takeDiscard: validate(takeDiscardSchema, (client: Client, message) => {
+    takeDiscard: validate(takeDiscardMessageSchema, (client: Client, message) => {
       const player = this.state.players.get(client.sessionId);
       const cards = message.cardIds.length === 0 ? [] : this.cardsInHand(player, message.cardIds);
       const top = this.discard[this.discard.length - 1];
@@ -122,7 +118,7 @@ export class PontinhoRoom extends Room<{ state: PontinhoState; client: Client }>
       this.endRoundIfEmpty(client.sessionId, player);
     }),
 
-    meld: validate(meldSchema, (client: Client, message) => {
+    meld: validate(meldMessageSchema, (client: Client, message) => {
       const player = this.state.players.get(client.sessionId);
       const cards = this.cardsInHand(player, message.cardIds);
       if (!player || !cards || !this.isTurnOf(client) || !this.state.hasDrawn) {
@@ -139,7 +135,7 @@ export class PontinhoRoom extends Room<{ state: PontinhoState; client: Client }>
       this.endRoundIfEmpty(client.sessionId, player);
     }),
 
-    layOff: validate(layOffSchema, (client: Client, message) => {
+    layOff: validate(layOffMessageSchema, (client: Client, message) => {
       const player = this.state.players.get(client.sessionId);
       const cards = this.cardsInHand(player, message.cardIds);
       const target = this.state.melds[message.meldIndex];
@@ -188,7 +184,7 @@ export class PontinhoRoom extends Room<{ state: PontinhoState; client: Client }>
       this.endRoundIfEmpty(client.sessionId, player);
     }),
 
-    discard: validate(cardIdSchema, (client: Client, cardId) => {
+    discard: validate(discardMessageSchema, (client: Client, cardId) => {
       const player = this.state.players.get(client.sessionId);
       const cards = this.cardsInHand(player, [cardId]);
       if (!player || !cards || !this.isTurnOf(client) || !this.state.hasDrawn) {
@@ -242,7 +238,7 @@ export class PontinhoRoom extends Room<{ state: PontinhoState; client: Client }>
   };
 
   onCreate(options: unknown) {
-    const { seats, bots } = createSchema.parse(options);
+    const { seats, bots } = createOptionsSchema.parse(options);
     this.withBots = bots;
     this.maxClients = bots ? 1 : seats;
     this.state.seats = seats;
@@ -253,7 +249,7 @@ export class PontinhoRoom extends Room<{ state: PontinhoState; client: Client }>
   }
 
   onJoin(client: Client, options: unknown) {
-    const { name } = joinSchema.parse(options);
+    const { name } = joinOptionsSchema.parse(options);
     const player = new Player();
     player.name = name;
     this.state.players.set(client.sessionId, player);
