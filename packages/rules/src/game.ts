@@ -265,7 +265,7 @@ function goOut(game: Game, player: GamePlayer, events: GameEvent[]) {
   if (player.eliminated || !top || game.phase !== "playing") {
     return "notAllowed";
   }
-  if (!canGoOutWithDiscard(game, player)) {
+  if (!canGoOutWithDiscard(game, player.id)) {
     return "notYourTurnToGoOut";
   }
   if (player.bluffed) {
@@ -426,8 +426,10 @@ function isTurnOf(game: Game, player: GamePlayer) {
   return game.phase === "playing" && game.currentTurn === player.id;
 }
 
-function canGoOutWithDiscard(game: Game, player: GamePlayer) {
-  return game.discardIsFree && player.id !== game.currentTurn && player.id !== game.lastDiscarder;
+export type DiscardTurn = { discardIsFree: boolean; currentTurn: string; lastDiscarder: string };
+
+export function canGoOutWithDiscard(turn: DiscardTurn, playerId: string) {
+  return turn.discardIsFree && playerId !== turn.currentTurn && playerId !== turn.lastDiscarder;
 }
 
 function cardsInHand(player: GamePlayer, cardIds: string[]) {

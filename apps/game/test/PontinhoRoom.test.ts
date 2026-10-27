@@ -3,8 +3,6 @@ import { ColyseusTestServer, boot } from "@colyseus/testing";
 import { cardById, type Game } from "@pontinho/rules";
 import appConfig from "../src/app.config.js";
 import type { PontinhoRoom } from "../src/rooms/pontinho/PontinhoRoom.js";
-import errors from "../src/common/messages/errors.json" with { type: "json" };
-import announcements from "../src/common/messages/announcements.json" with { type: "json" };
 
 function required<T>(value: T | undefined): T {
   assert.ok(value !== undefined);
@@ -100,7 +98,7 @@ describe("PontinhoRoom", () => {
 
     current.send("goOut");
 
-    assert.strictEqual(await reply, errors.notYourTurnToGoOut);
+    assert.strictEqual(await reply, "notYourTurnToGoOut");
   });
 
   it("announces a bluff and clears the message after 5 seconds", async () => {
@@ -111,7 +109,8 @@ describe("PontinhoRoom", () => {
 
     others[0].send("goOut");
     await room.waitForMessage("goOut");
-    assert.ok(room.state.announcement.includes("blefou"));
+    assert.strictEqual(room.state.announcement, "bluffed");
+    assert.strictEqual(room.state.announcementPlayer, others[0].sessionId);
     assert.strictEqual(playerOf(room, others[0].sessionId).bluffed, true);
 
     room.clock.currentTime -= 5_000;
@@ -127,7 +126,8 @@ describe("PontinhoRoom", () => {
     await room.waitForMessage("discard");
     assert.strictEqual(room.state.phase, "roundOver");
     assert.strictEqual(room.state.wentOut, current.sessionId);
-    assert.strictEqual(room.state.announcement, announcements.wentOut.replace("{name}", playerOf(room, current.sessionId).name));
+    assert.strictEqual(room.state.announcement, "wentOut");
+    assert.strictEqual(room.state.announcementPlayer, current.sessionId);
     assert.ok([...room.state.players.values()].some((player) => player.roundPoints > 0));
 
     room.clock.currentTime -= 8_000;
@@ -144,7 +144,7 @@ describe("PontinhoRoom", () => {
     await room.waitForMessage("draw");
 
     assert.strictEqual(room.state.phase, "roundOver");
-    assert.strictEqual(room.state.announcement, announcements.outOfCards);
+    assert.strictEqual(room.state.announcement, "outOfCards");
   });
 
   it("does not deal a new round after a player left the match", async () => {
@@ -159,7 +159,7 @@ describe("PontinhoRoom", () => {
     room.clock.tick();
 
     assert.strictEqual(room.state.phase, "ended");
-    assert.strictEqual(room.state.announcement, announcements.playerLeft);
+    assert.strictEqual(room.state.announcement, "playerLeft");
   });
 
   it("keeps the match going when an eliminated player leaves", async () => {
@@ -204,6 +204,23 @@ describe("PontinhoRoom", () => {
 
     await assert.rejects(colyseus.connectTo(room, { name: "" }));
     await assert.rejects(colyseus.connectTo(room, { name: "x".repeat(21) }));
+  });
+
+  it("gives bots a 3 second turn and people a 30 second turn", async () => {
+    const room = await colyseus.createRoom<PontinhoRoom>("pontinho", { seats: 3, bots: true });
+    const human = await colyseus.connectTo(room, { name: "Lucas" });
+    await room.waitForNextPatch();
+
+    assert.notStrictEqual(room.state.currentTurn, human.sessionId);
+    assert.strictEqual(room.state.turnDuration, 3_000);
+    const turnNumber = room.state.turnNumber;
+
+    while (room.state.currentTurn !== human.sessionId) {
+      room.clock.currentTime -= 3_000;
+      room.clock.tick();
+    }
+    assert.strictEqual(room.state.turnDuration, 30_000);
+    assert.ok(room.state.turnNumber > turnNumber);
   });
 
   it("fills the table with bots that play on their own", async () => {

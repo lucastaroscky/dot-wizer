@@ -1,6 +1,6 @@
 import { schema, t, type SchemaType } from "@colyseus/schema";
 import { z } from "zod";
-import { createDeck } from "@pontinho/rules";
+import { cardById, createDeck, type GameError, type Meld, type MeldKind } from "@pontinho/rules";
 
 export const CardState = schema({
   id: t.string(),
@@ -35,9 +35,11 @@ export const PontinhoState = schema({
   currentTurn: t.string().default(""),
   hasDrawn: t.boolean().default(false),
   discardIsFree: t.boolean().default(false),
-  turnDeadline: t.number().default(0),
+  turnNumber: t.uint32().default(0),
+  turnDuration: t.uint32().default(0),
   lastDiscarder: t.string().default(""),
   announcement: t.string().default(""),
+  announcementPlayer: t.string().default(""),
   winner: t.string().default(""),
   wentOut: t.string().default(""),
   discardTop: t.ref(CardState).optional(),
@@ -82,7 +84,20 @@ export type ClientMessages = {
 
 export type MoveEvent = { kind: "draw" | "toTable" | "discard"; playerId: string; cardIds: string[] };
 
+export type InvalidPlay = Exclude<GameError, "notAllowed">;
+
 export type ServerMessages = {
-  invalid: string;
+  invalid: InvalidPlay;
   move: MoveEvent;
 };
+
+export const ANNOUNCEMENTS = ["wentOut", "bluffed", "won", "playerLeft", "outOfCards"] as const;
+export type Announcement = (typeof ANNOUNCEMENTS)[number];
+
+export function toAnnouncement(value: string): Announcement | undefined {
+  return ANNOUNCEMENTS.find((announcement) => announcement === value);
+}
+
+export function toMeld(meld: { kind: string; cards: ArrayLike<{ id: string }> }): Meld {
+  return { kind: meld.kind as MeldKind, cards: Array.from(meld.cards, (card) => cardById(card.id)) };
+}

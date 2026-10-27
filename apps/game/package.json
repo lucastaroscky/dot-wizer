@@ -6,7 +6,7 @@
   "type": "module",
   "main": "build/index.js",
   "engines": {
-    "node": ">= 22.0.0"
+    "node": ">= 22.18.0"
   },
   "scripts": {
     "start": "tsx watch src/index.ts",
@@ -14,7 +14,8 @@
     "clean": "rimraf build",
     "test": "mocha -r tsx test/**.test.ts --exit --timeout 15000",
     "bots": "tsx scripts/bots.ts",
-    "typecheck": "tsc --noEmit -p ."
+    "typecheck": "tsc --noEmit -p .",
+    "lint": "eslint ."
   },
   "author": "",
   "license": "UNLICENSED",

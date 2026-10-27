@@ -1,7 +1,0 @@
-{
-  "wentOut": "{name} bateu!",
-  "bluffed": "{name} blefou e não pode mais bater fora da vez nesta rodada",
-  "won": "{name} venceu a partida!",
-  "playerLeft": "Um jogador saiu. Partida encerrada.",
-  "outOfCards": "Acabaram as cartas. Rodada encerrada sem batida."
-}

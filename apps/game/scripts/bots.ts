@@ -1,6 +1,6 @@
 import { Client, type Room } from "@colyseus/sdk";
 import { addToMeld, canDiscard, cardById, findMeldInHand } from "@pontinho/rules";
-import { ROOM_NAME } from "@pontinho/protocol";
+import { ROOM_NAME, toMeld } from "@pontinho/protocol";
 import type { PontinhoRoom } from "../src/rooms/pontinho/PontinhoRoom.js";
 
 const SERVER_URL = "http://localhost:2567";
@@ -46,7 +46,7 @@ function play(room: Room<PontinhoRoom>) {
     return;
   }
   const hand = player.hand.map((card) => cardById(card.id));
-  const table = room.state.melds.map((meld) => ({ kind: meld.kind as "set" | "run", cards: meld.cards.map((card) => cardById(card.id)) }));
+  const table = room.state.melds.map((meld) => toMeld(meld));
   const meld = findMeldInHand(hand);
   if (meld) {
     room.send("meld", { cardIds: meld.map((card) => card.id) });

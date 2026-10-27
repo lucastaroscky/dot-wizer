@@ -1,0 +1,15 @@
+{
+  "seats": "Jogadores na mesa",
+  "bots": "Jogar com robôs",
+  "yes": "Sim",
+  "no": "Não",
+  "cards": "Cartas",
+  "confirm": "OK",
+  "back": "Voltar",
+  "cardStyles": {
+    "jumbo": "Jumbo",
+    "zodiac": "Zodíaco",
+    "cartoon": "Cartoon",
+    "neon": "Neon"
+  }
+}

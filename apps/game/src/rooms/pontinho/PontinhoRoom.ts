@@ -11,10 +11,10 @@ import {
   Player,
   PontinhoState,
   takeDiscardMessageSchema,
+  type Announcement,
+  type ClientMessages,
   type ServerMessages,
 } from "@pontinho/protocol";
-import errors from "../../common/messages/errors.json" with { type: "json" };
-import announcements from "../../common/messages/announcements.json" with { type: "json" };
 import { mirrorGame } from "./mirrorGame.js";
 
 const RECONNECTION_SECONDS = 120;
@@ -43,7 +43,7 @@ export class PontinhoRoom extends Room<{ state: PontinhoState; client: Client }>
     layOff: validate(layOffMessageSchema, (client: Client, message) => this.act(client, { type: "layOff", ...message })),
     discard: validate(discardMessageSchema, (client: Client, cardId) => this.act(client, { type: "discard", cardId })),
     goOut: (client: Client) => this.act(client, { type: "goOut" }),
-  };
+  } satisfies Record<keyof ClientMessages, unknown>;
 
   onCreate(options: unknown) {
     const { seats, bots } = createOptionsSchema.parse(options);
@@ -95,7 +95,7 @@ export class PontinhoRoom extends Room<{ state: PontinhoState; client: Client }>
     this.nextRoundTimer?.clear();
     this.game = abandonMatch(this.game);
     mirrorGame(this.state, this.game);
-    this.state.announcement = announcements.playerLeft;
+    this.announce("playerLeft");
   }
 
   private act(client: Client, action: Action) {
@@ -103,7 +103,7 @@ export class PontinhoRoom extends Room<{ state: PontinhoState; client: Client }>
     if (!error || error === "notAllowed") {
       return;
     }
-    client.send("invalid", errors[error]);
+    client.send("invalid", error);
   }
 
   private apply(playerId: string, action: Action): GameError | undefined {
@@ -129,13 +129,13 @@ export class PontinhoRoom extends Room<{ state: PontinhoState; client: Client }>
         this.startTurnTimer();
         return;
       case "bluffed":
-        this.announceBriefly(announcements.bluffed.replace("{name}", this.nameOf(event.playerId)));
+        this.announceBriefly("bluffed", event.playerId);
         return;
       case "roundEnded":
         this.endRound(event.wentOut);
         return;
       case "matchEnded":
-        this.state.announcement = announcements.won.replace("{name}", this.nameOf(event.winner));
+        this.announce("won", event.winner);
         return;
     }
   }
@@ -155,14 +155,14 @@ export class PontinhoRoom extends Room<{ state: PontinhoState; client: Client }>
   private showRound(game: Game) {
     this.game = game;
     mirrorGame(this.state, game);
-    this.state.announcement = "";
+    this.announce("");
     this.startTurnTimer();
   }
 
   private endRound(wentOut: string) {
     this.turnTimer?.clear();
-    this.state.turnDeadline = 0;
-    this.state.announcement = wentOut ? announcements.wentOut.replace("{name}", this.nameOf(wentOut)) : announcements.outOfCards;
+    this.state.turnDuration = 0;
+    this.announce(wentOut ? "wentOut" : "outOfCards", wentOut);
     if (this.game?.phase !== "roundOver") {
       return;
     }
@@ -172,15 +172,21 @@ export class PontinhoRoom extends Room<{ state: PontinhoState; client: Client }>
   private startTurnTimer() {
     this.turnTimer?.clear();
     const delay = this.state.players.get(this.state.currentTurn)?.bot ? BOT_DELAY_MS : TURN_MS;
-    this.state.turnDeadline = Date.now() + TURN_MS;
+    this.state.turnNumber++;
+    this.state.turnDuration = delay;
     this.turnTimer = this.clock.setTimeout(() => this.apply(this.game?.currentTurn ?? "", { type: "playAutomatically" }), delay);
   }
 
-  private announceBriefly(message: string) {
-    this.state.announcement = message;
+  private announce(announcement: Announcement | "", playerId = "") {
+    this.state.announcement = announcement;
+    this.state.announcementPlayer = playerId;
+  }
+
+  private announceBriefly(announcement: Announcement, playerId: string) {
+    this.announce(announcement, playerId);
     this.clock.setTimeout(() => {
-      if (this.state.announcement === message) {
-        this.state.announcement = "";
+      if (this.state.announcement === announcement && this.state.announcementPlayer === playerId) {
+        this.announce("");
       }
     }, BLUFF_MESSAGE_MS);
   }
@@ -207,7 +213,4 @@ export class PontinhoRoom extends Room<{ state: PontinhoState; client: Client }>
     }
   }
 
-  private nameOf(playerId: string) {
-    return this.state.players.get(playerId)?.name ?? "";
-  }
 }

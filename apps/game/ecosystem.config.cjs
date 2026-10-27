@@ -1,5 +1,3 @@
-const os = require("os");
-
 module.exports = {
   apps: [{
     name: "colyseus-app",

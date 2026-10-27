@@ -1,0 +1,7 @@
+{
+  "title": "Pontinho",
+  "play": "Jogar",
+  "guestName": "Jogador {number}",
+  "connectionClosed": "A conexão com a sala foi encerrada",
+  "joinFailed": "Não foi possível entrar na sala"
+}
