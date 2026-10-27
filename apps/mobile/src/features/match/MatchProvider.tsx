@@ -11,12 +11,21 @@ export type JoinRequest = { seats: number; bots: boolean; cardStyle: CardStyleNa
 
 type MatchSession = {
   room?: Room<PontinhoState>;
+  connecting: boolean;
   error: string;
   join: (request: JoinRequest) => Promise<void>;
   leave: () => void;
 };
 
-const client = new Client(SERVER_URL);
+const REQUEST_TIMEOUT_MS = 10_000;
+
+function fetchWithTimeout(url: string | URL | Request, init?: RequestInit) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  return fetch(url, { ...init, signal: controller.signal }).finally(() => clearTimeout(timer));
+}
+
+const client = new Client(SERVER_URL, { fetchFn: fetchWithTimeout });
 const MatchContext = createContext<MatchSession | undefined>(undefined);
 
 function guestName() {
@@ -28,6 +37,7 @@ export function MatchProvider({ children }: { children: ReactNode }) {
   const [room, setRoom] = useState<Room<PontinhoState>>();
   const [cardStyle, setCardStyle] = useState<CardStyleName>("jumbo");
   const [error, setError] = useState("");
+  const [connecting, setConnecting] = useState(false);
   const joining = useRef(false);
 
   async function join(request: JoinRequest) {
@@ -35,6 +45,7 @@ export function MatchProvider({ children }: { children: ReactNode }) {
       return;
     }
     joining.current = true;
+    setConnecting(true);
     setError("");
     setCardStyle(request.cardStyle);
     const options: JoinOptions & CreateOptions = { name, seats: request.seats, bots: request.bots };
@@ -53,6 +64,7 @@ export function MatchProvider({ children }: { children: ReactNode }) {
       setError(home.joinFailed);
     }
     joining.current = false;
+    setConnecting(false);
   }
 
   function leave() {
@@ -61,7 +73,7 @@ export function MatchProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <MatchContext value={{ room, error, join, leave }}>
+    <MatchContext value={{ room, connecting, error, join, leave }}>
       <CardStyleContext value={cardStyle}>{children}</CardStyleContext>
     </MatchContext>
   );

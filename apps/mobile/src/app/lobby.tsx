@@ -5,7 +5,7 @@ import { MenuScreen } from "@/shared/ui/MenuScreen";
 import home from "@/messages/home.json";
 
 export default function Lobby() {
-  const { room, error, join } = useMatch();
+  const { room, connecting, error, join } = useMatch();
 
   if (room) {
     return <Redirect href="/match" />;
@@ -13,7 +13,7 @@ export default function Lobby() {
 
   return (
     <MenuScreen title={home.title} error={error}>
-      <PreRoom onConfirm={join} onBack={() => router.back()} />
+      <PreRoom connecting={connecting} onConfirm={join} onBack={() => router.back()} />
     </MenuScreen>
   );
 }

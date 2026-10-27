@@ -10,9 +10,9 @@ const SAMPLE_CARD = { id: "K-hearts-1", rank: "K", suit: "hearts" };
 
 export type LobbyChoice = { seats: number; bots: boolean; cardStyle: CardStyleName };
 
-type Props = { onConfirm: (choice: LobbyChoice) => void; onBack: () => void };
+type Props = { connecting: boolean; onConfirm: (choice: LobbyChoice) => void; onBack: () => void };
 
-export function PreRoom({ onConfirm, onBack }: Props) {
+export function PreRoom({ connecting, onConfirm, onBack }: Props) {
   const [seats, setSeats] = useState(3);
   const [bots, setBots] = useState(false);
   const [cardStyle, setCardStyle] = useState<CardStyleName>("jumbo");
@@ -50,7 +50,7 @@ export function PreRoom({ onConfirm, onBack }: Props) {
         ))}
       </View>
 
-      <WoodButton title={lobby.confirm} onPress={() => onConfirm({ seats, bots, cardStyle })} large />
+      <WoodButton title={connecting ? lobby.connecting : lobby.confirm} onPress={() => onConfirm({ seats, bots, cardStyle })} large />
       <WoodButton title={lobby.back} onPress={onBack} />
     </View>
   );
