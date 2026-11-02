@@ -1,32 +1,55 @@
-import { Room, Delayed, validate, type Client as ColyseusClient } from "colyseus";
+import { CloseCode, Room, Delayed, ServerError, definePlugins, validate, type Client as ColyseusClient } from "colyseus";
+import { UniqueSessionPlugin } from "colyseus/plugins/unique-session";
 import { StateView } from "@colyseus/schema";
 import { abandonMatch, applyAction, startMatch, startRound, type Action, type Game, type GameError, type GameEvent } from "@pontinho/rules";
 import {
+  chooseReturnMessageSchema,
   createOptionsSchema,
   discardMessageSchema,
-  joinOptionsSchema,
+  JOIN_REFUSALS,
   layOffMessageSchema,
   MAX_PLAYERS,
   meldMessageSchema,
   Player,
   PontinhoState,
+  PRACTICE_TABLE,
   takeDiscardMessageSchema,
   type Announcement,
   type ClientMessages,
+  type Connection,
   type ServerMessages,
 } from "@pontinho/protocol";
+import type { GameApi } from "../../gameApi/GameApi.js";
+import { ChipsMatch, type ChipsFinance } from "./ChipsMatch.js";
 import { mirrorGame } from "./mirrorGame.js";
+import { createPlayerAuthenticator, refuse, type PlayerAuth } from "./playerAuth.js";
 
-const RECONNECTION_SECONDS = 120;
+const RECONNECTION_MS = 120_000;
 const NEXT_ROUND_DELAY_MS = 8_000;
 const BLUFF_MESSAGE_MS = 5_000;
 const TURN_MS = 30_000;
-const BOT_DELAY_MS = 3_000;
+const RETURN_MS = 15_000;
+const AUTOMATIC_TURN_MS = 3_000;
 const MAX_MESSAGES_PER_SECOND = 10;
 
-type Client = ColyseusClient<{ messages: ServerMessages }>;
+type Client = ColyseusClient<{ messages: ServerMessages; auth: PlayerAuth }>;
 
-export class PontinhoRoom extends Room<{ state: PontinhoState; client: Client }> {
+export function createPontinhoRoom(gameApi: GameApi) {
+  return class extends PontinhoRoom {
+    static onAuth = createPlayerAuthenticator(gameApi);
+    protected gameApi = gameApi;
+  };
+}
+
+export abstract class PontinhoRoom extends Room<{ state: PontinhoState; client: Client }> {
+  protected abstract gameApi: GameApi;
+  plugins = definePlugins({
+    uniqueSession: new UniqueSessionPlugin({
+      max: 1,
+      rejectCode: JOIN_REFUSALS.alreadyInRoom.code,
+      rejectMessage: JOIN_REFUSALS.alreadyInRoom.message,
+    }),
+  });
   maxClients = MAX_PLAYERS;
   maxMessagesPerSecond = MAX_MESSAGES_PER_SECOND;
   state = new PontinhoState();
@@ -34,7 +57,12 @@ export class PontinhoRoom extends Room<{ state: PontinhoState; client: Client }>
   private game?: Game;
   private turnTimer?: Delayed;
   private nextRoundTimer?: Delayed;
+  private returnTimer?: Delayed;
   private withBots = false;
+  private chips?: ChipsMatch;
+  private breakElapsed = false;
+  private registering = false;
+  private userIds = new Map<string, string>();
 
   messages = {
     draw: (client: Client) => this.act(client, { type: "draw" }),
@@ -43,22 +71,30 @@ export class PontinhoRoom extends Room<{ state: PontinhoState; client: Client }>
     layOff: validate(layOffMessageSchema, (client: Client, message) => this.act(client, { type: "layOff", ...message })),
     discard: validate(discardMessageSchema, (client: Client, cardId) => this.act(client, { type: "discard", cardId })),
     goOut: (client: Client) => this.act(client, { type: "goOut" }),
+    chooseReturn: validate(chooseReturnMessageSchema, (client: Client, { back }) => this.act(client, { type: "chooseReturn", back })),
   } satisfies Record<keyof ClientMessages, unknown>;
 
   onCreate(options: unknown) {
-    const { seats, bots } = createOptionsSchema.parse(options);
-    this.withBots = bots;
-    this.maxClients = bots ? 1 : seats;
-    this.state.seats = seats;
+    const parsed = createOptionsSchema.parse(options);
+    this.withBots = parsed.bots;
+    this.maxClients = parsed.bots ? 1 : parsed.seats;
+    this.state.seats = parsed.seats;
+    this.state.table = parsed.bots ? PRACTICE_TABLE : parsed.table;
   }
 
   onUncaughtException(error: Error, methodName: string) {
+    if (error.cause instanceof ServerError) {
+      return;
+    }
     console.error(`Erro na sala ${this.roomId} em ${methodName}:`, error);
   }
 
-  onJoin(client: Client, options: unknown) {
-    const { name } = joinOptionsSchema.parse(options);
-    this.addPlayer(client.sessionId, name, false);
+  onJoin(client: Client, _options: unknown, auth: PlayerAuth) {
+    if (auth.table !== this.state.table) {
+      throw refuse("invalidOptions");
+    }
+    this.addPlayer(client.sessionId, auth.name, auth.photoUrl, false);
+    this.userIds.set(client.sessionId, auth.id);
 
     client.view = new StateView();
     const player = this.state.players.get(client.sessionId);
@@ -75,11 +111,22 @@ export class PontinhoRoom extends Room<{ state: PontinhoState; client: Client }>
     }
   }
 
+  async onDispose() {
+    await this.finishChips(null);
+  }
+
   onDrop(client: Client) {
     if (this.state.phase === "waiting") {
       return;
     }
-    this.allowReconnection(client, RECONNECTION_SECONDS).catch(() => {});
+    this.setConnection(client.sessionId, "reconnecting");
+    const reconnection = this.allowReconnection(client, "manual");
+    this.clock.setTimeout(() => reconnection.reject(), RECONNECTION_MS);
+    reconnection.catch(() => {});
+  }
+
+  onReconnect(client: Client) {
+    this.setConnection(client.sessionId, "connected");
   }
 
   onLeave(client: Client) {
@@ -87,15 +134,26 @@ export class PontinhoRoom extends Room<{ state: PontinhoState; client: Client }>
       this.removePlayer(client.sessionId);
       return;
     }
-    const player = this.game.players.find((candidate) => candidate.id === client.sessionId);
-    if (!player || player.eliminated || this.game.phase === "ended") {
+    this.setConnection(client.sessionId, "left");
+    if (this.game.phase === "playing" && this.state.currentTurn === client.sessionId) {
+      this.startTurnTimer();
+    }
+    this.stopMatchWhenNobodyIsLeft();
+  }
+
+  private setConnection(playerId: string, connection: Connection) {
+    const player = this.state.players.get(playerId);
+    if (player) {
+      player.connection = connection;
+    }
+  }
+
+  private stopMatchWhenNobodyIsLeft() {
+    const people = [...this.state.players.values()].filter((player) => !player.bot);
+    if (this.game?.phase === "ended" || people.some((player) => player.connection !== "left")) {
       return;
     }
-    this.turnTimer?.clear();
-    this.nextRoundTimer?.clear();
-    this.game = abandonMatch(this.game);
-    mirrorGame(this.state, this.game);
-    this.announce("playerLeft");
+    this.stopMatch();
   }
 
   private act(client: Client, action: Action) {
@@ -132,24 +190,141 @@ export class PontinhoRoom extends Room<{ state: PontinhoState; client: Client }>
         this.announceBriefly("bluffed", event.playerId);
         return;
       case "roundEnded":
-        this.endRound(event.wentOut);
+        this.endRound(event);
+        return;
+      case "returnOffered":
+        this.offerReturn(event.playerIds);
+        return;
+      case "returned":
+        this.announceBriefly("returned", event.playerId);
+        this.closeReturnWindowWhenDecided();
+        return;
+      case "eliminated":
+        this.announceBriefly("eliminated", event.playerId);
+        this.closeReturnWindowWhenDecided();
         return;
       case "matchEnded":
         this.announce("won", event.winner);
+        this.finishChips(event.winner || null);
         return;
     }
   }
 
   private startMatch() {
     this.lock();
+    this.openChipsMatch();
     this.showRound(startMatch(this.state.order.toArray()));
   }
 
-  private beginRound() {
-    if (this.game?.phase !== "roundOver") {
+  private openChipsMatch() {
+    if (this.state.table === PRACTICE_TABLE) {
       return;
     }
-    this.showRound(startRound(this.game));
+    const seats = [...this.userIds].map(([playerId, userId]) => ({ playerId, userId }));
+    this.chips = new ChipsMatch({ api: this.gameApi, table: this.state.table, seats });
+    this.chips
+      .open()
+      .then((opened) => {
+        this.state.matchId = opened.matchId;
+        this.state.pointValue = opened.pointValue;
+        this.mirrorFinances(opened.finances);
+      })
+      .catch((error) => this.abortMatch(error));
+  }
+
+  private settleChips(winnerId: string) {
+    if (!this.chips) {
+      return;
+    }
+    const players = this.game?.players ?? [];
+    const losers = players.filter((player) => player.id !== winnerId && player.roundPoints > 0).map((player) => ({ playerId: player.id, handPoints: player.roundPoints }));
+    this.registering = true;
+    this.chips
+      .settleRound({ winnerId, losers })
+      .then((finances) => {
+        this.mirrorFinances(finances);
+        this.registering = false;
+        this.startNextRoundWhenReady();
+      })
+      .catch((error) => this.abortMatch(error));
+  }
+
+  private abortMatch(error: unknown) {
+    console.error(`Erro de fichas na sala ${this.roomId}:`, error);
+    if (this.game?.phase === "ended") {
+      return;
+    }
+    this.stopMatch();
+    this.disconnect(CloseCode.WITH_ERROR);
+  }
+
+  private stopMatch() {
+    this.turnTimer?.clear();
+    this.nextRoundTimer?.clear();
+    this.returnTimer?.clear();
+    this.state.turnDuration = 0;
+    this.state.returnDuration = 0;
+    if (this.game) {
+      this.game = abandonMatch(this.game);
+      mirrorGame(this.state, this.game);
+    }
+    this.finishChips(null);
+  }
+
+  private finishChips(winnerId: string | null) {
+    return this.chips?.finish(winnerId).catch((error) => console.error(`Erro ao encerrar a partida de fichas da sala ${this.roomId}:`, error));
+  }
+
+  private mirrorFinances(finances: ChipsFinance[]) {
+    for (const finance of finances) {
+      const player = this.state.players.get(finance.playerId);
+      if (!player) {
+        continue;
+      }
+      player.roundChips = finance.result - player.chipsResult;
+      player.chipsResult = finance.result;
+      player.chipsDeficit = finance.deficit;
+      player.chipsBalance = finance.balance;
+    }
+  }
+
+  private offerReturn(playerIds: string[]) {
+    this.state.returnNumber++;
+    this.state.returnDuration = RETURN_MS;
+    this.returnTimer?.clear();
+    this.returnTimer = this.clock.setTimeout(() => this.returnUndecided(), RETURN_MS);
+    playerIds.filter((id) => this.answersByItself(id)).forEach((id) => this.apply(id, { type: "chooseReturn", back: true }));
+  }
+
+  private answersByItself(playerId: string) {
+    const player = this.state.players.get(playerId);
+    return player?.bot || player?.connection !== "connected";
+  }
+
+  private returnUndecided() {
+    const undecided = this.game?.players.filter((player) => player.awaitingReturn) ?? [];
+    undecided.forEach((player) => this.apply(player.id, { type: "chooseReturn", back: true }));
+  }
+
+  private closeReturnWindowWhenDecided() {
+    if (this.game?.players.some((player) => player.awaitingReturn)) {
+      return;
+    }
+    this.returnTimer?.clear();
+    this.state.returnDuration = 0;
+    this.startNextRoundWhenReady();
+  }
+
+  private startNextRoundWhenReady() {
+    const game = this.game;
+    if (game?.phase !== "roundOver" || !this.breakElapsed || this.registering) {
+      return;
+    }
+    if (game.players.some((player) => player.awaitingReturn)) {
+      return;
+    }
+    this.breakElapsed = false;
+    this.showRound(startRound(game));
   }
 
   private showRound(game: Game) {
@@ -159,19 +334,25 @@ export class PontinhoRoom extends Room<{ state: PontinhoState; client: Client }>
     this.startTurnTimer();
   }
 
-  private endRound(wentOut: string) {
+  private endRound({ wentOut, reason }: Extract<GameEvent, { type: "roundEnded" }>) {
     this.turnTimer?.clear();
     this.state.turnDuration = 0;
-    this.announce(wentOut ? "wentOut" : "outOfCards", wentOut);
+    this.announce(reason === "goOut" ? "wentOut" : "outOfCards", wentOut);
+    this.settleChips(wentOut);
     if (this.game?.phase !== "roundOver") {
       return;
     }
-    this.nextRoundTimer = this.clock.setTimeout(() => this.beginRound(), NEXT_ROUND_DELAY_MS);
+    this.breakElapsed = false;
+    this.nextRoundTimer = this.clock.setTimeout(() => {
+      this.breakElapsed = true;
+      this.startNextRoundWhenReady();
+    }, NEXT_ROUND_DELAY_MS);
   }
 
   private startTurnTimer() {
     this.turnTimer?.clear();
-    const delay = this.state.players.get(this.state.currentTurn)?.bot ? BOT_DELAY_MS : TURN_MS;
+    const player = this.state.players.get(this.state.currentTurn);
+    const delay = player?.bot || player?.connection === "left" ? AUTOMATIC_TURN_MS : TURN_MS;
     this.state.turnNumber++;
     this.state.turnDuration = delay;
     this.turnTimer = this.clock.setTimeout(() => this.apply(this.game?.currentTurn ?? "", { type: "playAutomatically" }), delay);
@@ -191,9 +372,10 @@ export class PontinhoRoom extends Room<{ state: PontinhoState; client: Client }>
     }, BLUFF_MESSAGE_MS);
   }
 
-  private addPlayer(id: string, name: string, bot: boolean) {
+  private addPlayer(id: string, name: string, photoUrl: string, bot: boolean) {
     const player = new Player();
     player.name = name;
+    player.photoUrl = photoUrl;
     player.bot = bot;
     this.state.players.set(id, player);
     this.state.order.push(id);
@@ -201,6 +383,7 @@ export class PontinhoRoom extends Room<{ state: PontinhoState; client: Client }>
 
   private removePlayer(id: string) {
     this.state.players.delete(id);
+    this.userIds.delete(id);
     const seat = this.state.order.indexOf(id);
     if (seat !== -1) {
       this.state.order.splice(seat, 1);
@@ -209,7 +392,7 @@ export class PontinhoRoom extends Room<{ state: PontinhoState; client: Client }>
 
   private addBots() {
     for (let number = 1; this.state.order.length < this.state.seats; number++) {
-      this.addPlayer(`bot-${number}`, `Robô ${number}`, true);
+      this.addPlayer(`bot-${number}`, `Robô ${number}`, "", true);
     }
   }
 

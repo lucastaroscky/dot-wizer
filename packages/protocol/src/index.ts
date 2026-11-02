@@ -1,6 +1,6 @@
 import { schema, t, type SchemaType } from "@colyseus/schema";
 import { z } from "zod";
-import { cardById, createDeck, type GameError, type Meld, type MeldKind } from "@pontinho/rules";
+import { CHIP_TABLES, cardById, createDeck, type GameError, type Meld, type MeldKind } from "@pontinho/rules";
 
 export const CardState = schema({
   id: t.string(),
@@ -17,12 +17,19 @@ export type MeldState = SchemaType<typeof MeldState>;
 
 export const Player = schema({
   name: t.string().default(""),
+  photoUrl: t.string().default(""),
   cardCount: t.uint8().default(0),
   points: t.uint16().default(0),
   roundPoints: t.uint16().default(0),
   eliminated: t.boolean().default(false),
+  awaitingReturn: t.boolean().default(false),
   bot: t.boolean().default(false),
   bluffed: t.boolean().default(false),
+  connection: t.string().default("connected"),
+  chipsResult: t.int32().default(0),
+  chipsDeficit: t.uint32().default(0),
+  chipsBalance: t.uint32().default(0),
+  roundChips: t.int32().default(0),
   hand: t.array(CardState).view(),
 });
 export type Player = SchemaType<typeof Player>;
@@ -32,11 +39,16 @@ export const PontinhoState = schema({
   order: t.array("string"),
   phase: t.string().default("waiting"),
   seats: t.uint8().default(3),
+  table: t.uint8().default(0),
+  matchId: t.string().default(""),
+  pointValue: t.uint32().default(0),
   currentTurn: t.string().default(""),
   hasDrawn: t.boolean().default(false),
   discardIsFree: t.boolean().default(false),
   turnNumber: t.uint32().default(0),
   turnDuration: t.uint32().default(0),
+  returnNumber: t.uint32().default(0),
+  returnDuration: t.uint32().default(0),
   lastDiscarder: t.string().default(""),
   announcement: t.string().default(""),
   announcementPlayer: t.string().default(""),
@@ -51,17 +63,24 @@ export type PontinhoState = SchemaType<typeof PontinhoState>;
 export const ROOM_NAME = "pontinho";
 export const MIN_PLAYERS = 3;
 export const MAX_PLAYERS = 4;
-export const MAX_NAME_LENGTH = 20;
+export const PRACTICE_TABLE = 0;
 export const MAX_CARDS_PER_ACTION = 14;
 
 const cardIdSchema = z.enum(createDeck().map((card) => card.id) as [string, ...string[]]);
 const cardIdsSchema = z.array(cardIdSchema).max(MAX_CARDS_PER_ACTION);
 const meldIndexSchema = z.number().int().min(0);
 
-export const createOptionsSchema = z.object({ seats: z.number().int().min(MIN_PLAYERS).max(MAX_PLAYERS), bots: z.boolean() });
-export const joinOptionsSchema = z.object({ name: z.string().trim().min(1).max(MAX_NAME_LENGTH) });
+const tableSchema = z.number().int().refine((table) => CHIP_TABLES.some(({ id }) => id === table));
+
+const seatsSchema = z.number().int().min(MIN_PLAYERS).max(MAX_PLAYERS);
+
+export const createOptionsSchema = z.discriminatedUnion("bots", [
+  z.object({ bots: z.literal(true), seats: seatsSchema, table: tableSchema.optional() }),
+  z.object({ bots: z.literal(false), seats: seatsSchema, table: tableSchema }),
+]);
 
 export const discardMessageSchema = cardIdSchema;
+export const chooseReturnMessageSchema = z.object({ back: z.boolean() });
 export const meldMessageSchema = z.object({ cardIds: cardIdsSchema });
 export const takeDiscardMessageSchema = z.object({ cardIds: cardIdsSchema, meldIndex: meldIndexSchema.optional() });
 export const layOffMessageSchema = z.object({
@@ -71,7 +90,6 @@ export const layOffMessageSchema = z.object({
 });
 
 export type CreateOptions = z.infer<typeof createOptionsSchema>;
-export type JoinOptions = z.infer<typeof joinOptionsSchema>;
 
 export type ClientMessages = {
   draw: undefined;
@@ -80,6 +98,7 @@ export type ClientMessages = {
   layOff: z.infer<typeof layOffMessageSchema>;
   discard: z.infer<typeof discardMessageSchema>;
   goOut: undefined;
+  chooseReturn: z.infer<typeof chooseReturnMessageSchema>;
 };
 
 export type MoveEvent = { kind: "draw" | "toTable" | "discard"; playerId: string; cardIds: string[] };
@@ -91,8 +110,21 @@ export type ServerMessages = {
   move: MoveEvent;
 };
 
-export const ANNOUNCEMENTS = ["wentOut", "bluffed", "won", "playerLeft", "outOfCards"] as const;
+export const ANNOUNCEMENTS = ["wentOut", "bluffed", "won", "outOfCards", "returned", "eliminated"] as const;
 export type Announcement = (typeof ANNOUNCEMENTS)[number];
+
+export const CONNECTIONS = ["connected", "reconnecting", "left"] as const;
+export type Connection = (typeof CONNECTIONS)[number];
+
+export const JOIN_REFUSALS = {
+  alreadyInRoom: { code: 4400, message: "alreadyInRoom" },
+  invalidToken: { code: 401, message: "invalidToken" },
+  profileIncomplete: { code: 403, message: "profileIncomplete" },
+  insufficientBalance: { code: 403, message: "insufficientBalance" },
+  apiUnavailable: { code: 503, message: "apiUnavailable" },
+  invalidOptions: { code: 400, message: "invalidOptions" },
+} as const;
+export type JoinRefusal = keyof typeof JOIN_REFUSALS;
 
 export function toAnnouncement(value: string): Announcement | undefined {
   return ANNOUNCEMENTS.find((announcement) => announcement === value);

@@ -1,49 +1,15 @@
 import assert from "assert";
-import { ColyseusTestServer, boot } from "@colyseus/testing";
-import { cardById, type Game } from "@pontinho/rules";
-import appConfig from "../src/app.config.js";
-import type { PontinhoRoom } from "../src/rooms/pontinho/PontinhoRoom.js";
-
-function required<T>(value: T | undefined): T {
-  assert.ok(value !== undefined);
-  return value;
-}
-
-function playerOf(room: PontinhoRoom, sessionId: string) {
-  return required(room.state.players.get(sessionId));
-}
-
-function editGame(room: PontinhoRoom, change: (game: Game) => Game) {
-  room["game"] = change(required(room["game"]));
-}
-
-function withHand(game: Game, playerId: string, cardIds: string[]): Game {
-  return { ...game, players: game.players.map((player) => (player.id === playerId ? { ...player, hand: cardIds.map(cardById) } : player)) };
-}
+import { cardById } from "@pontinho/rules";
+import { advance, editGame, flush, playerOf, readyToGoOut, required, setupServer, withHand, withPlayers } from "./support/harness.js";
 
 describe("PontinhoRoom", () => {
-  let colyseus: ColyseusTestServer<typeof appConfig>;
-
-  before(async () => colyseus = await boot(appConfig));
-  after(async () => colyseus.shutdown());
-  beforeEach(async () => colyseus.cleanup());
-
-  async function startMatchWith(names: string[]) {
-    const room = await colyseus.createRoom<PontinhoRoom>("pontinho", { seats: names.length, bots: false });
-    const clients = [];
-    for (const name of names) {
-      clients.push(await colyseus.connectTo(room, { name }));
-    }
-    await room.waitForNextPatch();
-    const current = required(clients.find((client) => client.sessionId === room.state.currentTurn));
-    const others = clients.filter((client) => client !== current);
-    return { room, clients, current, others };
-  }
+  const { connect, createRoom, startMatchWith } = setupServer();
 
   it("waits in the lobby until the table is full", async () => {
-    const room = await colyseus.createRoom<PontinhoRoom>("pontinho", { seats: 3, bots: false });
-    await colyseus.connectTo(room, { name: "Lucas" });
-    await colyseus.connectTo(room, { name: "Ana" });
+    const options = { table: 1, seats: 3, bots: false };
+    const room = await createRoom(options);
+    await connect(room, "Lucas", options);
+    await connect(room, "Ana", options);
 
     assert.strictEqual(room.state.phase, "waiting");
   });
@@ -120,7 +86,7 @@ describe("PontinhoRoom", () => {
 
   it("announces who went out, shows the round points and deals a new round 8 seconds later", async () => {
     const { room, current } = await startMatchWith(["Lucas", "Ana", "Bruno"]);
-    editGame(room, (game) => ({ ...withHand(game, current.sessionId, ["K-spades-1"]), hasDrawn: true }));
+    editGame(room, (game) => readyToGoOut(game, current.sessionId));
 
     current.send("discard", "K-spades-1");
     await room.waitForMessage("discard");
@@ -130,36 +96,31 @@ describe("PontinhoRoom", () => {
     assert.strictEqual(room.state.announcementPlayer, current.sessionId);
     assert.ok([...room.state.players.values()].some((player) => player.roundPoints > 0));
 
-    room.clock.currentTime -= 8_000;
-    room.clock.tick();
+    await flush();
+    advance(room, 8_000);
     assert.strictEqual(room.state.phase, "playing");
     assert.deepStrictEqual([...room.state.players.values()].map((player) => player.cardCount), [9, 9, 9]);
   });
 
-  it("ends the round without a winner when there are no cards left to draw", async () => {
-    const { room, current } = await startMatchWith(["Lucas", "Ana", "Bruno"]);
-    editGame(room, (game) => ({ ...game, stock: [], discard: [cardById("7-spades-2")] }));
+  it("announces the winner of the round when there are no cards left to draw", async () => {
+    const { room, current, others } = await startMatchWith(["Lucas", "Ana", "Bruno"]);
+    editGame(room, (game) => ({
+      ...withPlayers(game, {
+        [current.sessionId]: { hand: ["K-spades-1"], points: 50 },
+        [others[0].sessionId]: { hand: ["2-clubs-1"] },
+        [others[1].sessionId]: { hand: ["3-clubs-1"] },
+      }),
+      stock: [],
+      discard: [cardById("7-spades-2")],
+    }));
 
     current.send("draw");
     await room.waitForMessage("draw");
 
     assert.strictEqual(room.state.phase, "roundOver");
     assert.strictEqual(room.state.announcement, "outOfCards");
-  });
-
-  it("does not deal a new round after a player left the match", async () => {
-    const { room, current, others } = await startMatchWith(["Lucas", "Ana", "Bruno"]);
-    editGame(room, (game) => ({ ...withHand(game, current.sessionId, ["K-spades-1"]), hasDrawn: true }));
-    current.send("discard", "K-spades-1");
-    await room.waitForMessage("discard");
-
-    await others[0].leave();
-    await new Promise((resolve) => setTimeout(resolve, 100));
-    room.clock.currentTime -= 8_000;
-    room.clock.tick();
-
-    assert.strictEqual(room.state.phase, "ended");
-    assert.strictEqual(room.state.announcement, "playerLeft");
+    assert.strictEqual(room.state.announcementPlayer, others[0].sessionId);
+    assert.strictEqual(room.state.wentOut, others[0].sessionId);
   });
 
   it("keeps the match going when an eliminated player leaves", async () => {
@@ -194,21 +155,22 @@ describe("PontinhoRoom", () => {
     assert.ok(room.clients.some((client) => client.sessionId === other.sessionId));
   });
 
-  it("refuses to create a table with fewer than 3 or more than 6 seats", async () => {
-    await assert.rejects(colyseus.createRoom<PontinhoRoom>("pontinho", { seats: 2, bots: false }));
-    await assert.rejects(colyseus.createRoom<PontinhoRoom>("pontinho", { seats: 7, bots: false }));
+  it("refuses to create a table with fewer than 3 or more than 4 seats", async () => {
+    await assert.rejects(createRoom({ table: 1, seats: 2, bots: false }));
+    await assert.rejects(createRoom({ table: 1, seats: 5, bots: false }));
   });
 
-  it("refuses to join with an empty or too long name", async () => {
-    const room = await colyseus.createRoom<PontinhoRoom>("pontinho", { seats: 3, bots: false });
+  it("seats 4 players at a table of 4", async () => {
+    const { room } = await startMatchWith(["Lucas", "Ana", "Bruno", "Carla"]);
 
-    await assert.rejects(colyseus.connectTo(room, { name: "" }));
-    await assert.rejects(colyseus.connectTo(room, { name: "x".repeat(21) }));
+    assert.strictEqual(room.state.phase, "playing");
+    assert.deepStrictEqual([...room.state.players.values()].map((player) => player.cardCount), [9, 9, 9, 9]);
   });
 
   it("gives bots a 3 second turn and people a 30 second turn", async () => {
-    const room = await colyseus.createRoom<PontinhoRoom>("pontinho", { seats: 3, bots: true });
-    const human = await colyseus.connectTo(room, { name: "Lucas" });
+    const options = { table: 1, seats: 3, bots: true };
+    const room = await createRoom(options);
+    const human = await connect(room, "Lucas", options);
     await room.waitForNextPatch();
 
     assert.notStrictEqual(room.state.currentTurn, human.sessionId);
@@ -224,8 +186,9 @@ describe("PontinhoRoom", () => {
   });
 
   it("fills the table with bots that play on their own", async () => {
-    const room = await colyseus.createRoom<PontinhoRoom>("pontinho", { seats: 3, bots: true });
-    const human = await colyseus.connectTo(room, { name: "Lucas" });
+    const options = { table: 1, seats: 3, bots: true };
+    const room = await createRoom(options);
+    const human = await connect(room, "Lucas", options);
     await room.waitForNextPatch();
 
     assert.strictEqual(room.state.phase, "playing");

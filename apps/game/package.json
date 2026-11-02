@@ -32,6 +32,7 @@
   "dependencies": {
     "@colyseus/schema": "^5.0.14",
     "@colyseus/tools": "^0.18.1",
+    "@pontinho/api-contract": "*",
     "@pontinho/protocol": "*",
     "@pontinho/rules": "*",
     "colyseus": "^0.18.2",

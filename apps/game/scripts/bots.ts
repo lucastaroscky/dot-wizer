@@ -5,15 +5,20 @@ import type { PontinhoRoom } from "../src/rooms/pontinho/PontinhoRoom.js";
 
 const SERVER_URL = "http://localhost:2567";
 const PLAY_DELAY_MS = 1500;
-const botCount = Number(process.argv[2] ?? 2);
-const seats = Number(process.argv[3] ?? 3);
+const [table, seats] = process.argv.slice(2, 4).map(Number);
+const accessTokens = process.argv.slice(4);
 
-for (let bot = 1; bot <= botCount; bot++) {
-  startBot(`Robô ${bot}`);
+if (accessTokens.length === 0) {
+  console.error("Uso: npm run bots -- <mesa> <vagas> <access token> [<access token> ...]");
+  process.exit(1);
 }
 
-async function startBot(name: string) {
-  const room = await new Client(SERVER_URL).joinOrCreate<PontinhoRoom>(ROOM_NAME, { name, seats, bots: false });
+accessTokens.forEach((accessToken, index) => startBot(accessToken, `Robô ${index + 1}`));
+
+async function startBot(accessToken: string, name: string) {
+  const client = new Client(SERVER_URL);
+  client.auth.token = accessToken;
+  const room = await client.joinOrCreate<PontinhoRoom>(ROOM_NAME, { table, seats, bots: false });
   console.log(`${name} entrou na sala ${room.roomId}`);
   let acting = false;
   let rejoined = false;
@@ -22,7 +27,7 @@ async function startBot(name: string) {
     if (state.phase === "ended" && !rejoined) {
       rejoined = true;
       room.leave();
-      startBot(name);
+      startBot(accessToken, name);
       return;
     }
     if (acting || state.phase !== "playing" || state.currentTurn !== room.sessionId) {
