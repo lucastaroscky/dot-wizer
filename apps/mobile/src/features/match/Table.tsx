@@ -17,7 +17,7 @@ import { Measured } from "./Measured";
 import { Melds } from "./Melds";
 import { Piles } from "./Piles";
 import { PlayerPlate } from "./PlayerPlate";
-import { announcementText, hasChips, isOffline, isSittingOut, type GameState } from "./state";
+import { announcementText, hasChips, isOffline, isSittingOut, needsExitConfirmation, type GameState } from "./state";
 import { useFlights } from "./useFlights";
 import { useTablePlay } from "./useTablePlay";
 
@@ -116,7 +116,7 @@ export function Table({ room, state, onExit }: Props) {
       )}
       {showChips && (
         <View style={styles.exit}>
-          <ExitButton confirm={me?.eliminated !== true} onExit={onExit} />
+          <ExitButton confirm={needsExitConfirmation(me)} onExit={onExit} />
         </View>
       )}
     </SafeAreaView>

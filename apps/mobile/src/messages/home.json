@@ -12,6 +12,6 @@
     "insufficientBalance": "Você não tem o saldo mínimo desta mesa.",
     "apiUnavailable": "Não foi possível conferir as suas fichas. Tente de novo.",
     "invalidOptions": "Não foi possível entrar com essas opções.",
-    "accountDisabled": "Conta desativada."
+    "accountDisabled": "Sua conta está desativada."
   }
 }

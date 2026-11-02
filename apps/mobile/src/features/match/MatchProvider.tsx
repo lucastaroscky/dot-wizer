@@ -1,4 +1,4 @@
-import { createContext, use, useRef, useState, type ReactNode } from "react";
+import { createContext, use, useEffect, useEffectEvent, useRef, useState, type ReactNode } from "react";
 import { Asset } from "expo-asset";
 import { Client, CloseCode, type Room } from "@colyseus/sdk";
 import { ROOM_NAME, type CreateOptions, type PontinhoState } from "@pontinho/protocol";
@@ -8,6 +8,8 @@ import { DECK_IMAGES } from "@/shared/cards/deck";
 import { SERVER_URL } from "@/shared/config/env";
 import home from "@/messages/home.json";
 import { toJoinFailure } from "./joinFailure";
+import { forgetReconnectionToken, keepReconnectionToken, loadReconnectionToken } from "./reconnection";
+import { hasChips } from "./state";
 
 export type JoinRequest = CreateOptions & { cardStyle: CardStyleName };
 
@@ -43,8 +45,25 @@ export function MatchProvider({ children }: { children: ReactNode }) {
   const [connecting, setConnecting] = useState(false);
   const [openMatch, setOpenMatch] = useState<OpenMatch>();
   const joining = useRef(false);
+  const launched = useRef(false);
 
-  async function enter(connect: () => Promise<Room<PontinhoState>>) {
+  function watch(joined: Room<PontinhoState>) {
+    keepReconnectionToken(joined);
+    joined.onLeave((code) => {
+      if (code === CloseCode.CONSENTED) {
+        forgetReconnectionToken();
+        return;
+      }
+      if (!hasChips(joined.state)) {
+        setRoom(undefined);
+        setError(home.connectionClosed);
+        return;
+      }
+      reconnectAutomatically(joined.reconnectionToken);
+    });
+  }
+
+  async function enter(connect: () => Promise<Room<PontinhoState>>, onFailure: (joinError: unknown) => void = showJoinFailure) {
     if (joining.current) {
       return;
     }
@@ -54,20 +73,43 @@ export function MatchProvider({ children }: { children: ReactNode }) {
     setOpenMatch(undefined);
     try {
       const joined = await connect();
-      joined.onLeave((code) => {
-        if (code === CloseCode.CONSENTED) {
-          return;
-        }
-        setRoom(undefined);
-        setError(home.connectionClosed);
-      });
+      watch(joined);
       setRoom(joined);
     } catch (joinError) {
-      showJoinFailure(joinError);
+      onFailure(joinError);
     }
     joining.current = false;
     setConnecting(false);
   }
+
+  function reconnectAutomatically(reconnectionToken: string) {
+    return enter(
+      () => client.reconnect<PontinhoState>(reconnectionToken),
+      () => {
+        forgetReconnectionToken();
+        setRoom(undefined);
+        setError(home.connectionClosed);
+        setOpenMatch({ reconnectionToken });
+      },
+    );
+  }
+
+  const resumeStoredMatch = useEffectEvent(async () => {
+    const reconnectionToken = await loadReconnectionToken();
+    if (!reconnectionToken) {
+      return;
+    }
+    await Asset.loadAsync(Object.values(DECK_IMAGES[cardStyle]));
+    await reconnectAutomatically(reconnectionToken);
+  });
+
+  useEffect(() => {
+    if (launched.current) {
+      return;
+    }
+    launched.current = true;
+    resumeStoredMatch();
+  }, []);
 
   function showJoinFailure(joinError: unknown) {
     const failure = toJoinFailure(joinError);
@@ -97,6 +139,7 @@ export function MatchProvider({ children }: { children: ReactNode }) {
   }
 
   function leave() {
+    forgetReconnectionToken();
     room?.leave();
     setRoom(undefined);
   }

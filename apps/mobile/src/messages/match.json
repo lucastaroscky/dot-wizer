@@ -9,7 +9,7 @@
   "exitConfirm": {
     "message": "Sair da partida? O jogo joga por você até o fim da rodada.",
     "confirm": "Sair",
-    "cancel": "Continuar"
+    "cancel": "Ficar"
   },
   "notices": {
     "waitYourTurn": "Espere a sua vez",

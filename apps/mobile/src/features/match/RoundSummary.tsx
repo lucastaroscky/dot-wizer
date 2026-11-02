@@ -10,7 +10,7 @@ import { ChipsAmount } from "./ChipsAmount";
 import { ExitButton } from "./ExitButton";
 import { MatchHistory } from "./MatchHistory";
 import { ReturnPrompt } from "./ReturnPrompt";
-import { announcementText, hasChips, isSittingOut, type GameState } from "./state";
+import { announcementText, hasChips, isSittingOut, needsExitConfirmation, type GameState } from "./state";
 
 type Props = { room: Room<PontinhoState>; state: GameState; onExit: () => void };
 
@@ -98,7 +98,7 @@ export function RoundSummary({ room, state, onExit }: Props) {
           )}
           {!matchOver && showChips && (
             <View style={styles.exit}>
-              <ExitButton confirm={me?.eliminated !== true} onExit={onExit} />
+              <ExitButton confirm={needsExitConfirmation(me)} onExit={onExit} />
             </View>
           )}
         </View>

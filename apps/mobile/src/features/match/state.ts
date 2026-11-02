@@ -31,6 +31,10 @@ export function isSittingOut(player?: { sittingOut: boolean }) {
   return player?.sittingOut === true;
 }
 
-export function hasChips(state: GameState) {
+export function hasChips(state: { table: number }) {
   return state.table !== TRAINING_TABLE;
+}
+
+export function needsExitConfirmation(player?: { eliminated: boolean; sittingOut: boolean }) {
+  return player?.eliminated !== true && !isSittingOut(player);
 }
