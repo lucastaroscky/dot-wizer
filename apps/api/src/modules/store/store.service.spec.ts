@@ -12,12 +12,14 @@ import type { StoreTransaction } from "./store.service.ts";
 
 const userId = "11111111-1111-4111-8111-111111111111";
 const paidAt = new Date("2026-11-02T15:00:00Z");
+const idempotencyKey = "22222222-2222-4222-8222-222222222222";
 
 function buildService({
   chargeResult = { providerTransactionId: "tx-1", status: "PAID" } as ChargeResult,
   existing = null as PurchaseRecord | null,
   markPaidResult = true,
   maxChipsPerPurchase = 200_000,
+  replayOf = null as PurchaseRecord | null,
 } = {}) {
   const stored: PurchaseRecord[] = [];
   const entries: NewWalletEntry[] = [];
@@ -25,8 +27,13 @@ function buildService({
   const markPaidCalls: unknown[] = [];
   const attachCalls: unknown[] = [];
 
+  const createCalls: unknown[] = [];
   const purchases = fake<PurchasesRepository>({
-    create: async (input) => {
+    createOnce: async (input) => {
+      createCalls.push(input);
+      if (replayOf) {
+        return { purchase: replayOf, created: false };
+      }
       const purchase: PurchaseRecord = {
         id: "p-1",
         userId: input.userId,
@@ -38,7 +45,7 @@ function buildService({
         paidAt: null,
       };
       stored.push(purchase);
-      return purchase;
+      return { purchase, created: true };
     },
     attachProviderTransaction: async (input) => {
       attachCalls.push(input);
@@ -75,7 +82,7 @@ function buildService({
     maxChipsPerPurchase,
     now: () => paidAt,
   });
-  return { service, stored, entries, charges, markPaidCalls, attachCalls };
+  return { service, stored, entries, charges, markPaidCalls, attachCalls, createCalls };
 }
 
 describe("StoreService", () => {
@@ -120,7 +127,7 @@ describe("StoreService", () => {
     it("creates the purchase, charges the provider and credits the chips once the provider approves", async () => {
       const { service, charges, entries, attachCalls, markPaidCalls } = buildService();
 
-      const purchase = await service.buy({ userId, quantity: 2_000 });
+      const purchase = await service.buy({ userId, quantity: 2_000, idempotencyKey });
 
       assert.deepStrictEqual(charges, [{ purchaseId: "p-1", userId, quantity: 2_000, amountCents: 200_000 }]);
       assert.deepStrictEqual(attachCalls, [{ purchaseId: "p-1", providerTransactionId: "tx-1" }]);
@@ -143,17 +150,69 @@ describe("StoreService", () => {
     it("leaves the purchase pending and credits nothing while the provider has not approved", async () => {
       const { service, entries } = buildService({ chargeResult: { providerTransactionId: "pix-9", status: "PENDING" } });
 
-      const purchase = await service.buy({ userId, quantity: 1_000 });
+      const purchase = await service.buy({ userId, quantity: 1_000, idempotencyKey });
 
       assert.strictEqual(purchase.status, "PENDING");
       assert.strictEqual(purchase.paidAt, null);
       assert.deepStrictEqual(entries, []);
     });
 
+    it("stores the idempotency key of the request with the purchase", async () => {
+      const { service, createCalls } = buildService();
+
+      await service.buy({ userId, quantity: 2_000, idempotencyKey });
+
+      assert.deepStrictEqual(createCalls, [
+        { userId, quantity: 2_000, amountCents: 200_000, provider: "TEST", idempotencyKey },
+      ]);
+    });
+
+    it("answers a repeated request with the same purchase, without charging or crediting again", async () => {
+      const original: PurchaseRecord = {
+        id: "p-1",
+        userId,
+        quantity: 2_000,
+        amountCents: 200_000,
+        status: "PAID",
+        providerTransactionId: "tx-1",
+        createdAt: paidAt,
+        paidAt,
+      };
+      const { service, charges, entries, attachCalls } = buildService({ replayOf: original });
+
+      const purchase = await service.buy({ userId, quantity: 2_000, idempotencyKey });
+
+      assert.strictEqual(purchase.id, "p-1");
+      assert.strictEqual(purchase.status, "PAID");
+      assert.deepStrictEqual(charges, []);
+      assert.deepStrictEqual(entries, []);
+      assert.deepStrictEqual(attachCalls, []);
+    });
+
+    it("refuses to reuse the key of a purchase for another quantity", async () => {
+      const original: PurchaseRecord = {
+        id: "p-1",
+        userId,
+        quantity: 2_000,
+        amountCents: 200_000,
+        status: "PAID",
+        providerTransactionId: "tx-1",
+        createdAt: paidAt,
+        paidAt,
+      };
+      const { service, charges } = buildService({ replayOf: original });
+
+      await assert.rejects(service.buy({ userId, quantity: 3_000, idempotencyKey }), {
+        statusCode: 409,
+        message: errors.store.idempotencyKeyReused,
+      });
+      assert.deepStrictEqual(charges, []);
+    });
+
     it("does not create anything when the quantity is above the maximum", async () => {
       const { service, stored, charges } = buildService({ maxChipsPerPurchase: 5_000 });
 
-      await assert.rejects(service.buy({ userId, quantity: 6_000 }), { statusCode: 422 });
+      await assert.rejects(service.buy({ userId, quantity: 6_000, idempotencyKey }), { statusCode: 422 });
       assert.deepStrictEqual(stored, []);
       assert.deepStrictEqual(charges, []);
     });

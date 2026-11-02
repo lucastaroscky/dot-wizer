@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { CHIP_PURCHASE_MINIMUM, CHIP_PURCHASE_STEP } from "./constants.ts";
+import { CHIP_PURCHASE_MINIMUM, CHIP_PURCHASE_STEP, IDEMPOTENCY_KEY_HEADER } from "./constants.ts";
 import { chipsSchema, isoDateTimeSchema } from "./common.ts";
 
 export const purchaseQuantitySchema = z.number().int().min(CHIP_PURCHASE_MINIMUM).multipleOf(CHIP_PURCHASE_STEP);
@@ -22,6 +22,10 @@ export const buyBodySchema = z.strictObject({
   quantity: purchaseQuantitySchema,
 });
 export type BuyBody = z.infer<typeof buyBodySchema>;
+
+export const buyHeadersSchema = z.object({
+  [IDEMPOTENCY_KEY_HEADER]: z.uuid(),
+});
 
 export const purchaseStatusSchema = z.enum(["PENDING", "PAID"]);
 export type PurchaseStatus = z.infer<typeof purchaseStatusSchema>;

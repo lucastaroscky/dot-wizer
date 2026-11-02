@@ -63,6 +63,7 @@ model Purchase {
   provider              PaymentProviderName
   status                PurchaseStatus      @default(PENDING)
   providerTransactionId String?             @map("provider_transaction_id")
+  idempotencyKey        String?             @map("idempotency_key")
   createdAt             DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
   paidAt                DateTime?           @map("paid_at") @db.Timestamptz(6)
 
@@ -70,6 +71,7 @@ model Purchase {
   entries WalletEntry[]
 
   @@unique([provider, providerTransactionId])
+  @@unique([userId, idempotencyKey])
   @@index([userId])
   @@map("purchases")
 }

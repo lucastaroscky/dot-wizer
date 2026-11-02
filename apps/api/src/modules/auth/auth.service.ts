@@ -42,7 +42,7 @@ export class AuthService {
 
   async authenticateToken({ token }: AuthenticateTokenInput): Promise<AuthContext> {
     const { userId, email } = await this.tokenVerifier.verify({ token });
-    const user = await this.usersRepository.upsert({ id: userId, email });
+    const user = await this.usersRepository.findOrCreate({ id: userId, email });
     if (!user.active) {
       throw new ForbiddenError(errors.auth.inactiveUser);
     }

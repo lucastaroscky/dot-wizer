@@ -1,7 +1,7 @@
 import { CHIP_PURCHASE_MINIMUM, CHIP_PURCHASE_STEP } from "@pontinho/api-contract";
 import type { PurchaseResponse, QuoteResponse } from "@pontinho/api-contract";
 import type { UnitOfWork } from "../../common/database/database-client.ts";
-import { NotFoundError, UnprocessableError } from "../../common/errors/http-errors.ts";
+import { ConflictError, NotFoundError, UnprocessableError } from "../../common/errors/http-errors.ts";
 import errors from "../../common/messages/errors.json" with { type: "json" };
 import type { UsersRepository } from "../users/repository/users.repository.ts";
 import { HOUSE_ACCOUNT, userAccount } from "../wallet/accounts.ts";
@@ -31,6 +31,12 @@ interface QuoteInput {
 
 interface BuyInput extends QuoteInput {
   userId: string;
+  idempotencyKey: string;
+}
+
+interface ReplayInput {
+  purchase: PurchaseRecord;
+  quantity: number;
 }
 
 interface ConfirmPurchaseInput {
@@ -96,10 +102,14 @@ export class StoreService {
     };
   }
 
-  async buy({ userId, quantity }: BuyInput): Promise<PurchaseResponse> {
+  async buy({ userId, quantity, idempotencyKey }: BuyInput): Promise<PurchaseResponse> {
     const { amountCents } = this.quote({ quantity });
     const provider = this.paymentProvider.name;
-    const purchase = await this.purchasesRepository.create({ userId, quantity, amountCents, provider });
+    const created = await this.purchasesRepository.createOnce({ userId, quantity, amountCents, provider, idempotencyKey });
+    if (!created.created) {
+      return this.replay({ purchase: created.purchase, quantity });
+    }
+    const { purchase } = created;
     const charge = await this.paymentProvider.charge({ purchaseId: purchase.id, userId, quantity, amountCents });
     const { providerTransactionId, status } = charge;
     await this.purchasesRepository.attachProviderTransaction({ purchaseId: purchase.id, providerTransactionId });
@@ -123,6 +133,13 @@ export class StoreService {
       }
       return toResponse({ purchase: await this.creditPurchase({ transaction, purchase }) });
     });
+  }
+
+  private replay({ purchase, quantity }: ReplayInput): PurchaseResponse {
+    if (purchase.quantity !== quantity) {
+      throw new ConflictError(errors.store.idempotencyKeyReused);
+    }
+    return toResponse({ purchase });
   }
 
   private async creditPurchase({ transaction, purchase }: CreditPurchaseInput): Promise<PurchaseRecord> {

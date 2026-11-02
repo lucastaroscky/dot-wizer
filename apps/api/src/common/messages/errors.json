@@ -22,7 +22,8 @@
   },
   "store": {
     "quantityAboveMaximum": "A quantidade máxima por compra é {{maximum}} fichas.",
-    "purchaseNotFound": "Compra não encontrada."
+    "purchaseNotFound": "Compra não encontrada.",
+    "idempotencyKeyReused": "A chave de idempotência já foi usada em outra compra."
   },
   "matches": {
     "notFound": "Partida não encontrada.",

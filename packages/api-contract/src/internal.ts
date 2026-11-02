@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { MATCH_MAX_PLAYERS, MATCH_MIN_PLAYERS } from "./constants.ts";
+import { MIN_PLAYERS, ONLINE_MAX_PLAYERS } from "@pontinho/rules";
 import { chipsSchema, isoDateTimeSchema, matchIdSchema, userIdSchema } from "./common.ts";
 
 const tableSchema = z.number().int().positive();
@@ -26,8 +26,8 @@ export const startMatchBodySchema = z.strictObject({
   table: tableSchema,
   playerIds: z
     .array(userIdSchema)
-    .min(MATCH_MIN_PLAYERS)
-    .max(MATCH_MAX_PLAYERS)
+    .min(MIN_PLAYERS)
+    .max(ONLINE_MAX_PLAYERS)
     .refine((ids) => new Set(ids).size === ids.length, "playerIds must be unique"),
 });
 export type StartMatchBody = z.infer<typeof startMatchBodySchema>;

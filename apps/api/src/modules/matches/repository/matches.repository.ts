@@ -49,12 +49,13 @@ interface SaveRoundInput extends MatchIdInput {
 interface EliminateInput extends MatchIdInput {
   userId: string;
   eliminatedAt: Date;
+  finalBalance: number;
 }
 
 interface FinishInput extends MatchIdInput {
   winnerId: string | null;
   finishedAt: Date;
-  players: { userId: string; winBonus: number; finalBalance: number }[];
+  players: { userId: string; winBonus: number; finalBalance?: number }[];
 }
 
 export class MatchesRepository {
@@ -110,10 +111,10 @@ export class MatchesRepository {
     await this.client.match.update({ where: { id: matchId }, data: { lastRound: roundNumber } });
   }
 
-  async eliminate({ matchId, userId, eliminatedAt }: EliminateInput): Promise<void> {
+  async eliminate({ matchId, userId, eliminatedAt, finalBalance }: EliminateInput): Promise<void> {
     await this.client.matchPlayer.update({
       where: { matchId_userId: { matchId, userId } },
-      data: { eliminatedAt },
+      data: { eliminatedAt, finalBalance },
     });
   }
 

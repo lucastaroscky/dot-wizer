@@ -82,7 +82,12 @@ describe("internal routes", () => {
         headers,
         payload: { name: "Ana", birthDate: "1990-05-20" },
       });
-      await testApp.app.inject({ method: "POST", url: "/store/purchases", headers, payload: { quantity: 5000 } });
+      await testApp.app.inject({
+        method: "POST",
+        url: "/store/purchases",
+        headers: { ...headers, "idempotency-key": randomUUID() },
+        payload: { quantity: 5000 },
+      });
 
       const table2 = await post("/internal/players/entry", { accessToken, table: 2 });
       const table3 = await post("/internal/players/entry", { accessToken, table: 3 });
@@ -534,6 +539,28 @@ describe("internal routes", () => {
 
       assert.strictEqual(finished.statusCode, 200);
       assert.ok(finished.json().players.some((player: { userId: string }) => player.userId === bia));
+    });
+
+    it("freezes the final balance of the eliminated player at the moment of the elimination", async () => {
+      const { playerIds: [ana, bia, caio], matchId } = await startMatch({ table: 1, balances: [5000, 5000, 5000] });
+      await round(matchId, { roundNumber: 1, winnerId: ana, losers: [{ userId: bia, handPoints: 300 }] });
+      await eliminate(matchId, bia);
+      await testPrisma.walletEntry.create({
+        data: {
+          fromAccount: HOUSE_ACCOUNT,
+          toAccount: userAccount({ userId: bia }),
+          amount: 777,
+          type: "PURCHASE",
+          idempotencyKey: "bought-after-elimination",
+        },
+      });
+
+      const finished = await post(`/internal/matches/${matchId}/finish`, { winnerId: ana, awardWinBonus: true });
+
+      const summaries = Object.fromEntries(finished.json().players.map((player: { userId: string }) => [player.userId, player]));
+      assert.strictEqual(summaries[bia].finalBalance, 4700);
+      assert.strictEqual(summaries[ana].finalBalance, 5310);
+      assert.strictEqual(summaries[caio].finalBalance, 5000);
     });
 
     it("refuses a player that is not in the match", async () => {

@@ -22,7 +22,7 @@ export interface UserRecord {
   active: boolean;
 }
 
-interface UpsertInput {
+interface FindOrCreateInput {
   id: string;
   email: string;
 }
@@ -57,13 +57,13 @@ export class UsersRepository {
     this.client = client;
   }
 
-  async upsert({ id, email }: UpsertInput): Promise<UserRecord> {
-    const row = await this.client.user.upsert({
-      where: { id },
-      update: {},
-      create: { id, email },
-      select: userSelect,
-    });
+  async findOrCreate({ id, email }: FindOrCreateInput): Promise<UserRecord> {
+    const existing = await this.findById({ id });
+    if (existing) {
+      return existing;
+    }
+    await this.client.user.createMany({ data: [{ id, email }], skipDuplicates: true });
+    const row = await this.client.user.findUniqueOrThrow({ where: { id }, select: userSelect });
     return toRecord(row);
   }
 

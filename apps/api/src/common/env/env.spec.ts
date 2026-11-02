@@ -1,4 +1,5 @@
 import assert from "node:assert";
+import { readFileSync } from "node:fs";
 import { loadEnv } from "./env.ts";
 
 const validSource = {
@@ -46,5 +47,28 @@ describe("loadEnv", () => {
     const { PAYMENT_PROVIDER: _removed, ...source } = validSource;
 
     assert.throws(() => loadEnv({ source }), /PAYMENT_PROVIDER/);
+  });
+
+  it("refuses the service token that comes written in .env.example", () => {
+    const example = readFileSync(new URL("../../../.env.example", import.meta.url), "utf8");
+    const exampleToken = example.match(/^SERVICE_TOKEN=(.+)$/m)?.[1];
+
+    assert.ok(exampleToken);
+    assert.throws(() => loadEnv({ source: { ...validSource, SERVICE_TOKEN: exampleToken } }), /SERVICE_TOKEN/);
+  });
+
+  it("refuses the test payment provider in production", () => {
+    assert.throws(
+      () => loadEnv({ source: { ...validSource, NODE_ENV: "production" } }),
+      /PAYMENT_PROVIDER/,
+    );
+  });
+
+  it("accepts the test payment provider outside production", () => {
+    for (const nodeEnv of ["development", "test"]) {
+      const env = loadEnv({ source: { ...validSource, NODE_ENV: nodeEnv } });
+
+      assert.strictEqual(env.PAYMENT_PROVIDER, "test");
+    }
   });
 });

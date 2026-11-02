@@ -15,11 +15,17 @@ const purchaseSelect = {
 
 export type PurchaseRecord = Prisma.PurchaseGetPayload<{ select: typeof purchaseSelect }>;
 
-interface CreateInput {
+interface CreateOnceInput {
   userId: string;
   quantity: number;
   amountCents: number;
   provider: PaymentProviderName;
+  idempotencyKey: string;
+}
+
+export interface CreateOnceResult {
+  purchase: PurchaseRecord;
+  created: boolean;
 }
 
 interface AttachProviderTransactionInput {
@@ -44,11 +50,13 @@ export class PurchasesRepository {
     this.client = client;
   }
 
-  create({ userId, quantity, amountCents, provider }: CreateInput): Promise<PurchaseRecord> {
-    return this.client.purchase.create({
-      data: { userId, quantity, amountCents, provider },
+  async createOnce(input: CreateOnceInput): Promise<CreateOnceResult> {
+    const { count } = await this.client.purchase.createMany({ data: [input], skipDuplicates: true });
+    const purchase = await this.client.purchase.findUniqueOrThrow({
+      where: { userId_idempotencyKey: { userId: input.userId, idempotencyKey: input.idempotencyKey } },
       select: purchaseSelect,
     });
+    return { purchase, created: count === 1 };
   }
 
   async attachProviderTransaction({ purchaseId, providerTransactionId }: AttachProviderTransactionInput): Promise<void> {

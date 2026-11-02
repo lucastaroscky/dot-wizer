@@ -1,4 +1,5 @@
 import assert from "node:assert";
+import { randomUUID } from "node:crypto";
 import errors from "../../common/messages/errors.json" with { type: "json" };
 import { createTestApp } from "../../../test/support/test-app.ts";
 import type { TestApp } from "../../../test/support/test-app.ts";
@@ -14,8 +15,13 @@ describe("store routes", () => {
   after(async () => testApp.app.close());
   beforeEach(async () => testApp.reset());
 
-  function buy(headers: { authorization: string }, quantity: number) {
-    return testApp.app.inject({ method: "POST", url: "/store/purchases", headers, payload: { quantity } });
+  function buy(headers: { authorization: string }, quantity: number, idempotencyKey: string = randomUUID()) {
+    return testApp.app.inject({
+      method: "POST",
+      url: "/store/purchases",
+      headers: { ...headers, "idempotency-key": idempotencyKey },
+      payload: { quantity },
+    });
   }
 
   async function balanceOf(headers: { authorization: string }) {
@@ -147,7 +153,7 @@ describe("store routes", () => {
       const extra = await testApp.app.inject({
         method: "POST",
         url: "/store/purchases",
-        headers,
+        headers: { ...headers, "idempotency-key": randomUUID() },
         payload: { quantity: 1000, status: "PAID" },
       });
 
@@ -161,12 +167,73 @@ describe("store routes", () => {
       const response = await testApp.app.inject({
         method: "POST",
         url: "/store/purchases",
-        headers,
+        headers: { ...headers, "idempotency-key": randomUUID() },
         payload: { quantity: 1000, amount: 999_999 },
       });
 
       assert.strictEqual(response.statusCode, 400);
       assert.strictEqual(await balanceOf(headers), 0);
+    });
+
+    it("answers a repeated request with the same purchase and credits the chips only once", async () => {
+      const { headers } = await testApp.signIn();
+      const key = randomUUID();
+
+      const first = await buy(headers, 2000, key);
+      const second = await buy(headers, 2000, key);
+
+      assert.strictEqual(second.statusCode, 201);
+      assert.deepStrictEqual(second.json(), first.json());
+      assert.strictEqual(await balanceOf(headers), 2000);
+      assert.strictEqual(await testPrisma.purchase.count(), 1);
+      assert.strictEqual(await testPrisma.walletEntry.count({ where: { type: "PURCHASE" } }), 1);
+    });
+
+    it("credits once when the same request arrives three times at the same time", async () => {
+      const { headers } = await testApp.signIn();
+      const key = randomUUID();
+
+      const responses = await Promise.all([buy(headers, 1000, key), buy(headers, 1000, key), buy(headers, 1000, key)]);
+
+      assert.deepStrictEqual(responses.map(({ statusCode }) => statusCode), [201, 201, 201]);
+      assert.strictEqual(new Set(responses.map((response) => response.json().id)).size, 1);
+      assert.strictEqual(await balanceOf(headers), 1000);
+      assert.strictEqual(await testPrisma.purchase.count(), 1);
+    });
+
+    it("treats the same key from two accounts as two different requests", async () => {
+      const ana = await testApp.signIn();
+      const bia = await testApp.signIn();
+      const key = randomUUID();
+
+      const anaPurchase = await buy(ana.headers, 1000, key);
+      const biaPurchase = await buy(bia.headers, 2000, key);
+
+      assert.deepStrictEqual([anaPurchase.statusCode, biaPurchase.statusCode], [201, 201]);
+      assert.notStrictEqual(anaPurchase.json().id, biaPurchase.json().id);
+      assert.deepStrictEqual([await balanceOf(ana.headers), await balanceOf(bia.headers)], [1000, 2000]);
+    });
+
+    it("refuses to reuse a key for another quantity and keeps the first purchase", async () => {
+      const { headers } = await testApp.signIn();
+      const key = randomUUID();
+      await buy(headers, 1000, key);
+
+      const response = await buy(headers, 2000, key);
+
+      assert.strictEqual(response.statusCode, 409);
+      assert.strictEqual(response.json().message, errors.store.idempotencyKeyReused);
+      assert.strictEqual(await balanceOf(headers), 1000);
+    });
+
+    it("needs a valid Idempotency-Key header", async () => {
+      const { headers } = await testApp.signIn();
+
+      const missing = await testApp.app.inject({ method: "POST", url: "/store/purchases", headers, payload: { quantity: 1000 } });
+      const invalid = await buy(headers, 1000, "not-a-uuid");
+
+      assert.deepStrictEqual([missing.statusCode, invalid.statusCode], [400, 400]);
+      assert.strictEqual(await testPrisma.purchase.count(), 0);
     });
 
     it("never exposes the provider transaction id or the user id", async () => {

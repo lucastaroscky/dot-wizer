@@ -31,6 +31,24 @@ describe("profile routes", () => {
     assert.strictEqual(await testPrisma.user.count({ where: { id: userId } }), 1);
   });
 
+  it("creates the user once when the first requests of a new account arrive at the same time", async () => {
+    const statuses: number[] = [];
+
+    for (let attempt = 0; attempt < 10; attempt++) {
+      const { headers } = await testApp.signIn();
+      const responses = await Promise.all([
+        testApp.app.inject({ method: "GET", url: "/profile", headers }),
+        testApp.app.inject({ method: "GET", url: "/wallet", headers }),
+        testApp.app.inject({ method: "GET", url: "/profile", headers }),
+        testApp.app.inject({ method: "GET", url: "/wallet/entries", headers }),
+      ]);
+      statuses.push(...responses.map(({ statusCode }) => statusCode));
+    }
+
+    assert.deepStrictEqual([...new Set(statuses)], [200]);
+    assert.strictEqual(await testPrisma.user.count(), 10);
+  });
+
   it("answers 401 without a token, with the fixed error envelope", async () => {
     const response = await testApp.app.inject({ method: "GET", url: "/profile" });
 

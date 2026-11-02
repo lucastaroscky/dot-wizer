@@ -1,7 +1,10 @@
 import assert from "node:assert";
 import { randomUUID } from "node:crypto";
+import { MIN_PLAYERS, ONLINE_MAX_PLAYERS } from "@pontinho/rules";
 import {
   buyBodySchema,
+  buyHeadersSchema,
+  IDEMPOTENCY_KEY_HEADER,
   eliminatePlayerBodySchema,
   eliminatePlayerResponseSchema,
   quoteQuerySchema,
@@ -129,5 +132,25 @@ describe("api-contract", () => {
 
     assert.deepStrictEqual(eliminatePlayerResponseSchema.parse(elimination), elimination);
     assert.strictEqual(eliminatePlayerResponseSchema.safeParse({ ...elimination, eliminatedAt: "yesterday" }).success, false);
+  });
+
+  it("takes the player limits of an online match from the rules package", () => {
+    const ids = (count: number) => Array.from({ length: count }, () => randomUUID());
+
+    assert.strictEqual(startMatchBodySchema.safeParse({ table: 1, playerIds: ids(MIN_PLAYERS - 1) }).success, false);
+    assert.strictEqual(startMatchBodySchema.safeParse({ table: 1, playerIds: ids(MIN_PLAYERS) }).success, true);
+    assert.strictEqual(startMatchBodySchema.safeParse({ table: 1, playerIds: ids(ONLINE_MAX_PLAYERS) }).success, true);
+    assert.strictEqual(startMatchBodySchema.safeParse({ table: 1, playerIds: ids(ONLINE_MAX_PLAYERS + 1) }).success, false);
+  });
+
+  it("requires an idempotency key in the purchase request headers and ignores the other headers", () => {
+    const key = randomUUID();
+
+    assert.strictEqual(IDEMPOTENCY_KEY_HEADER, "idempotency-key");
+    assert.deepStrictEqual(buyHeadersSchema.parse({ "idempotency-key": key, authorization: "Bearer x" }), {
+      "idempotency-key": key,
+    });
+    assert.strictEqual(buyHeadersSchema.safeParse({ authorization: "Bearer x" }).success, false);
+    assert.strictEqual(buyHeadersSchema.safeParse({ "idempotency-key": "abc" }).success, false);
   });
 });

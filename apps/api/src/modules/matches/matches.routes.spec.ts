@@ -16,7 +16,12 @@ describe("matches routes", () => {
     const players = [await testApp.signIn(), await testApp.signIn(), await testApp.signIn()];
     for (const [index, { headers }] of players.entries()) {
       await testApp.app.inject({ method: "PUT", url: "/profile", headers, payload: { name: `Jogador ${index + 1}`, birthDate: "1990-05-20" } });
-      await testApp.app.inject({ method: "POST", url: "/store/purchases", headers, payload: { quantity: 5000 } });
+      await testApp.app.inject({
+        method: "POST",
+        url: "/store/purchases",
+        headers: { ...headers, "idempotency-key": randomUUID() },
+        payload: { quantity: 5000 },
+      });
     }
     const [ana, bia, caio] = players.map(({ userId }) => userId);
     const matchId = (

@@ -218,7 +218,9 @@ export class MatchesService {
         return eliminationResponse({ matchId, userId, eliminatedAt: player.eliminatedAt });
       }
       const eliminatedAt = this.now();
-      await transaction.matches.eliminate({ matchId, userId, eliminatedAt });
+      const account = userAccount({ userId });
+      const balances = await transaction.wallet.balancesOf({ accounts: [account] });
+      await transaction.matches.eliminate({ matchId, userId, eliminatedAt, finalBalance: balances[account] });
       return eliminationResponse({ matchId, userId, eliminatedAt });
     });
   }
@@ -316,10 +318,10 @@ export class MatchesService {
     const { transaction, match, winnerId, bonus } = input;
     const accounts = match.players.map(({ userId }) => userAccount({ userId }));
     const balances = await transaction.wallet.balancesOf({ accounts });
-    return match.players.map(({ userId }) => ({
+    return match.players.map(({ userId, eliminatedAt }) => ({
       userId,
       winBonus: userId === winnerId ? bonus : 0,
-      finalBalance: balances[userAccount({ userId })],
+      finalBalance: eliminatedAt ? undefined : balances[userAccount({ userId })],
     }));
   }
 

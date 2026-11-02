@@ -422,6 +422,28 @@ describe("MatchesService", () => {
       assert.strictEqual(history.winnerId, ana);
     });
 
+    it("does not recalculate the final balance of a player who was eliminated", async () => {
+      const match = openMatch({
+        players: [player(ana), player(bia, { eliminatedAt: new Date("2026-11-02T17:30:00Z"), finalBalance: 700 }), player(caio)],
+      });
+      const { service, finishes } = buildService({ match, balances: finalBalances });
+
+      await service.finish({ matchId, winnerId: ana, awardWinBonus: true });
+
+      assert.deepStrictEqual(finishes, [
+        {
+          matchId,
+          winnerId: ana,
+          finishedAt,
+          players: [
+            { userId: ana, winBonus: 50, finalBalance: 1200 },
+            { userId: bia, winBonus: 0, finalBalance: undefined },
+            { userId: caio, winBonus: 0, finalBalance: 850 },
+          ],
+        },
+      ]);
+    });
+
     it("refuses to repeat a finish with a different decision about the bonus", async () => {
       const withBonus = openMatch({ status: "FINISHED", winnerId: ana, players: [player(ana, { winBonus: 50 }), player(bia), player(caio)] });
       const withoutBonus = openMatch({ status: "FINISHED", winnerId: ana });
@@ -469,12 +491,12 @@ describe("MatchesService", () => {
   });
 
   describe("eliminate", () => {
-    it("records when the player was eliminated", async () => {
-      const { service, eliminations } = buildService();
+    it("records when the player was eliminated and the balance the player had then", async () => {
+      const { service, eliminations } = buildService({ balances: { [userAccount({ userId: bia })]: 980 } });
 
       const result = await service.eliminate({ matchId, userId: bia });
 
-      assert.deepStrictEqual(eliminations, [{ matchId, userId: bia, eliminatedAt: finishedAt }]);
+      assert.deepStrictEqual(eliminations, [{ matchId, userId: bia, eliminatedAt: finishedAt, finalBalance: 980 }]);
       assert.deepStrictEqual(result, { matchId, userId: bia, eliminatedAt: finishedAt.toISOString() });
     });
 
