@@ -4,6 +4,8 @@ import { cardById } from "@pontinho/rules";
 import type { CardView } from "@/shared/cards/Card";
 import match from "@/messages/match.json";
 
+const TRAINING_TABLE = 0;
+
 export type GameState = NonNullable<ReturnType<typeof useRoomState<PontinhoState>>>;
 
 export function toCardView(cardId: string): CardView {
@@ -16,6 +18,10 @@ export function announcementText(state: GameState) {
   if (!announcement) {
     return "";
   }
-  const name = state.players[state.announcementPlayer]?.name ?? "";
-  return match.announcements[announcement].replace("{name}", name);
+  const player = state.players[state.announcementPlayer];
+  return match.announcements[announcement].replace("{name}", player?.name ?? "").replace("{points}", String(player?.points ?? 0));
+}
+
+export function hasChips(state: GameState) {
+  return state.table !== TRAINING_TABLE;
 }

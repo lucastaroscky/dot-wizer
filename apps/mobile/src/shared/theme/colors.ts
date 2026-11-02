@@ -15,6 +15,7 @@ export const colors = {
   red: "#D21F2B",
   black: "#111111",
   chip: "#6B3FA0",
+  placeholder: "#9C8A74",
   lobby: "#E6E6E6",
   lobbyPattern: "#DCDCDD",
 };

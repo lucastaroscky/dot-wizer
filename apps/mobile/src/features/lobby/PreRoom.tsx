@@ -1,21 +1,40 @@
 import { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import { MAX_PLAYERS, MIN_PLAYERS, type CreateOptions } from "@pontinho/protocol";
+import { CHIP_TABLES } from "@pontinho/rules";
 import { Card, CARD_STYLES, CardStyleContext, type CardStyleName } from "@/shared/cards/Card";
 import { WoodButton } from "@/shared/ui/WoodButton";
 import { colors } from "@/shared/theme/colors";
 import lobby from "@/messages/lobby.json";
+import { TablePicker } from "./TablePicker";
 
-const SEAT_OPTIONS = [3, 4, 5, 6];
+const SEAT_OPTIONS = Array.from({ length: MAX_PLAYERS - MIN_PLAYERS + 1 }, (_, index) => MIN_PLAYERS + index);
 const SAMPLE_CARD = { id: "K-hearts-1", rank: "K", suit: "hearts" };
 
-export type LobbyChoice = { seats: number; bots: boolean; cardStyle: CardStyleName };
+export type LobbyChoice = CreateOptions & { cardStyle: CardStyleName };
 
-type Props = { connecting: boolean; onConfirm: (choice: LobbyChoice) => void; onBack: () => void };
+type Props = { balance: number; connecting: boolean; onConfirm: (choice: LobbyChoice) => void; onBack: () => void };
 
-export function PreRoom({ connecting, onConfirm, onBack }: Props) {
-  const [seats, setSeats] = useState(3);
+export function PreRoom({ balance, connecting, onConfirm, onBack }: Props) {
+  const [seats, setSeats] = useState(MIN_PLAYERS);
   const [bots, setBots] = useState(false);
+  const [chosenTableId, setChosenTableId] = useState<number>();
   const [cardStyle, setCardStyle] = useState<CardStyleName>("jumbo");
+
+  const unlockedTables = CHIP_TABLES.filter(({ minimumBalance }) => balance >= minimumBalance);
+  const selectedTable = unlockedTables.find(({ id }) => id === chosenTableId) ?? unlockedTables[0];
+  const canConfirm = bots || selectedTable !== undefined;
+
+  function confirm() {
+    if (bots) {
+      onConfirm({ bots: true, seats, cardStyle });
+      return;
+    }
+    if (!selectedTable) {
+      return;
+    }
+    onConfirm({ bots: false, seats, table: selectedTable.id, cardStyle });
+  }
 
   return (
     <View style={styles.content}>
@@ -38,6 +57,15 @@ export function PreRoom({ connecting, onConfirm, onBack }: Props) {
         </Pressable>
       </View>
 
+      {bots ? (
+        <Text style={styles.hint}>{lobby.trainingHint}</Text>
+      ) : (
+        <>
+          <Text style={styles.label}>{lobby.tables}</Text>
+          <TablePicker tables={CHIP_TABLES} balance={balance} selectedId={selectedTable?.id} onSelect={setChosenTableId} />
+        </>
+      )}
+
       <Text style={styles.label}>{lobby.cards}</Text>
       <View style={styles.row}>
         {CARD_STYLES.map((key) => (
@@ -50,7 +78,7 @@ export function PreRoom({ connecting, onConfirm, onBack }: Props) {
         ))}
       </View>
 
-      <WoodButton title={connecting ? lobby.connecting : lobby.confirm} onPress={() => onConfirm({ seats, bots, cardStyle })} large />
+      <WoodButton title={connecting ? lobby.connecting : lobby.confirm} onPress={confirm} disabled={!canConfirm || connecting} large />
       <WoodButton title={lobby.back} onPress={onBack} />
     </View>
   );
@@ -59,6 +87,7 @@ export function PreRoom({ connecting, onConfirm, onBack }: Props) {
 const styles = StyleSheet.create({
   content: { alignItems: "center", gap: 14 },
   label: { color: colors.woodText, fontSize: 16, fontWeight: "600" },
+  hint: { color: colors.woodText, fontSize: 14, marginBottom: 8 },
   row: { flexDirection: "row", gap: 12, marginBottom: 8 },
   chip: {
     width: 52,

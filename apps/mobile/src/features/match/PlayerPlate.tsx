@@ -4,9 +4,10 @@ import Animated, { useAnimatedStyle, useSharedValue, withSpring } from "react-na
 import { Avatar } from "@/shared/ui/Avatar";
 import { colors } from "@/shared/theme/colors";
 import match from "@/messages/match.json";
+import { ChipsAmount } from "./ChipsAmount";
 import { TurnTimer, type TurnClock } from "./TurnTimer";
 
-type Props = { name: string; points?: number; eliminated?: boolean; isTurn?: boolean; turn?: TurnClock };
+type Props = { name: string; photoUrl?: string; points?: number; chips?: number; eliminated?: boolean; isTurn?: boolean; turn?: TurnClock };
 
 function details(points?: number, eliminated?: boolean) {
   if (eliminated) {
@@ -18,7 +19,7 @@ function details(points?: number, eliminated?: boolean) {
   return match.points.replace("{points}", String(points));
 }
 
-export function PlayerPlate({ name, points, eliminated = false, isTurn = false, turn }: Props) {
+export function PlayerPlate({ name, photoUrl, points, chips, eliminated = false, isTurn = false, turn }: Props) {
   const scale = useSharedValue(1);
   const info = details(points, eliminated);
 
@@ -32,12 +33,17 @@ export function PlayerPlate({ name, points, eliminated = false, isTurn = false, 
     <Animated.View style={[styles.container, plateStyle, eliminated && styles.eliminated]}>
       <View style={[styles.frame, isTurn && styles.turn]}>
         <View style={styles.plate}>
-          <Avatar name={name} size={26} />
+          <Avatar name={name} size={26} photoUrl={photoUrl} />
           <View>
             <Text style={styles.name} numberOfLines={1}>
               {name}
             </Text>
             {info && <Text style={styles.info}>{info}</Text>}
+            {chips !== undefined && (
+              <Text style={styles.info}>
+                <ChipsAmount value={chips} /> {match.chipsUnit}
+              </Text>
+            )}
           </View>
         </View>
       </View>

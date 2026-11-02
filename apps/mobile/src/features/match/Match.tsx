@@ -25,7 +25,7 @@ function MatchRoom({ room, onExit }: Props) {
     return null;
   }
   if (state.phase === "roundOver" || state.phase === "ended") {
-    return <RoundSummary state={state} onExit={onExit} />;
+    return <RoundSummary room={room} state={state} onExit={onExit} />;
   }
   if (state.phase === "playing") {
     return <Table room={room} state={state} onExit={onExit} />;

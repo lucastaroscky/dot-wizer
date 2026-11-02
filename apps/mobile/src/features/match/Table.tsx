@@ -16,7 +16,7 @@ import { Measured } from "./Measured";
 import { Melds } from "./Melds";
 import { Piles } from "./Piles";
 import { PlayerPlate } from "./PlayerPlate";
-import { announcementText, type GameState } from "./state";
+import { announcementText, hasChips, type GameState } from "./state";
 import { useFlights } from "./useFlights";
 import { useTablePlay } from "./useTablePlay";
 
@@ -32,6 +32,7 @@ export function Table({ room, state, onExit }: Props) {
   const opponents = [...state.order.slice(seat + 1), ...state.order.slice(0, seat)];
   const playingWithBots = Object.values(state.players).some((player) => player.bot);
   const announcement = announcementText(state);
+  const showChips = hasChips(state);
   const turn = { duration: state.turnDuration, number: state.turnNumber };
 
   return (
@@ -44,7 +45,9 @@ export function Table({ room, state, onExit }: Props) {
               <CardFan count={player?.cardCount ?? 0} />
               <PlayerPlate
                 name={player?.name ?? ""}
+                photoUrl={player?.photoUrl}
                 points={player?.points}
+                chips={showChips ? player?.chipsResult : undefined}
                 eliminated={player?.eliminated}
                 isTurn={state.currentTurn === sessionId}
                 turn={turn}
@@ -84,7 +87,14 @@ export function Table({ room, state, onExit }: Props) {
       <Text style={[styles.status, play.hasNotice && styles.notice]}>{play.status}</Text>
 
       <View style={styles.me}>
-        <PlayerPlate name={me?.name ?? ""} points={me?.points} isTurn={state.currentTurn === room.sessionId} turn={turn} />
+        <PlayerPlate
+          name={me?.name ?? ""}
+          photoUrl={me?.photoUrl}
+          points={me?.points}
+          chips={showChips ? me?.chipsResult : undefined}
+          isTurn={state.currentTurn === room.sessionId}
+          turn={turn}
+        />
       </View>
 
       <Text style={styles.handPoints}>{handPoints((me?.hand ?? []).map((card) => cardById(card.id)))}</Text>

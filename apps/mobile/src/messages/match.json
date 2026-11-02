@@ -26,7 +26,9 @@
     "place": "{position}º",
     "wentOut": "Bateu",
     "eliminated": "Eliminado",
-    "nextRound": "Próxima rodada em instantes"
+    "nextRound": "Próxima rodada em instantes",
+    "chips": "Fichas",
+    "deciding": "Decidindo"
   },
   "errors": {
     "invalidMeld": "Essas cartas não formam trinca nem sequência",
@@ -44,7 +46,26 @@
     "wentOut": "{name} bateu!",
     "bluffed": "{name} blefou e não pode mais bater fora da vez nesta rodada",
     "won": "{name} venceu a partida!",
-    "playerLeft": "Um jogador saiu. Partida encerrada.",
-    "outOfCards": "Acabaram as cartas. Rodada encerrada sem batida."
+    "outOfCards": "Acabaram as cartas. {name} venceu a rodada.",
+    "returned": "{name} voltou à disputa com {points} pontos.",
+    "eliminated": "{name} saiu da disputa."
+  },
+  "chipsUnit": "fichas",
+  "returnPrompt": {
+    "title": "Você passou de 100 pontos",
+    "back": "Voltar",
+    "leave": "Sair da disputa"
+  },
+  "history": {
+    "title": "Resumo das fichas",
+    "loading": "Carregando…",
+    "loadFailed": "Não foi possível carregar o resumo das fichas.",
+    "startBalance": "Saldo inicial",
+    "paid": "Pagou",
+    "received": "Recebeu",
+    "deficit": "Déficit",
+    "winBonus": "Bônus de vitória",
+    "result": "Resultado",
+    "finalBalance": "Saldo final"
   }
 }

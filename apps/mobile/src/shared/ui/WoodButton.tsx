@@ -1,11 +1,11 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { colors } from "@/shared/theme/colors";
 
-type Props = { title: string; onPress: () => void; large?: boolean };
+type Props = { title: string; onPress: () => void; large?: boolean; disabled?: boolean };
 
-export function WoodButton({ title, onPress, large = false }: Props) {
+export function WoodButton({ title, onPress, large = false, disabled = false }: Props) {
   return (
-    <Pressable onPress={onPress} style={({ pressed }) => [styles.outer, pressed && styles.pressed]}>
+    <Pressable onPress={onPress} disabled={disabled} style={({ pressed }) => [styles.outer, pressed && styles.pressed, disabled && styles.disabled]}>
       <View style={[styles.inner, large && styles.innerLarge]}>
         <Text style={[styles.text, large && styles.textLarge]}>{title}</Text>
       </View>
@@ -16,6 +16,7 @@ export function WoodButton({ title, onPress, large = false }: Props) {
 const styles = StyleSheet.create({
   outer: { backgroundColor: colors.woodDark, borderRadius: 10, padding: 3, boxShadow: "0 3px 6px rgba(0, 0, 0, 0.35)" },
   pressed: { opacity: 0.85 },
+  disabled: { opacity: 0.45 },
   inner: {
     backgroundImage: colors.woodGradient,
     borderWidth: 2,

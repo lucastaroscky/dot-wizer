@@ -13,7 +13,7 @@ export function WaitingRoom({ state }: { state: GameState }) {
       <Text style={styles.status}>{status}</Text>
       <View style={styles.players}>
         {state.order.map((sessionId) => (
-          <PlayerPlate key={sessionId} name={state.players[sessionId]?.name ?? ""} />
+          <PlayerPlate key={sessionId} name={state.players[sessionId]?.name ?? ""} photoUrl={state.players[sessionId]?.photoUrl} />
         ))}
       </View>
     </SafeAreaView>

@@ -1,6 +1,11 @@
 {
   "seats": "Jogadores na mesa",
+  "tables": "Mesa",
+  "tableName": "Mesa {id}",
+  "minimumBalance": "Mín. {value}",
+  "pointValue": "Ponto {value}",
   "bots": "Jogar com robôs",
+  "trainingHint": "Treino: sem fichas",
   "yes": "Sim",
   "no": "Não",
   "cards": "Cartas",

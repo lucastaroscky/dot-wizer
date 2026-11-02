@@ -1,13 +1,14 @@
 import { createContext, use, useRef, useState, type ReactNode } from "react";
 import { Asset } from "expo-asset";
-import { Client, CloseCode, type Room } from "@colyseus/sdk";
-import { ROOM_NAME, type CreateOptions, type JoinOptions, type PontinhoState } from "@pontinho/protocol";
+import { Client, CloseCode, MatchMakeError, type Room } from "@colyseus/sdk";
+import { JOIN_REFUSALS, ROOM_NAME, type CreateOptions, type JoinRefusal, type PontinhoState } from "@pontinho/protocol";
+import { getAccessToken } from "@/shared/api/client";
 import { CardStyleContext, type CardStyleName } from "@/shared/cards/Card";
 import { DECK_IMAGES } from "@/shared/cards/deck";
 import { SERVER_URL } from "@/shared/config/env";
 import home from "@/messages/home.json";
 
-export type JoinRequest = { seats: number; bots: boolean; cardStyle: CardStyleName };
+export type JoinRequest = CreateOptions & { cardStyle: CardStyleName };
 
 type MatchSession = {
   room?: Room<PontinhoState>;
@@ -28,17 +29,44 @@ function fetchWithTimeout(url: string | URL | Request, init?: RequestInit) {
 const client = new Client(SERVER_URL, { fetchFn: fetchWithTimeout });
 const MatchContext = createContext<MatchSession | undefined>(undefined);
 
-function guestName() {
-  return home.guestName.replace("{number}", String(Math.floor(1000 + Math.random() * 9000)));
+const REFUSALS = Object.keys(JOIN_REFUSALS) as JoinRefusal[];
+
+function joinErrorText(error: unknown) {
+  if (!(error instanceof MatchMakeError)) {
+    return home.joinFailed;
+  }
+  const refusal = REFUSALS.find((key) => JOIN_REFUSALS[key].message === error.message);
+  if (!refusal) {
+    return home.joinFailed;
+  }
+  return home.joinRefusals[refusal];
 }
 
 export function MatchProvider({ children }: { children: ReactNode }) {
-  const [name] = useState(guestName);
   const [room, setRoom] = useState<Room<PontinhoState>>();
   const [cardStyle, setCardStyle] = useState<CardStyleName>("jumbo");
   const [error, setError] = useState("");
   const [connecting, setConnecting] = useState(false);
   const joining = useRef(false);
+  const droppedToken = useRef<string>(undefined);
+
+  async function reconnectToDroppedRoom() {
+    const token = droppedToken.current;
+    droppedToken.current = undefined;
+    if (!token) {
+      return undefined;
+    }
+    return client.reconnect<PontinhoState>(token).catch(() => undefined);
+  }
+
+  async function connect(options: CreateOptions) {
+    client.auth.token = await getAccessToken();
+    const reconnected = await reconnectToDroppedRoom();
+    if (reconnected) {
+      return reconnected;
+    }
+    return client.joinOrCreate<PontinhoState>(ROOM_NAME, options);
+  }
 
   async function join(request: JoinRequest) {
     if (joining.current) {
@@ -47,21 +75,22 @@ export function MatchProvider({ children }: { children: ReactNode }) {
     joining.current = true;
     setConnecting(true);
     setError("");
-    setCardStyle(request.cardStyle);
-    const options: JoinOptions & CreateOptions = { name, seats: request.seats, bots: request.bots };
+    const { cardStyle: chosenCardStyle, ...options } = request;
+    setCardStyle(chosenCardStyle);
     try {
-      await Asset.loadAsync(Object.values(DECK_IMAGES[request.cardStyle]));
-      const joined = await client.joinOrCreate<PontinhoState>(ROOM_NAME, options);
+      await Asset.loadAsync(Object.values(DECK_IMAGES[chosenCardStyle]));
+      const joined = await connect(options);
       joined.onLeave((code) => {
         if (code === CloseCode.CONSENTED) {
           return;
         }
+        droppedToken.current = joined.reconnectionToken;
         setRoom(undefined);
         setError(home.connectionClosed);
       });
       setRoom(joined);
-    } catch {
-      setError(home.joinFailed);
+    } catch (joinError) {
+      setError(joinErrorText(joinError));
     }
     joining.current = false;
     setConnecting(false);

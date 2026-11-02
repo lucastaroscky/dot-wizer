@@ -1,0 +1,10 @@
+{
+  "quantity": "Quantidade de fichas",
+  "decrease": "Diminuir",
+  "increase": "Aumentar",
+  "price": "Valor: {value}",
+  "buy": "Comprar",
+  "buying": "Comprando…",
+  "testNotice": "Teste: nada é cobrado",
+  "back": "Voltar"
+}
