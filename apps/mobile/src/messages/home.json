@@ -6,11 +6,12 @@
   "store": "Loja",
   "signOut": "Sair",
   "joinRefusals": {
-    "alreadyInRoom": "Você já está em uma partida. Se a conexão caiu, espere até 2 minutos.",
+    "alreadyInRoom": "Você já está em uma partida em outro aparelho.",
     "invalidToken": "Sua sessão expirou. Entre de novo.",
     "profileIncomplete": "Complete o seu perfil para jogar.",
     "insufficientBalance": "Você não tem o saldo mínimo desta mesa.",
     "apiUnavailable": "Não foi possível conferir as suas fichas. Tente de novo.",
-    "invalidOptions": "Não foi possível entrar com essas opções."
+    "invalidOptions": "Não foi possível entrar com essas opções.",
+    "accountDisabled": "Conta desativada."
   }
 }

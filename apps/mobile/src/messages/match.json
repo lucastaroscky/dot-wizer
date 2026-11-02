@@ -4,6 +4,13 @@
   "points": "{points} pts",
   "eliminated": "eliminado",
   "offline": "Offline",
+  "sittingOut": "Fora da partida",
+  "exit": "Sair",
+  "exitConfirm": {
+    "message": "Sair da partida? O jogo joga por você até o fim da rodada.",
+    "confirm": "Sair",
+    "cancel": "Continuar"
+  },
   "notices": {
     "waitYourTurn": "Espere a sua vez",
     "drawBeforeMeld": "Compre uma carta antes de baixar",

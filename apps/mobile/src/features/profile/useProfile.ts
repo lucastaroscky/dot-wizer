@@ -7,7 +7,7 @@ export function useProfile({ signedIn }: { signedIn: boolean }) {
   return {
     profile: query.data,
     loading: query.isLoading,
-    failed: query.isError,
+    failed: query.isLoadingError,
     retry: () => query.refetch(),
   };
 }

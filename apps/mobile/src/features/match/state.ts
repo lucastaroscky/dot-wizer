@@ -27,6 +27,10 @@ export function isOffline(player?: { connection: string }) {
   return player !== undefined && player.connection !== CONNECTED;
 }
 
+export function isSittingOut(player?: { sittingOut: boolean }) {
+  return player?.sittingOut === true;
+}
+
 export function hasChips(state: GameState) {
   return state.table !== TRAINING_TABLE;
 }

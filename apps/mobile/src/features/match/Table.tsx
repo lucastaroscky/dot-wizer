@@ -10,13 +10,14 @@ import { WoodButton } from "@/shared/ui/WoodButton";
 import match from "@/messages/match.json";
 import type { TableAreas } from "./areas";
 import { CardFan } from "./CardFan";
+import { ExitButton } from "./ExitButton";
 import { FlightLayer } from "./FlightLayer";
 import { Hand } from "./Hand";
 import { Measured } from "./Measured";
 import { Melds } from "./Melds";
 import { Piles } from "./Piles";
 import { PlayerPlate } from "./PlayerPlate";
-import { announcementText, hasChips, isOffline, type GameState } from "./state";
+import { announcementText, hasChips, isOffline, isSittingOut, type GameState } from "./state";
 import { useFlights } from "./useFlights";
 import { useTablePlay } from "./useTablePlay";
 
@@ -49,6 +50,7 @@ export function Table({ room, state, onExit }: Props) {
                 points={player?.points}
                 chips={showChips ? player?.chipsResult : undefined}
                 eliminated={player?.eliminated}
+                sittingOut={isSittingOut(player)}
                 offline={isOffline(player)}
                 isTurn={state.currentTurn === sessionId}
                 turn={turn}
@@ -93,6 +95,7 @@ export function Table({ room, state, onExit }: Props) {
           photoUrl={me?.photoUrl}
           points={me?.points}
           chips={showChips ? me?.chipsResult : undefined}
+          sittingOut={isSittingOut(me)}
           isTurn={state.currentTurn === room.sessionId}
           turn={turn}
         />
@@ -109,6 +112,11 @@ export function Table({ room, state, onExit }: Props) {
       {playingWithBots && (
         <View style={styles.exit}>
           <WoodButton title={match.back} onPress={onExit} />
+        </View>
+      )}
+      {showChips && (
+        <View style={styles.exit}>
+          <ExitButton confirm={me?.eliminated !== true} onExit={onExit} />
         </View>
       )}
     </SafeAreaView>

@@ -9,6 +9,7 @@ export function OpenMatchPrompt({ canResume, connecting, onResume, onBack }: Pro
   return (
     <View style={styles.content}>
       <Text style={styles.title}>{lobby.openMatch}</Text>
+      {!canResume && <Text style={styles.detail}>{lobby.openMatchElsewhere}</Text>}
       {canResume && <WoodButton title={connecting ? lobby.connecting : lobby.resumeMatch} onPress={onResume} disabled={connecting} large />}
       <WoodButton title={lobby.back} onPress={onBack} />
     </View>
@@ -18,4 +19,5 @@ export function OpenMatchPrompt({ canResume, connecting, onResume, onBack }: Pro
 const styles = StyleSheet.create({
   content: { alignItems: "center", gap: 14 },
   title: { color: colors.woodText, fontSize: 18, fontWeight: "700", textAlign: "center" },
+  detail: { color: colors.woodText, fontSize: 15, textAlign: "center" },
 });

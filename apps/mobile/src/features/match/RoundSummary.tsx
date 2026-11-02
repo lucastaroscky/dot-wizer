@@ -7,9 +7,10 @@ import { WoodButton } from "@/shared/ui/WoodButton";
 import { colors } from "@/shared/theme/colors";
 import match from "@/messages/match.json";
 import { ChipsAmount } from "./ChipsAmount";
+import { ExitButton } from "./ExitButton";
 import { MatchHistory } from "./MatchHistory";
 import { ReturnPrompt } from "./ReturnPrompt";
-import { announcementText, hasChips, type GameState } from "./state";
+import { announcementText, hasChips, isSittingOut, type GameState } from "./state";
 
 type Props = { room: Room<PontinhoState>; state: GameState; onExit: () => void };
 
@@ -21,6 +22,7 @@ type Row = {
   roundPoints: number;
   roundChips: number;
   eliminated: boolean;
+  sittingOut: boolean;
   awaitingReturn: boolean;
   position: number;
 };
@@ -36,6 +38,7 @@ function ranking(state: GameState) {
       roundPoints: player?.roundPoints ?? 0,
       roundChips: player?.roundChips ?? 0,
       eliminated: player?.eliminated ?? false,
+      sittingOut: isSittingOut(player),
       awaitingReturn: player?.awaitingReturn ?? false,
     };
   });
@@ -52,7 +55,8 @@ export function RoundSummary({ room, state, onExit }: Props) {
   const matchOver = state.phase === "ended";
   const playingWithBots = Object.values(state.players).some((player) => player.bot);
   const showChips = hasChips(state);
-  const choosingReturn = state.players[room.sessionId]?.awaitingReturn === true;
+  const me = state.players[room.sessionId];
+  const choosingReturn = me?.awaitingReturn === true;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -75,6 +79,7 @@ export function RoundSummary({ room, state, onExit }: Props) {
                   <Text style={styles.cell} numberOfLines={1}>{row.name}</Text>
                   {row.sessionId === state.wentOut && <Text style={styles.badge}>{match.summary.wentOut}</Text>}
                   {row.eliminated && <Text style={styles.eliminated}>{match.summary.eliminated}</Text>}
+                  {row.sittingOut && <Text style={styles.badge}>{match.sittingOut}</Text>}
                   {row.awaitingReturn && <Text style={styles.badge}>{match.summary.deciding}</Text>}
                 </View>
               </View>
@@ -89,6 +94,11 @@ export function RoundSummary({ room, state, onExit }: Props) {
           {(matchOver || playingWithBots) && (
             <View style={styles.exit}>
               <WoodButton title={match.back} onPress={onExit} />
+            </View>
+          )}
+          {!matchOver && showChips && (
+            <View style={styles.exit}>
+              <ExitButton confirm={me?.eliminated !== true} onExit={onExit} />
             </View>
           )}
         </View>

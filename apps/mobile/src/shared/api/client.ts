@@ -14,7 +14,7 @@ export class ApiError extends Error {
   }
 }
 
-type RequestOptions = { method?: "GET" | "POST" | "PUT"; body?: unknown };
+type RequestOptions = { method?: "GET" | "POST" | "PUT"; body?: unknown; headers?: Record<string, string> };
 
 function messageText(message: string | string[]) {
   if (Array.isArray(message)) {
@@ -42,8 +42,8 @@ export async function getAccessToken() {
   return data.session.access_token;
 }
 
-export async function request<Data>(path: string, { method = "GET", body }: RequestOptions = {}) {
-  const headers: Record<string, string> = { Authorization: `Bearer ${await getAccessToken()}` };
+export async function request<Data>(path: string, { method = "GET", body, headers: extraHeaders }: RequestOptions = {}) {
+  const headers: Record<string, string> = { ...extraHeaders, Authorization: `Bearer ${await getAccessToken()}` };
   if (body !== undefined) {
     headers["Content-Type"] = "application/json";
   }

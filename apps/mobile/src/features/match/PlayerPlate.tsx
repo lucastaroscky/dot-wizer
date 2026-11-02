@@ -13,14 +13,18 @@ type Props = {
   points?: number;
   chips?: number;
   eliminated?: boolean;
+  sittingOut?: boolean;
   offline?: boolean;
   isTurn?: boolean;
   turn?: TurnClock;
 };
 
-function details(points?: number, eliminated?: boolean) {
+function details(points?: number, eliminated?: boolean, sittingOut?: boolean) {
   if (eliminated) {
     return match.eliminated;
+  }
+  if (sittingOut) {
+    return match.sittingOut;
   }
   if (points === undefined) {
     return undefined;
@@ -28,9 +32,9 @@ function details(points?: number, eliminated?: boolean) {
   return match.points.replace("{points}", String(points));
 }
 
-export function PlayerPlate({ name, photoUrl, points, chips, eliminated = false, offline = false, isTurn = false, turn }: Props) {
+export function PlayerPlate({ name, photoUrl, points, chips, eliminated = false, sittingOut = false, offline = false, isTurn = false, turn }: Props) {
   const scale = useSharedValue(1);
-  const info = details(points, eliminated);
+  const info = details(points, eliminated, sittingOut);
 
   useEffect(() => {
     scale.set(withSpring(isTurn ? 1.06 : 1, { duration: 250, dampingRatio: 0.7 }));
@@ -39,7 +43,7 @@ export function PlayerPlate({ name, photoUrl, points, chips, eliminated = false,
   const plateStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.get() }] }));
 
   return (
-    <Animated.View style={[styles.container, plateStyle, eliminated && styles.eliminated]}>
+    <Animated.View style={[styles.container, plateStyle, (eliminated || sittingOut) && styles.dimmed]}>
       <View style={[styles.frame, isTurn && styles.turn]}>
         <View style={styles.plate}>
           <Avatar name={name} size={26} photoUrl={photoUrl} />
@@ -64,7 +68,7 @@ export function PlayerPlate({ name, photoUrl, points, chips, eliminated = false,
 
 const styles = StyleSheet.create({
   container: { minWidth: 104 },
-  eliminated: { opacity: 0.5 },
+  dimmed: { opacity: 0.5 },
   frame: { backgroundColor: colors.woodDark, borderRadius: 8, padding: 2, boxShadow: "0 2px 4px rgba(0, 0, 0, 0.4)" },
   turn: { backgroundColor: colors.highlight },
   plate: {

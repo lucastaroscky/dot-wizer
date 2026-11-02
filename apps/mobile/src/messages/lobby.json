@@ -12,6 +12,7 @@
   "confirm": "OK",
   "connecting": "Conectando…",
   "openMatch": "Você tem uma partida em andamento",
+  "openMatchElsewhere": "Ela está aberta em outro aparelho.",
   "resumeMatch": "Voltar à partida",
   "back": "Voltar",
   "cardStyles": {
