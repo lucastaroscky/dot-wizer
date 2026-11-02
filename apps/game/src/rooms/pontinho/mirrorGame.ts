@@ -51,7 +51,7 @@ export function mirrorGame(state: PontinhoState, game: Game) {
     player.points = gamePlayer.points;
     player.roundPoints = gamePlayer.roundPoints;
     player.eliminated = gamePlayer.eliminated;
-    player.out = gamePlayer.out;
+    player.sittingOut = gamePlayer.sittingOut;
     player.awaitingReturn = gamePlayer.awaitingReturn;
     player.bluffed = gamePlayer.bluffed;
   }

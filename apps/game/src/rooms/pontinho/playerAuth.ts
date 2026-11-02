@@ -20,7 +20,7 @@ async function settleOpenMatch(gameApi: GameApi, userId: string, openMatchId: st
   if (seat?.matchId === openMatchId) {
     throw refuseOpenMatch(seat.reconnectionToken);
   }
-  if (await openMatches.roomOf(openMatchId)) {
+  if ((await openMatches.roomOf(openMatchId)) || (await openMatches.startingRoomOf(userId))) {
     throw refuseOpenMatch();
   }
   try {
@@ -31,6 +31,10 @@ async function settleOpenMatch(gameApi: GameApi, userId: string, openMatchId: st
   }
 }
 
+function isUnavailable(error: unknown) {
+  return !(error instanceof GameApiError) || error.status >= 500;
+}
+
 async function enter(gameApi: GameApi, accessToken: string, table: number | undefined) {
   try {
     return await gameApi.playerEntry({ accessToken, table });
@@ -38,8 +42,14 @@ async function enter(gameApi: GameApi, accessToken: string, table: number | unde
     if (error instanceof GameApiError && error.status === 401) {
       throw refuse("invalidToken");
     }
+    if (error instanceof GameApiError && error.status === 403) {
+      throw refuse("accountDisabled");
+    }
     console.error("Falha ao consultar o jogador na API:", error);
-    throw refuse("apiUnavailable");
+    if (isUnavailable(error)) {
+      throw refuse("apiUnavailable");
+    }
+    throw error;
   }
 }
 

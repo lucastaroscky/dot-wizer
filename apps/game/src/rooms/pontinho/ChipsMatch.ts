@@ -1,4 +1,5 @@
 import type { GameApi } from "../../gameApi/GameApi.js";
+import { openMatches } from "./openMatches.js";
 
 export type ChipsSeat = { playerId: string; userId: string };
 export type ChipsFinance = { playerId: string; result: number; deficit: number; balance: number };
@@ -9,10 +10,11 @@ export type MatchResult = { winnerId: string | null; awardWinBonus: boolean };
 
 export const NO_WINNER: MatchResult = { winnerId: null, awardWinBonus: false };
 
-type ChipsMatchInput = { api: GameApi; table: number; seats: ChipsSeat[] };
+type ChipsMatchInput = { api: GameApi; roomId: string; table: number; seats: ChipsSeat[] };
 
 export class ChipsMatch {
   private readonly api: GameApi;
+  private readonly roomId: string;
   private readonly table: number;
   private readonly seats: ChipsSeat[];
   private queue: Promise<unknown> = Promise.resolve();
@@ -20,18 +22,26 @@ export class ChipsMatch {
   private roundNumber = 0;
   private finishing?: Promise<void>;
 
-  constructor({ api, table, seats }: ChipsMatchInput) {
+  constructor({ api, roomId, table, seats }: ChipsMatchInput) {
     this.api = api;
+    this.roomId = roomId;
     this.table = table;
     this.seats = seats;
   }
 
   open(): Promise<OpenedChipsMatch> {
     return this.enqueue(async () => {
-      const match = await this.api.startMatch({ table: this.table, playerIds: this.seats.map(({ userId }) => userId) });
-      this.matchId = match.matchId;
-      const finances = match.players.map(({ userId, startBalance }) => ({ playerId: this.playerIdOf(userId), result: 0, deficit: 0, balance: startBalance }));
-      return { matchId: match.matchId, pointValue: match.pointValue, finances };
+      const userIds = this.seats.map(({ userId }) => userId);
+      await openMatches.markStarting(userIds, this.roomId);
+      try {
+        const match = await this.api.startMatch({ table: this.table, playerIds: userIds });
+        this.matchId = match.matchId;
+        await openMatches.registerMatch(match.matchId, this.roomId);
+        const finances = match.players.map(({ userId, startBalance }) => ({ playerId: this.playerIdOf(userId), result: 0, deficit: 0, balance: startBalance }));
+        return { matchId: match.matchId, pointValue: match.pointValue, finances };
+      } finally {
+        await openMatches.clearStarting(userIds);
+      }
     });
   }
 

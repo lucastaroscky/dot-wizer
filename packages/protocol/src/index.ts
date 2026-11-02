@@ -1,6 +1,6 @@
 import { schema, t, type SchemaType } from "@colyseus/schema";
 import { z } from "zod";
-import { CHIP_TABLES, cardById, createDeck, type GameError, type Meld, type MeldKind } from "@pontinho/rules";
+import { CHIP_TABLES, MIN_PLAYERS, ONLINE_MAX_PLAYERS, cardById, createDeck, type GameError, type Meld, type MeldKind } from "@pontinho/rules";
 
 export const CardState = schema({
   id: t.string(),
@@ -22,7 +22,7 @@ export const Player = schema({
   points: t.uint16().default(0),
   roundPoints: t.uint16().default(0),
   eliminated: t.boolean().default(false),
-  out: t.boolean().default(false),
+  sittingOut: t.boolean().default(false),
   awaitingReturn: t.boolean().default(false),
   bot: t.boolean().default(false),
   bluffed: t.boolean().default(false),
@@ -62,8 +62,7 @@ export const PontinhoState = schema({
 export type PontinhoState = SchemaType<typeof PontinhoState>;
 
 export const ROOM_NAME = "pontinho";
-export const MIN_PLAYERS = 3;
-export const MAX_PLAYERS = 4;
+export { MIN_PLAYERS, ONLINE_MAX_PLAYERS as MAX_PLAYERS } from "@pontinho/rules";
 export const PRACTICE_TABLE = 0;
 export const MAX_CARDS_PER_ACTION = 14;
 
@@ -73,7 +72,7 @@ const meldIndexSchema = z.number().int().min(0);
 
 const tableSchema = z.number().int().refine((table) => CHIP_TABLES.some(({ id }) => id === table));
 
-const seatsSchema = z.number().int().min(MIN_PLAYERS).max(MAX_PLAYERS);
+const seatsSchema = z.number().int().min(MIN_PLAYERS).max(ONLINE_MAX_PLAYERS);
 
 export const createOptionsSchema = z.discriminatedUnion("bots", [
   z.object({ bots: z.literal(true), seats: seatsSchema, table: tableSchema.optional() }),
@@ -125,6 +124,7 @@ export const JOIN_REFUSALS = {
   apiUnavailable: { code: 503, message: "apiUnavailable" },
   invalidOptions: { code: 400, message: "invalidOptions" },
   openMatch: { code: 409, message: "openMatch" },
+  accountDisabled: { code: 403, message: "accountDisabled" },
 } as const;
 export type JoinRefusal = keyof typeof JOIN_REFUSALS;
 

@@ -26,8 +26,8 @@ type Setup = {
   lastDiscarder?: string;
   players?: string[];
   eliminated?: string[];
-  out?: string[];
-  away?: string[];
+  sittingOut?: string[];
+  leftMatch?: string[];
   dealer?: string;
 };
 
@@ -50,8 +50,8 @@ function gameWith(setup: Setup = {}): Game {
       hand: setup.hands?.[player.id] ? cards(setup.hands[player.id]) : player.hand,
       points: setup.points?.[player.id] ?? 0,
       eliminated: setup.eliminated?.includes(player.id) ?? false,
-      out: setup.out?.includes(player.id) ?? false,
-      away: setup.away?.includes(player.id) ?? false,
+      sittingOut: setup.sittingOut?.includes(player.id) ?? false,
+      leftMatch: setup.leftMatch?.includes(player.id) ?? false,
     })),
     stock: setup.stock ? cards(setup.stock) : base.stock,
     discard: setup.discard ? cards(setup.discard) : base.discard,
@@ -554,12 +554,12 @@ describe("automatic play", () => {
 describe("players who are out of the match", () => {
   const FOUR_PLAYERS = ["ana", "bruno", "carla", "davi"];
 
-  function roundOverWith(out: string[]) {
+  function roundOverWith(sittingOut: string[]) {
     const game = gameWith({
       players: FOUR_PLAYERS,
-      hands: { ana: ["K-hearts-1"], carla: ["5-clubs-1"], davi: ["K-spades-1"], bruno: out.includes("bruno") ? [] : ["2-clubs-1"] },
-      out,
-      away: out,
+      hands: { ana: ["K-hearts-1"], carla: ["5-clubs-1"], davi: ["K-spades-1"], bruno: sittingOut.includes("bruno") ? [] : ["2-clubs-1"] },
+      sittingOut,
+      leftMatch: sittingOut,
       currentTurn: "davi",
       hasDrawn: true,
     });
@@ -578,7 +578,7 @@ describe("players who are out of the match", () => {
     const game = gameWith({
       players: FOUR_PLAYERS,
       hands: { ana: ["K-spades-1", "2-clubs-1"], bruno: [] },
-      out: ["bruno"],
+      sittingOut: ["bruno"],
       currentTurn: "ana",
       hasDrawn: true,
     });
@@ -593,7 +593,7 @@ describe("players who are out of the match", () => {
   it("never lets a player who is out go out with the discard", () => {
     const game = gameWith({
       hands: { ana: ["K-spades-1"], bruno: ["5-clubs-1"], carla: [] },
-      out: ["carla"],
+      sittingOut: ["carla"],
       currentTurn: "bruno",
       discard: ["7-spades-2"],
       discardIsFree: true,
@@ -607,7 +607,7 @@ describe("players who are out of the match", () => {
     const game = gameWith({
       hands: { ana: ["K-spades-1"], bruno: ["9-clubs-1"], carla: [] },
       points: { ana: 40, bruno: 30, carla: 0 },
-      out: ["carla"],
+      sittingOut: ["carla"],
       stock: [],
       discard: ["7-spades-2"],
     });
@@ -630,15 +630,15 @@ describe("leaving and rejoining the match", () => {
 
   it("keeps a player who left in the round in progress, and sits him out from the next round", () => {
     const left = act(gameWith({ hands: { ana: ["K-spades-1"], bruno: ["5-hearts-1"], carla: ["9-clubs-1"] }, hasDrawn: true }), "bruno", { type: "leaveMatch" }).game;
-    assert.strictEqual(playerOf(left, "bruno").away, true);
-    assert.strictEqual(playerOf(left, "bruno").out, false);
+    assert.strictEqual(playerOf(left, "bruno").leftMatch, true);
+    assert.strictEqual(playerOf(left, "bruno").sittingOut, false);
     assert.strictEqual(playerOf(left, "bruno").hand.length, 1);
 
     const roundOver = act(left, "ana", { type: "discard", cardId: "K-spades-1" }).game;
     assert.strictEqual(playerOf(roundOver, "bruno").roundPoints, 5);
 
     const next = startRound(roundOver);
-    assert.strictEqual(playerOf(next, "bruno").out, true);
+    assert.strictEqual(playerOf(next, "bruno").sittingOut, true);
     assert.deepStrictEqual(next.players.map((player) => player.hand.length), [9, 0, 9]);
   });
 
@@ -652,7 +652,7 @@ describe("leaving and rejoining the match", () => {
   });
 
   it("deals a player who rejoins while sitting out in the next round, with the score he had", () => {
-    const roundOver = roundWhereAnaGoesOut({ points: { bruno: 40 }, out: ["bruno"], away: ["bruno"], hands: { ana: ["K-spades-1"], bruno: [], carla: ["9-clubs-1"] } });
+    const roundOver = roundWhereAnaGoesOut({ points: { bruno: 40 }, sittingOut: ["bruno"], leftMatch: ["bruno"], hands: { ana: ["K-spades-1"], bruno: [], carla: ["9-clubs-1"] } });
     const back = act(roundOver, "bruno", { type: "rejoinMatch" }).game;
 
     const next = startRound(back);
@@ -667,7 +667,7 @@ describe("leaving and rejoining the match", () => {
       hands: { ana: ["2-clubs-1"], bruno: ["5-hearts-1"], carla: ["9-clubs-1"], davi: ["K-spades-1"] },
       currentTurn: "davi",
       hasDrawn: true,
-      away: [],
+      leftMatch: [],
     });
     const left = act(game, "bruno", { type: "leaveMatch" }).game;
     const roundOver = act(left, "davi", { type: "discard", cardId: "K-spades-1" }).game;
@@ -733,8 +733,8 @@ describe("ending the match when the players are gone", () => {
     const game = gameWith({
       hands: { ana: ["K-spades-1"], bruno: [], carla: ["Q-hearts-1"] },
       points: { ana: 30, bruno: 50, carla: 95 },
-      out: ["bruno"],
-      away: ["bruno"],
+      sittingOut: ["bruno"],
+      leftMatch: ["bruno"],
       hasDrawn: true,
     });
     const offered = act(game, "ana", { type: "discard", cardId: "K-spades-1" });
@@ -751,8 +751,8 @@ describe("ending the match when the players are gone", () => {
     const game = gameWith({
       hands: { ana: ["K-spades-1"], bruno: [], carla: ["Q-hearts-1"] },
       points: { ana: 30, bruno: 50, carla: 95 },
-      out: ["bruno"],
-      away: ["bruno"],
+      sittingOut: ["bruno"],
+      leftMatch: ["bruno"],
       hasDrawn: true,
     });
     const offered = act(game, "ana", { type: "discard", cardId: "K-spades-1" }).game;
@@ -775,7 +775,7 @@ describe("ending the match when the players are gone", () => {
 
     assert.deepStrictEqual(events, [{ type: "returned", playerId: "carla", points: 52 }]);
     assert.strictEqual(playerOf(next, "carla").awaitingReturn, false);
-    assert.strictEqual(playerOf(next, "carla").away, true);
+    assert.strictEqual(playerOf(next, "carla").leftMatch, true);
     assert.deepStrictEqual(startRound(next).players.map((player) => player.hand.length), [9, 9, 0]);
   });
 

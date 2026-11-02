@@ -116,7 +116,7 @@ export abstract class PontinhoRoom extends Room<{ state: PontinhoState; client: 
 
   async onDispose() {
     await this.finishChips(NO_WINNER);
-    this.closeOpenMatch();
+    await this.closeOpenMatch();
   }
 
   onBeforeShutdown() {
@@ -124,8 +124,8 @@ export abstract class PontinhoRoom extends Room<{ state: PontinhoState; client: 
     super.onBeforeShutdown();
   }
 
-  onDrop(client: Client) {
-    if (this.state.phase === "waiting") {
+  async onDrop(client: Client) {
+    if (this.state.phase === "waiting" || this.state.phase === "ended") {
       return;
     }
     const playerId = client.sessionId;
@@ -133,25 +133,29 @@ export abstract class PontinhoRoom extends Room<{ state: PontinhoState; client: 
       return;
     }
     this.setConnection(playerId, "reconnecting");
-    const reservation = this.keepSeat(client);
     this.restartTurnOf(playerId);
+    const reservation = this.reserveSeat(client);
+    if (!reservation) {
+      return;
+    }
     this.clock.setTimeout(() => {
       if (this.reservations.get(playerId) === reservation) {
         this.leaveForGood(playerId);
       }
     }, RECONNECTION_MS);
+    await this.rememberSeat(client);
   }
 
-  onReconnect(client: Client) {
+  async onReconnect(client: Client) {
     const playerId = client.sessionId;
     this.reservations.delete(playerId);
-    this.forgetSeat(playerId);
     this.setConnection(playerId, "connected");
     this.apply(playerId, { type: "rejoinMatch" });
     this.restartTurnOf(playerId);
+    await this.forgetSeat(playerId);
   }
 
-  onLeave(client: Client, code?: number) {
+  async onLeave(client: Client, code?: number) {
     if (!this.game) {
       this.removePlayer(client.sessionId);
       return;
@@ -167,7 +171,8 @@ export abstract class PontinhoRoom extends Room<{ state: PontinhoState; client: 
     if (code !== CloseCode.CONSENTED) {
       return;
     }
-    this.keepSeat(client);
+    this.reserveSeat(client);
+    await this.rememberSeat(client);
     this.leaveForGood(client.sessionId);
   }
 
@@ -175,34 +180,36 @@ export abstract class PontinhoRoom extends Room<{ state: PontinhoState; client: 
     return this.state.players.get(playerId)?.eliminated === true;
   }
 
-  private keepSeat(client: Client) {
-    const playerId = client.sessionId;
+  private reserveSeat(client: Client): Reservation | undefined {
     const reservation = this.allowReconnection(client, "manual");
     reservation.catch(() => {});
     if (!(reservation instanceof Deferred)) {
-      return reservation;
+      return undefined;
     }
-    this.reservations.set(playerId, reservation);
-    const userId = this.userIds.get(playerId);
-    if (this.chips && userId) {
-      openMatches.keepSeat(userId, { matchId: this.state.matchId, reconnectionToken: `${this.roomId}:${client.reconnectionToken}` });
-    }
+    this.reservations.set(client.sessionId, reservation);
     return reservation;
   }
 
-  private forgetSeat(playerId: string) {
-    const userId = this.userIds.get(playerId);
-    if (userId) {
-      openMatches.forgetSeat(userId);
+  private async rememberSeat(client: Client) {
+    const userId = this.userIds.get(client.sessionId);
+    if (this.chips && userId) {
+      await openMatches.keepSeat(userId, { matchId: this.state.matchId, reconnectionToken: `${this.roomId}:${client.reconnectionToken}` });
     }
   }
 
-  private closeOpenMatch() {
+  private async forgetSeat(playerId: string) {
+    const userId = this.userIds.get(playerId);
+    if (userId) {
+      await openMatches.forgetSeat(userId);
+    }
+  }
+
+  private async closeOpenMatch() {
     this.reservations.forEach((reservation) => reservation.reject());
     this.reservations.clear();
-    this.userIds.forEach((userId) => openMatches.forgetSeat(userId));
+    await Promise.all([...this.userIds.values()].map((userId) => openMatches.forgetSeat(userId)));
     if (this.state.matchId) {
-      openMatches.forgetMatch(this.state.matchId);
+      await openMatches.forgetMatch(this.state.matchId);
     }
   }
 
@@ -299,13 +306,12 @@ export abstract class PontinhoRoom extends Room<{ state: PontinhoState; client: 
       return;
     }
     const seats = [...this.userIds].map(([playerId, userId]) => ({ playerId, userId }));
-    this.chips = new ChipsMatch({ api: this.gameApi, table: this.state.table, seats });
+    this.chips = new ChipsMatch({ api: this.gameApi, roomId: this.roomId, table: this.state.table, seats });
     this.chips
       .open()
       .then((opened) => {
         this.state.matchId = opened.matchId;
         this.state.pointValue = opened.pointValue;
-        openMatches.registerMatch(opened.matchId, this.roomId);
         this.mirrorFinances(opened.finances);
       })
       .catch((error) => this.abortMatch(error));
@@ -342,7 +348,7 @@ export abstract class PontinhoRoom extends Room<{ state: PontinhoState; client: 
       this.announce("won", winner);
     }
     this.finishChips(winner ? { winnerId: winner, awardWinBonus } : NO_WINNER);
-    this.closeOpenMatch();
+    void this.closeOpenMatch();
   }
 
   private stopMatch() {
@@ -356,7 +362,7 @@ export abstract class PontinhoRoom extends Room<{ state: PontinhoState; client: 
       mirrorGame(this.state, this.game);
     }
     this.finishChips(NO_WINNER);
-    this.closeOpenMatch();
+    void this.closeOpenMatch();
   }
 
   private finishChips(result: MatchResult) {

@@ -99,6 +99,14 @@ describe("PontinhoRoom login", () => {
     await assert.rejects(connectWith(room, token, TABLE_ONE), refusedWith("apiUnavailable"));
   });
 
+  it("tells a disabled account apart from an API that is down", async () => {
+    const room = await createRoom(TABLE_ONE);
+    const token = api.addAccount("Ana");
+    api.failNext("playerEntry", 1, 403);
+
+    await assert.rejects(connectWith(room, token, TABLE_ONE), refusedWith("accountDisabled"));
+  });
+
   it("refuses a player who joins by room id declaring another table", async () => {
     const room = await createRoom({ table: 7, seats: 3, bots: false });
     const token = api.addAccount("Ana", { balance: 1_000 });

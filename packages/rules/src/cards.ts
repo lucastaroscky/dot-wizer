@@ -24,7 +24,14 @@ export function createDeck(): Card[] {
   return cards;
 }
 
-export function shuffle<T>(items: T[], random = Math.random): T[] {
+const FLOAT_BITS = 2 ** 53;
+
+export function secureRandom() {
+  const [high, low] = globalThis.crypto.getRandomValues(new Uint32Array(2));
+  return (high * 2 ** 21 + (low >>> 11)) / FLOAT_BITS;
+}
+
+export function shuffle<T>(items: T[], random = secureRandom): T[] {
   const shuffled = [...items];
   for (let i = shuffled.length - 1; i > 0; i--) {
     const j = Math.floor(random() * (i + 1));
@@ -36,14 +43,14 @@ export function shuffle<T>(items: T[], random = Math.random): T[] {
 export type Piles = { stock: Card[]; discard: Card[] };
 export type Round = Piles & { hands: Card[][] };
 
-export function dealRound(playerCount: number, random = Math.random): Round {
+export function dealRound(playerCount: number, random = secureRandom): Round {
   const stock = shuffle(createDeck(), random);
   const hands = Array.from({ length: playerCount }, () => stock.splice(0, HAND_SIZE));
   const discard = stock.splice(0, 1);
   return { hands, stock, discard };
 }
 
-export function drawFromStock({ stock, discard }: Piles, random = Math.random): (Piles & { card: Card }) | undefined {
+export function drawFromStock({ stock, discard }: Piles, random = secureRandom): (Piles & { card: Card }) | undefined {
   if (stock.length === 0 && discard.length <= 1) {
     return undefined;
   }

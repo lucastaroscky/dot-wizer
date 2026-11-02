@@ -1,4 +1,4 @@
-import { dealRound, drawFromStock, ELIMINATION_POINTS, handPoints, type Card } from "./cards.ts";
+import { dealRound, drawFromStock, ELIMINATION_POINTS, handPoints, secureRandom, type Card } from "./cards.ts";
 import { addToMeld, canDiscard, createMeld, findGoOut, findMeldInHand, isJoker, replaceJoker, type Meld } from "./melds.ts";
 
 export type Phase = "playing" | "roundOver" | "ended";
@@ -9,8 +9,8 @@ export type GamePlayer = {
   points: number;
   roundPoints: number;
   eliminated: boolean;
-  out: boolean;
-  away: boolean;
+  sittingOut: boolean;
+  leftMatch: boolean;
   awaitingReturn: boolean;
   bluffed: boolean;
 };
@@ -50,6 +50,9 @@ export type RoundEndReason = "goOut" | "outOfCards";
 
 export type MatchEndReason = "points" | "walkover";
 
+export const MIN_PLAYERS = 3;
+export const ONLINE_MAX_PLAYERS = 4;
+
 const MIN_PLAYERS_TO_CONTINUE = 2;
 
 export type GameEvent =
@@ -79,8 +82,8 @@ export type ActionResult = { game: Game; events: GameEvent[] } | { error: GameEr
 
 type Random = () => number;
 
-export function startMatch(playerIds: string[], random: Random = Math.random): Game {
-  const players = playerIds.map((id) => ({ id, hand: [], points: 0, roundPoints: 0, eliminated: false, out: false, away: false, awaitingReturn: false, bluffed: false }));
+export function startMatch(playerIds: string[], random: Random = secureRandom): Game {
+  const players = playerIds.map((id) => ({ id, hand: [], points: 0, roundPoints: 0, eliminated: false, sittingOut: false, leftMatch: false, awaitingReturn: false, bluffed: false }));
   const game: Game = {
     players,
     phase: "roundOver",
@@ -98,13 +101,13 @@ export function startMatch(playerIds: string[], random: Random = Math.random): G
   return startRound(game, random);
 }
 
-export function startRound(game: Game, random: Random = Math.random): Game {
+export function startRound(game: Game, random: Random = secureRandom): Game {
   if (game.phase !== "roundOver" || game.players.some((player) => player.awaitingReturn)) {
     return game;
   }
   const next = clone(game);
   for (const player of next.players) {
-    player.out = player.away;
+    player.sittingOut = player.leftMatch;
   }
   const dealer = next.players.find((player) => player.id === next.dealer);
   if (dealer && !isPlaying(dealer)) {
@@ -137,7 +140,7 @@ export function abandonMatch(game: Game): Game {
   return { ...game, phase: "ended" };
 }
 
-export function applyAction(game: Game, playerId: string, action: Action, random: Random = Math.random): ActionResult {
+export function applyAction(game: Game, playerId: string, action: Action, random: Random = secureRandom): ActionResult {
   const next = clone(game);
   const player = next.players.find((candidate) => candidate.id === playerId);
   if (!player) {
@@ -339,7 +342,7 @@ function leaveMatch(game: Game, player: GamePlayer, events: GameEvent[]) {
   if (game.phase === "ended" || player.eliminated) {
     return "notAllowed";
   }
-  player.away = true;
+  player.leftMatch = true;
   if (player.awaitingReturn) {
     return chooseReturn(game, player, true, events);
   }
@@ -351,7 +354,7 @@ function rejoinMatch(game: Game, player: GamePlayer) {
   if (game.phase === "ended" || player.eliminated) {
     return "notAllowed";
   }
-  player.away = false;
+  player.leftMatch = false;
   return undefined;
 }
 
@@ -519,11 +522,11 @@ function nextActive(game: Game, playerId: string) {
 }
 
 function isPlaying(player: GamePlayer) {
-  return !player.eliminated && !player.out;
+  return !player.eliminated && !player.sittingOut;
 }
 
 function willPlay(player: GamePlayer) {
-  return !player.eliminated && !player.away;
+  return !player.eliminated && !player.leftMatch;
 }
 
 function isTurnOf(game: Game, player: GamePlayer) {

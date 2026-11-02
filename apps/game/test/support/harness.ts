@@ -1,5 +1,6 @@
 import assert from "assert";
 import { ColyseusTestServer, boot } from "@colyseus/testing";
+import { matchMaker } from "colyseus";
 import { cardById, type Game } from "@pontinho/rules";
 import { createServer } from "../../src/createServer.js";
 import type { PontinhoRoom } from "../../src/rooms/pontinho/PontinhoRoom.js";
@@ -45,6 +46,17 @@ export function readyToGoOut(game: Game, playerId: string): Game {
 
 export function withPoints(game: Game, playerId: string, points: number): Game {
   return { ...game, players: game.players.map((player) => (player.id === playerId ? { ...player, points } : player)) };
+}
+
+export function roomStillExists(roomId: string) {
+  return matchMaker.getLocalRoomById(roomId) !== undefined;
+}
+
+export async function eventually(check: () => boolean, timeoutMs = 3_000) {
+  const deadline = Date.now() + timeoutMs;
+  while (!check() && Date.now() < deadline) {
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
 }
 
 export function flush() {

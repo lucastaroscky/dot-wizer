@@ -1,4 +1,5 @@
 import assert from "assert";
+import { matchMaker } from "colyseus";
 import { JOIN_REFUSALS, toJoinRefusal, toReconnectionToken } from "@pontinho/protocol";
 import { advance, editGame, flush, playerOf, readyToGoOut, setupServer, withPlayers } from "./support/harness.js";
 
@@ -10,7 +11,7 @@ function refusalMessage(error: unknown) {
 }
 
 describe("PontinhoRoom open matches", () => {
-  const { api, joinOrCreate, reconnect, startMatchWith } = setupServer();
+  const { api, connect, createRoom, joinOrCreate, reconnect, startMatchWith } = setupServer();
 
   async function matchWithOneWhoLeft() {
     const match = await startMatchWith(["Lucas", "Ana", "Bruno"]);
@@ -133,5 +134,61 @@ describe("PontinhoRoom open matches", () => {
     await assert.rejects(reconnect(reconnectionToken));
     advance(room, 8_000);
     assert.strictEqual(room.state.phase, "playing");
+  });
+
+  it("does not close a match that is still being opened when another device of a seated player asks to join", async () => {
+    const release = api.holdStart();
+    const room = await createRoom(TABLE_ONE);
+    for (const name of ["Lucas", "Ana", "Bruno"]) {
+      await connect(room, name, TABLE_ONE);
+    }
+    api.setOpenMatch("Lucas", "match-1");
+
+    const error = await joinOrCreate("token-Lucas", TABLE_ONE).catch((refusal) => refusal);
+    release();
+    await flush();
+
+    assert.strictEqual(refusalMessage(error), JOIN_REFUSALS.openMatch.message);
+    assert.deepStrictEqual(api.finishedMatches, []);
+    assert.strictEqual(room.state.matchId, "match-1");
+  });
+
+  it("forgets the match that was being opened when the API refuses it", async () => {
+    api.failNext("startMatch");
+    const room = await createRoom(TABLE_ONE);
+    const first = await connect(room, "Lucas", TABLE_ONE);
+    const closed = new Promise((resolve) => first.onLeave(resolve));
+    await connect(room, "Ana", TABLE_ONE);
+    await connect(room, "Bruno", TABLE_ONE);
+    await closed;
+    api.setOpenMatch("Lucas", "stuck-9");
+
+    const joined = await joinOrCreate("token-Lucas", TABLE_ONE);
+
+    assert.ok(joined.sessionId);
+    assert.deepStrictEqual(api.finishedMatches, [{ matchId: "stuck-9", winnerId: null, awardWinBonus: false }]);
+  });
+
+  it("keeps the match going and logs when the presence fails to remember a seat", async () => {
+    const { room, others } = await startMatchWith(["Lucas", "Ana", "Bruno"]);
+    const originalSet = matchMaker.presence.set;
+    const originalError = console.error;
+    const logged: string[] = [];
+    matchMaker.presence.set = () => {
+      throw new Error("presence fora do ar");
+    };
+    console.error = (message: string) => logged.push(message);
+
+    try {
+      await others[0].leave();
+      await flush();
+    } finally {
+      matchMaker.presence.set = originalSet;
+      console.error = originalError;
+    }
+
+    assert.strictEqual(playerOf(room, others[0].sessionId).connection, "left");
+    assert.strictEqual(room.state.phase, "playing");
+    assert.ok(logged.some((message) => message.includes("presence")));
   });
 });

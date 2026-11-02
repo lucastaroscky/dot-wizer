@@ -17,8 +17,9 @@ export class FakeGameApi implements GameApi {
 
   private accounts = new Map<string, Account>();
   private matches = new Map<string, FakeMatch>();
-  private failures = new Map<string, number>();
+  private failures = new Map<string, { times: number; status: number }>();
   private roundGate: Promise<void> = Promise.resolve();
+  private startGate: Promise<void> = Promise.resolve();
 
   reset() {
     this.playerEntries = [];
@@ -30,6 +31,7 @@ export class FakeGameApi implements GameApi {
     this.matches.clear();
     this.failures.clear();
     this.roundGate = Promise.resolve();
+    this.startGate = Promise.resolve();
   }
 
   addAccount(name: string, options: AccountOptions = {}) {
@@ -57,8 +59,14 @@ export class FakeGameApi implements GameApi {
     return `user-${name}`;
   }
 
-  failNext(call: "playerEntry" | "startMatch" | "registerRound" | "finishMatch", times = 1) {
-    this.failures.set(call, times);
+  failNext(call: "playerEntry" | "startMatch" | "registerRound" | "finishMatch", times = 1, status = 503) {
+    this.failures.set(call, { times, status });
+  }
+
+  holdStart() {
+    let release = () => {};
+    this.startGate = new Promise<void>((resolve) => (release = resolve));
+    return release;
   }
 
   holdRounds() {
@@ -89,6 +97,7 @@ export class FakeGameApi implements GameApi {
 
   async startMatch(body: StartMatchBody): Promise<StartMatchResponse> {
     this.startedMatches.push(body);
+    await this.startGate;
     this.consumeFailure("startMatch");
     const chipTable = CHIP_TABLES.find(({ id }) => id === body.table);
     if (!chipTable) {
@@ -189,11 +198,11 @@ export class FakeGameApi implements GameApi {
   }
 
   private consumeFailure(call: string) {
-    const remaining = this.failures.get(call) ?? 0;
-    if (remaining === 0) {
+    const failure = this.failures.get(call);
+    if (!failure || failure.times === 0) {
       return;
     }
-    this.failures.set(call, remaining - 1);
-    throw new GameApiError(503, `${call} unavailable`);
+    this.failures.set(call, { ...failure, times: failure.times - 1 });
+    throw new GameApiError(failure.status, `${call} unavailable`);
   }
 }

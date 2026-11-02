@@ -1,6 +1,6 @@
 import assert from "assert";
 import type { Room } from "@colyseus/sdk";
-import { advance, editGame, flush, playerOf, readyToGoOut, required, setupServer, withPlayers } from "./support/harness.js";
+import { advance, editGame, eventually, flush, playerOf, readyToGoOut, required, roomStillExists, setupServer, withPlayers } from "./support/harness.js";
 
 async function drop(client: Room) {
   client.reconnection.enabled = false;
@@ -55,12 +55,12 @@ describe("PontinhoRoom players who drop or leave", () => {
     advance(room, 120_000);
     await flush();
     assert.strictEqual(playerOf(room, others[0].sessionId).connection, "left");
-    assert.strictEqual(engineOf(room, others[0].sessionId).away, true);
+    assert.strictEqual(engineOf(room, others[0].sessionId).leftMatch, true);
 
     await reconnect(reconnectionToken);
     await flush();
     assert.strictEqual(playerOf(room, others[0].sessionId).connection, "connected");
-    assert.strictEqual(engineOf(room, others[0].sessionId).away, false);
+    assert.strictEqual(engineOf(room, others[0].sessionId).leftMatch, false);
   });
 
   it("keeps the seat of a player who pressed Leave, so he can come back", async () => {
@@ -106,7 +106,7 @@ describe("PontinhoRoom players who drop or leave", () => {
     advance(room, 8_000);
     assert.strictEqual(room.state.phase, "playing");
     assert.strictEqual(playerOf(room, others[0].sessionId).cardCount, 0);
-    assert.strictEqual(playerOf(room, others[0].sessionId).out, true);
+    assert.strictEqual(playerOf(room, others[0].sessionId).sittingOut, true);
     assert.strictEqual(playerOf(room, others[1].sessionId).cardCount, 9);
   });
 
@@ -125,7 +125,7 @@ describe("PontinhoRoom players who drop or leave", () => {
     advance(room, 8_000);
 
     assert.strictEqual(playerOf(room, others[0].sessionId).cardCount, 9);
-    assert.strictEqual(playerOf(room, others[0].sessionId).out, false);
+    assert.strictEqual(playerOf(room, others[0].sessionId).sittingOut, false);
   });
 
   it("ends the match after the round in progress when the others left, and the one who stayed wins without the bonus", async () => {
@@ -235,5 +235,22 @@ describe("PontinhoRoom players who drop or leave", () => {
 
     assert.strictEqual(room.state.phase, "ended");
     assert.deepStrictEqual(api.finishedMatches, []);
+  });
+
+  it("lets the room close when a player drops after the match ended", async () => {
+    const { room, current, others } = await startMatchWith(["Lucas", "Ana", "Bruno"]);
+    await others[0].leave();
+    await others[1].leave();
+    await flush();
+    editGame(room, (game) => readyToGoOut(game, current.sessionId));
+    current.send("discard", "K-spades-1");
+    await room.waitForMessage("discard");
+    await flush();
+    assert.strictEqual(room.state.phase, "ended");
+
+    await drop(current);
+    await eventually(() => !roomStillExists(room.roomId));
+
+    assert.strictEqual(roomStillExists(room.roomId), false);
   });
 });
