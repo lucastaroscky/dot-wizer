@@ -22,6 +22,7 @@ export const Player = schema({
   points: t.uint16().default(0),
   roundPoints: t.uint16().default(0),
   eliminated: t.boolean().default(false),
+  out: t.boolean().default(false),
   awaitingReturn: t.boolean().default(false),
   bot: t.boolean().default(false),
   bluffed: t.boolean().default(false),
@@ -123,8 +124,30 @@ export const JOIN_REFUSALS = {
   insufficientBalance: { code: 403, message: "insufficientBalance" },
   apiUnavailable: { code: 503, message: "apiUnavailable" },
   invalidOptions: { code: 400, message: "invalidOptions" },
+  openMatch: { code: 409, message: "openMatch" },
 } as const;
 export type JoinRefusal = keyof typeof JOIN_REFUSALS;
+
+const OPEN_MATCH_PREFIX = `${JOIN_REFUSALS.openMatch.message}:`;
+
+export function openMatchRefusalMessage(reconnectionToken?: string) {
+  if (reconnectionToken === undefined) {
+    return JOIN_REFUSALS.openMatch.message;
+  }
+  return `${OPEN_MATCH_PREFIX}${reconnectionToken}`;
+}
+
+export function toReconnectionToken(refusalMessage: string): string | undefined {
+  if (!refusalMessage.startsWith(OPEN_MATCH_PREFIX)) {
+    return undefined;
+  }
+  return refusalMessage.slice(OPEN_MATCH_PREFIX.length);
+}
+
+export function toJoinRefusal(refusalMessage: string): JoinRefusal | undefined {
+  const name = refusalMessage.split(":", 1)[0];
+  return (Object.keys(JOIN_REFUSALS) as JoinRefusal[]).find((refusal) => refusal === name);
+}
 
 export function toAnnouncement(value: string): Announcement | undefined {
   return ANNOUNCEMENTS.find((announcement) => announcement === value);

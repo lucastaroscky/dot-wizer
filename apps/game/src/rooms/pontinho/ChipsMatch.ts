@@ -5,6 +5,9 @@ export type ChipsFinance = { playerId: string; result: number; deficit: number; 
 export type OpenedChipsMatch = { matchId: string; pointValue: number; finances: ChipsFinance[] };
 export type RoundLoser = { playerId: string; handPoints: number };
 export type RoundResult = { winnerId: string; losers: RoundLoser[] };
+export type MatchResult = { winnerId: string | null; awardWinBonus: boolean };
+
+export const NO_WINNER: MatchResult = { winnerId: null, awardWinBonus: false };
 
 type ChipsMatchInput = { api: GameApi; table: number; seats: ChipsSeat[] };
 
@@ -45,14 +48,18 @@ export class ChipsMatch {
     });
   }
 
-  finish(winnerId: string | null): Promise<void> {
+  finish({ winnerId, awardWinBonus }: MatchResult): Promise<void> {
     this.finishing ??= this.enqueue(async () => {
       if (!this.matchId) {
         return;
       }
-      await this.api.finishMatch({ matchId: this.matchId, winnerId: winnerId === null ? null : this.userIdOf(winnerId) });
+      await this.api.finishMatch({ matchId: this.matchId, winnerId: winnerId === null ? null : this.userIdOf(winnerId), awardWinBonus });
     });
     return this.finishing;
+  }
+
+  eliminate(playerId: string): Promise<unknown> {
+    return this.enqueue(() => this.api.eliminatePlayer({ matchId: this.matchId, userId: this.userIdOf(playerId) }));
   }
 
   private enqueue<T>(task: () => Promise<T>): Promise<T> {

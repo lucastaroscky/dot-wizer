@@ -26,6 +26,8 @@ type Setup = {
   lastDiscarder?: string;
   players?: string[];
   eliminated?: string[];
+  out?: string[];
+  away?: string[];
   dealer?: string;
 };
 
@@ -48,6 +50,8 @@ function gameWith(setup: Setup = {}): Game {
       hand: setup.hands?.[player.id] ? cards(setup.hands[player.id]) : player.hand,
       points: setup.points?.[player.id] ?? 0,
       eliminated: setup.eliminated?.includes(player.id) ?? false,
+      out: setup.out?.includes(player.id) ?? false,
+      away: setup.away?.includes(player.id) ?? false,
     })),
     stock: setup.stock ? cards(setup.stock) : base.stock,
     discard: setup.discard ? cards(setup.discard) : base.discard,
@@ -333,7 +337,7 @@ describe("end of round and match", () => {
     assert.ok(next.players.every((player) => !player.awaitingReturn));
     assert.strictEqual(next.phase, "ended");
     assert.strictEqual(next.winner, "ana");
-    assert.deepStrictEqual(events.at(-1), { type: "matchEnded", winner: "ana" });
+    assert.deepStrictEqual(events.at(-1), { type: "matchEnded", winner: "ana", reason: "points" });
   });
 
   it("gives the round to the lowest total when there are no cards left to draw", () => {
@@ -544,5 +548,250 @@ describe("automatic play", () => {
     assert.strictEqual(playerOf(next, "ana").hand.length, 2);
     assert.strictEqual(next.currentTurn, "bruno");
     assert.strictEqual(next.discardIsFree, false);
+  });
+});
+
+describe("players who are out of the match", () => {
+  const FOUR_PLAYERS = ["ana", "bruno", "carla", "davi"];
+
+  function roundOverWith(out: string[]) {
+    const game = gameWith({
+      players: FOUR_PLAYERS,
+      hands: { ana: ["K-hearts-1"], carla: ["5-clubs-1"], davi: ["K-spades-1"], bruno: out.includes("bruno") ? [] : ["2-clubs-1"] },
+      out,
+      away: out,
+      currentTurn: "davi",
+      hasDrawn: true,
+    });
+    return act(game, "davi", { type: "discard", cardId: "K-spades-1" }).game;
+  }
+
+  it("deals no cards to a player who is out and deals the others as usual", () => {
+    const next = startRound(roundOverWith(["bruno"]));
+
+    assert.strictEqual(next.phase, "playing");
+    assert.deepStrictEqual(next.players.map((player) => player.hand.length), [9, 0, 9, 9]);
+    assert.strictEqual(next.stock.length, 108 - 27 - 1);
+  });
+
+  it("skips a player who is out when the turn passes and when the dealer rotates", () => {
+    const game = gameWith({
+      players: FOUR_PLAYERS,
+      hands: { ana: ["K-spades-1", "2-clubs-1"], bruno: [] },
+      out: ["bruno"],
+      currentTurn: "ana",
+      hasDrawn: true,
+    });
+
+    const { game: next, events } = act(game, "ana", { type: "discard", cardId: "K-spades-1" });
+
+    assert.strictEqual(next.currentTurn, "carla");
+    assert.deepStrictEqual(events.at(-1), { type: "turnStarted", playerId: "carla" });
+    assert.strictEqual(roundOverWith(["bruno"]).dealer, "carla");
+  });
+
+  it("never lets a player who is out go out with the discard", () => {
+    const game = gameWith({
+      hands: { ana: ["K-spades-1"], bruno: ["5-clubs-1"], carla: [] },
+      out: ["carla"],
+      currentTurn: "bruno",
+      discard: ["7-spades-2"],
+      discardIsFree: true,
+      lastDiscarder: "ana",
+    });
+
+    assert.strictEqual(refused(game, "carla", { type: "goOut" }), "notAllowed");
+  });
+
+  it("never gives the round to a player who is out when there are no cards left to draw", () => {
+    const game = gameWith({
+      hands: { ana: ["K-spades-1"], bruno: ["9-clubs-1"], carla: [] },
+      points: { ana: 40, bruno: 30, carla: 0 },
+      out: ["carla"],
+      stock: [],
+      discard: ["7-spades-2"],
+    });
+
+    const { game: next } = act(game, "ana", { type: "draw" });
+
+    assert.strictEqual(next.wentOut, "bruno");
+  });
+});
+
+describe("leaving and rejoining the match", () => {
+  function roundWhereAnaGoesOut(setup: Setup = {}) {
+    const game = gameWith({
+      hands: { ana: ["K-spades-1"], bruno: ["5-hearts-1"], carla: ["9-clubs-1"] },
+      hasDrawn: true,
+      ...setup,
+    });
+    return act(game, "ana", { type: "discard", cardId: "K-spades-1" }).game;
+  }
+
+  it("keeps a player who left in the round in progress, and sits him out from the next round", () => {
+    const left = act(gameWith({ hands: { ana: ["K-spades-1"], bruno: ["5-hearts-1"], carla: ["9-clubs-1"] }, hasDrawn: true }), "bruno", { type: "leaveMatch" }).game;
+    assert.strictEqual(playerOf(left, "bruno").away, true);
+    assert.strictEqual(playerOf(left, "bruno").out, false);
+    assert.strictEqual(playerOf(left, "bruno").hand.length, 1);
+
+    const roundOver = act(left, "ana", { type: "discard", cardId: "K-spades-1" }).game;
+    assert.strictEqual(playerOf(roundOver, "bruno").roundPoints, 5);
+
+    const next = startRound(roundOver);
+    assert.strictEqual(playerOf(next, "bruno").out, true);
+    assert.deepStrictEqual(next.players.map((player) => player.hand.length), [9, 0, 9]);
+  });
+
+  it("carries on playing when the player who left comes back before the round ends", () => {
+    const left = act(gameWith({ hands: { ana: ["K-spades-1"], bruno: ["5-hearts-1"], carla: ["9-clubs-1"] }, hasDrawn: true }), "bruno", { type: "leaveMatch" }).game;
+    const back = act(left, "bruno", { type: "rejoinMatch" }).game;
+
+    const next = startRound(act(back, "ana", { type: "discard", cardId: "K-spades-1" }).game);
+
+    assert.deepStrictEqual(next.players.map((player) => player.hand.length), [9, 9, 9]);
+  });
+
+  it("deals a player who rejoins while sitting out in the next round, with the score he had", () => {
+    const roundOver = roundWhereAnaGoesOut({ points: { bruno: 40 }, out: ["bruno"], away: ["bruno"], hands: { ana: ["K-spades-1"], bruno: [], carla: ["9-clubs-1"] } });
+    const back = act(roundOver, "bruno", { type: "rejoinMatch" }).game;
+
+    const next = startRound(back);
+
+    assert.deepStrictEqual(next.players.map((player) => player.hand.length), [9, 9, 9]);
+    assert.strictEqual(playerOf(next, "bruno").points, 40);
+  });
+
+  it("passes the deal over a player who left, so the player after the next one deals", () => {
+    const game = gameWith({
+      players: ["ana", "bruno", "carla", "davi"],
+      hands: { ana: ["2-clubs-1"], bruno: ["5-hearts-1"], carla: ["9-clubs-1"], davi: ["K-spades-1"] },
+      currentTurn: "davi",
+      hasDrawn: true,
+      away: [],
+    });
+    const left = act(game, "bruno", { type: "leaveMatch" }).game;
+    const roundOver = act(left, "davi", { type: "discard", cardId: "K-spades-1" }).game;
+    assert.strictEqual(roundOver.dealer, "bruno");
+
+    const next = startRound(roundOver);
+
+    assert.strictEqual(next.dealer, "carla");
+    assert.strictEqual(next.currentTurn, "davi");
+  });
+
+  it("refuses to leave or rejoin when the player is eliminated or the match ended", () => {
+    const eliminated = gameWith({ eliminated: ["carla"] });
+
+    assert.strictEqual(refused(eliminated, "carla", { type: "leaveMatch" }), "notAllowed");
+    assert.strictEqual(refused(abandonMatch(gameWith()), "bruno", { type: "leaveMatch" }), "notAllowed");
+    assert.strictEqual(refused(abandonMatch(gameWith()), "bruno", { type: "rejoinMatch" }), "notAllowed");
+  });
+});
+
+describe("ending the match when the players are gone", () => {
+  const FOUR_PLAYERS = ["ana", "bruno", "carla", "davi"];
+
+  function leave(game: Game, ...playerIds: string[]) {
+    return playerIds.reduce((current, id) => act(current, id, { type: "leaveMatch" }).game, game);
+  }
+
+  it("ends the match after the round in progress when the others left, with no win bonus for who stayed", () => {
+    const game = leave(gameWith({ hands: { ana: ["K-spades-1"], bruno: ["5-hearts-1"], carla: ["9-clubs-1"] }, hasDrawn: true }), "bruno", "carla");
+    assert.strictEqual(game.phase, "playing");
+
+    const { game: next, events } = act(game, "ana", { type: "discard", cardId: "K-spades-1" });
+
+    assert.deepStrictEqual(events.map((event) => event.type), ["move", "roundEnded", "matchEnded"]);
+    assert.deepStrictEqual(events.at(-1), { type: "matchEnded", winner: "ana", reason: "walkover" });
+    assert.strictEqual(next.phase, "ended");
+    assert.strictEqual(next.winner, "ana");
+    assert.deepStrictEqual(next.players.map((player) => player.roundPoints), [0, 5, 9]);
+  });
+
+  it("ends the match at once when the others leave between rounds", () => {
+    const roundOver = act(gameWith({ hands: { ana: ["K-spades-1"], bruno: ["5-hearts-1"], carla: ["9-clubs-1"] }, hasDrawn: true }), "ana", { type: "discard", cardId: "K-spades-1" }).game;
+    const oneLeft = act(roundOver, "bruno", { type: "leaveMatch" });
+    assert.strictEqual(oneLeft.game.phase, "roundOver");
+    assert.deepStrictEqual(oneLeft.events, []);
+
+    const { game: next, events } = act(oneLeft.game, "carla", { type: "leaveMatch" });
+
+    assert.deepStrictEqual(events, [{ type: "matchEnded", winner: "ana", reason: "walkover" }]);
+    assert.strictEqual(next.phase, "ended");
+  });
+
+  it("ends the match without a winner when everybody left", () => {
+    const game = leave(gameWith({ hands: { ana: ["K-spades-1"], bruno: ["5-hearts-1"], carla: ["9-clubs-1"] }, hasDrawn: true }), "ana", "bruno", "carla");
+
+    const { game: next, events } = act(game, "ana", { type: "discard", cardId: "K-spades-1" });
+
+    assert.deepStrictEqual(events.at(-1), { type: "matchEnded", winner: "", reason: "walkover" });
+    assert.strictEqual(next.winner, "");
+  });
+
+  it("waits for the return choices, and ends the match if the choice leaves a single player in", () => {
+    const game = gameWith({
+      hands: { ana: ["K-spades-1"], bruno: [], carla: ["Q-hearts-1"] },
+      points: { ana: 30, bruno: 50, carla: 95 },
+      out: ["bruno"],
+      away: ["bruno"],
+      hasDrawn: true,
+    });
+    const offered = act(game, "ana", { type: "discard", cardId: "K-spades-1" });
+    assert.deepStrictEqual(offered.events.at(-1), { type: "returnOffered", playerIds: ["carla"] });
+    assert.strictEqual(offered.game.phase, "roundOver");
+
+    const { game: next, events } = act(offered.game, "carla", { type: "chooseReturn", back: false });
+
+    assert.deepStrictEqual(events, [{ type: "eliminated", playerId: "carla" }, { type: "matchEnded", winner: "ana", reason: "walkover" }]);
+    assert.strictEqual(next.phase, "ended");
+  });
+
+  it("counts who is out with the score he had, both for who stayed and for the return", () => {
+    const game = gameWith({
+      hands: { ana: ["K-spades-1"], bruno: [], carla: ["Q-hearts-1"] },
+      points: { ana: 30, bruno: 50, carla: 95 },
+      out: ["bruno"],
+      away: ["bruno"],
+      hasDrawn: true,
+    });
+    const offered = act(game, "ana", { type: "discard", cardId: "K-spades-1" }).game;
+
+    const { game: next } = act(offered, "carla", { type: "chooseReturn", back: true });
+
+    assert.strictEqual(playerOf(next, "carla").points, 50);
+    assert.strictEqual(next.phase, "roundOver");
+  });
+
+  it("resolves the return for a player who leaves before choosing: he comes back and stays out", () => {
+    const game = gameWith({
+      hands: { ana: ["K-spades-1"], bruno: ["2-clubs-1"], carla: ["Q-hearts-1"] },
+      points: { ana: 30, bruno: 50, carla: 95 },
+      hasDrawn: true,
+    });
+    const offered = act(game, "ana", { type: "discard", cardId: "K-spades-1" }).game;
+
+    const { game: next, events } = act(offered, "carla", { type: "leaveMatch" });
+
+    assert.deepStrictEqual(events, [{ type: "returned", playerId: "carla", points: 52 }]);
+    assert.strictEqual(playerOf(next, "carla").awaitingReturn, false);
+    assert.strictEqual(playerOf(next, "carla").away, true);
+    assert.deepStrictEqual(startRound(next).players.map((player) => player.hand.length), [9, 9, 0]);
+  });
+
+  it("ends the match without win bonus when the only player at 100 or less is one who left", () => {
+    const game = leave(
+      gameWith({
+        players: FOUR_PLAYERS,
+        hands: { ana: ["K-spades-1"], bruno: ["K-hearts-1"], carla: ["Q-hearts-1"], davi: ["J-hearts-1"] },
+        points: { ana: 30, bruno: 95, carla: 98, davi: 99 },
+        hasDrawn: true,
+      }),
+      "ana",
+    );
+
+    const { events } = act(game, "ana", { type: "discard", cardId: "K-spades-1" });
+
+    assert.deepStrictEqual(events.at(-1), { type: "matchEnded", winner: "ana", reason: "walkover" });
   });
 });

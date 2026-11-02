@@ -55,13 +55,27 @@ describe("httpGameApi", () => {
     const { api, requests } = setup([{ status: 201, body: { matchId: "m1" } }, { status: 200, body: {} }]);
 
     await api.startMatch({ table: 3, playerIds: ["a", "b", "c"] });
-    await api.finishMatch({ matchId: "m1", winnerId: null });
+    await api.finishMatch({ matchId: "m1", winnerId: "a", awardWinBonus: false });
 
     assert.deepStrictEqual(
       requests.map(({ url, body }) => ({ url, body })),
       [
         { url: "http://api.test/internal/matches", body: { table: 3, playerIds: ["a", "b", "c"] } },
-        { url: "http://api.test/internal/matches/m1/finish", body: { winnerId: null } },
+        { url: "http://api.test/internal/matches/m1/finish", body: { winnerId: "a", awardWinBonus: false } },
+      ],
+    );
+  });
+
+  it("registers the elimination of a player on the match path and retries it like a round", async () => {
+    const { api, requests } = setup([{ status: 503 }, { status: 200, body: { matchId: "m1", userId: "a", eliminatedAt: "2026-11-02T00:00:00.000Z" } }]);
+
+    await api.eliminatePlayer({ matchId: "m1", userId: "a" });
+
+    assert.deepStrictEqual(
+      requests.map(({ url, body }) => ({ url, body })),
+      [
+        { url: "http://api.test/internal/matches/m1/eliminations", body: { userId: "a" } },
+        { url: "http://api.test/internal/matches/m1/eliminations", body: { userId: "a" } },
       ],
     );
   });
@@ -88,7 +102,7 @@ describe("httpGameApi", () => {
   it("gives up after 3 failed attempts", async () => {
     const { api, requests } = setup([{ status: 503 }]);
 
-    await assert.rejects(api.finishMatch({ matchId: "m1", winnerId: null }), (error) => error instanceof GameApiError && error.status === 503);
+    await assert.rejects(api.finishMatch({ matchId: "m1", winnerId: null, awardWinBonus: false }), (error) => error instanceof GameApiError && error.status === 503);
     assert.strictEqual(requests.length, 3);
   });
 

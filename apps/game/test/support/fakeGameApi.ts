@@ -1,18 +1,19 @@
-import type { MatchHistoryResponse, PlayerEntryBody, PlayerEntryResponse, RegisterRoundResponse, StartMatchBody, StartMatchResponse } from "@pontinho/api-contract";
+import type { EliminatePlayerResponse, MatchHistoryResponse, PlayerEntryBody, PlayerEntryResponse, RegisterRoundResponse, StartMatchBody, StartMatchResponse } from "@pontinho/api-contract";
 import { CHIP_TABLES, settleRound, type MatchFinance } from "@pontinho/rules";
-import { GameApiError, type FinishMatchInput, type GameApi, type RegisterRoundInput } from "../../src/gameApi/GameApi.js";
+import { GameApiError, type EliminatePlayerInput, type FinishMatchInput, type GameApi, type RegisterRoundInput } from "../../src/gameApi/GameApi.js";
 
-type Account = { token: string; userId: string; name: string | null; photoUrl: string | null; profileComplete: boolean; balance: number };
+type Account = { token: string; userId: string; name: string | null; photoUrl: string | null; profileComplete: boolean; balance: number; openMatchId: string | null };
 
 type FakeMatch = { id: string; table: number; pointValue: number; finances: MatchFinance[]; lastRound: number };
 
-type AccountOptions = { balance?: number; profileComplete?: boolean; photoUrl?: string | null };
+type AccountOptions = { balance?: number; profileComplete?: boolean; photoUrl?: string | null; openMatchId?: string };
 
 export class FakeGameApi implements GameApi {
   playerEntries: PlayerEntryBody[] = [];
   startedMatches: StartMatchBody[] = [];
   registeredRounds: RegisterRoundInput[] = [];
   finishedMatches: FinishMatchInput[] = [];
+  eliminations: EliminatePlayerInput[] = [];
 
   private accounts = new Map<string, Account>();
   private matches = new Map<string, FakeMatch>();
@@ -24,6 +25,7 @@ export class FakeGameApi implements GameApi {
     this.startedMatches = [];
     this.registeredRounds = [];
     this.finishedMatches = [];
+    this.eliminations = [];
     this.accounts.clear();
     this.matches.clear();
     this.failures.clear();
@@ -38,6 +40,7 @@ export class FakeGameApi implements GameApi {
       photoUrl: options.photoUrl === undefined ? `https://photos.test/${name}.png` : options.photoUrl,
       profileComplete: options.profileComplete ?? true,
       balance: options.balance ?? 100_000,
+      openMatchId: options.openMatchId ?? null,
     };
     this.accounts.set(account.token, account);
     return account.token;
@@ -80,6 +83,7 @@ export class FakeGameApi implements GameApi {
       balance: account.balance,
       minimumBalance: chipTable?.minimumBalance ?? null,
       canJoin: chipTable ? account.balance >= chipTable.minimumBalance : null,
+      openMatchId: account.openMatchId,
     };
   }
 
@@ -132,7 +136,7 @@ export class FakeGameApi implements GameApi {
   async finishMatch(input: FinishMatchInput): Promise<MatchHistoryResponse> {
     this.finishedMatches.push(input);
     this.consumeFailure("finishMatch");
-    const match = this.matchOf(input.matchId);
+    const match = this.matches.get(input.matchId) ?? { id: input.matchId, table: 1, pointValue: 1, finances: [], lastRound: 0 };
     return {
       id: match.id,
       table: match.table,
@@ -154,6 +158,18 @@ export class FakeGameApi implements GameApi {
         finalBalance: startBalance + result,
       })),
     };
+  }
+
+  async eliminatePlayer(input: EliminatePlayerInput): Promise<EliminatePlayerResponse> {
+    this.eliminations.push(input);
+    return { matchId: input.matchId, userId: input.userId, eliminatedAt: new Date(0).toISOString() };
+  }
+
+  setOpenMatch(name: string, openMatchId: string | null) {
+    const account = [...this.accounts.values()].find((candidate) => candidate.name === name);
+    if (account) {
+      account.openMatchId = openMatchId;
+    }
   }
 
   private balanceOf(userId: string) {

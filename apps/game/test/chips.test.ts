@@ -84,7 +84,7 @@ describe("PontinhoRoom chips", () => {
     release();
     await flush();
 
-    assert.deepStrictEqual(api.finishedMatches, [{ matchId: "match-1", winnerId: api.userIdOf(playerOf(room, current.sessionId).name) }]);
+    assert.deepStrictEqual(api.finishedMatches, [{ matchId: "match-1", winnerId: api.userIdOf(playerOf(room, current.sessionId).name), awardWinBonus: true }]);
   });
 
   it("deals the next round only after the previous one is registered, and numbers the rounds", async () => {
@@ -174,7 +174,7 @@ describe("PontinhoRoom chips", () => {
 
     assert.strictEqual(await closed, 4002);
     assert.strictEqual(room.state.phase, "ended");
-    assert.deepStrictEqual(api.finishedMatches, [{ matchId: "match-1", winnerId: null }]);
+    assert.deepStrictEqual(api.finishedMatches, [{ matchId: "match-1", winnerId: null, awardWinBonus: false }]);
   });
 
   it("closes an open match without a winner when the room goes away", async () => {
@@ -184,6 +184,6 @@ describe("PontinhoRoom chips", () => {
     await room.disconnect();
     await Promise.all(clients.map(() => flush()));
 
-    assert.deepStrictEqual(api.finishedMatches, [{ matchId: "match-1", winnerId: null }]);
+    assert.deepStrictEqual(api.finishedMatches, [{ matchId: "match-1", winnerId: null, awardWinBonus: false }]);
   });
 });

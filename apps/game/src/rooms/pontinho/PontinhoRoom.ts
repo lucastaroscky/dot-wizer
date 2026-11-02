@@ -1,4 +1,4 @@
-import { CloseCode, Room, Delayed, ServerError, definePlugins, validate, type Client as ColyseusClient } from "colyseus";
+import { CloseCode, Deferred, Room, Delayed, ServerError, definePlugins, validate, type Client as ColyseusClient } from "colyseus";
 import { UniqueSessionPlugin } from "colyseus/plugins/unique-session";
 import { StateView } from "@colyseus/schema";
 import { abandonMatch, applyAction, startMatch, startRound, type Action, type Game, type GameError, type GameEvent } from "@pontinho/rules";
@@ -20,8 +20,9 @@ import {
   type ServerMessages,
 } from "@pontinho/protocol";
 import type { GameApi } from "../../gameApi/GameApi.js";
-import { ChipsMatch, type ChipsFinance } from "./ChipsMatch.js";
+import { ChipsMatch, NO_WINNER, type ChipsFinance, type MatchResult } from "./ChipsMatch.js";
 import { mirrorGame } from "./mirrorGame.js";
+import { openMatches } from "./openMatches.js";
 import { createPlayerAuthenticator, refuse, type PlayerAuth } from "./playerAuth.js";
 
 const RECONNECTION_MS = 120_000;
@@ -33,6 +34,7 @@ const AUTOMATIC_TURN_MS = 3_000;
 const MAX_MESSAGES_PER_SECOND = 10;
 
 type Client = ColyseusClient<{ messages: ServerMessages; auth: PlayerAuth }>;
+type Reservation = ReturnType<PontinhoRoom["allowReconnection"]>;
 
 export function createPontinhoRoom(gameApi: GameApi) {
   return class extends PontinhoRoom {
@@ -63,6 +65,7 @@ export abstract class PontinhoRoom extends Room<{ state: PontinhoState; client: 
   private breakElapsed = false;
   private registering = false;
   private userIds = new Map<string, string>();
+  private reservations = new Map<string, Reservation>();
 
   messages = {
     draw: (client: Client) => this.act(client, { type: "draw" }),
@@ -112,33 +115,108 @@ export abstract class PontinhoRoom extends Room<{ state: PontinhoState; client: 
   }
 
   async onDispose() {
-    await this.finishChips(null);
+    await this.finishChips(NO_WINNER);
+    this.closeOpenMatch();
+  }
+
+  onBeforeShutdown() {
+    this.stopMatch();
+    super.onBeforeShutdown();
   }
 
   onDrop(client: Client) {
     if (this.state.phase === "waiting") {
       return;
     }
-    this.setConnection(client.sessionId, "reconnecting");
-    const reconnection = this.allowReconnection(client, "manual");
-    this.clock.setTimeout(() => reconnection.reject(), RECONNECTION_MS);
-    reconnection.catch(() => {});
+    const playerId = client.sessionId;
+    if (this.isEliminated(playerId)) {
+      return;
+    }
+    this.setConnection(playerId, "reconnecting");
+    const reservation = this.keepSeat(client);
+    this.restartTurnOf(playerId);
+    this.clock.setTimeout(() => {
+      if (this.reservations.get(playerId) === reservation) {
+        this.leaveForGood(playerId);
+      }
+    }, RECONNECTION_MS);
   }
 
   onReconnect(client: Client) {
-    this.setConnection(client.sessionId, "connected");
+    const playerId = client.sessionId;
+    this.reservations.delete(playerId);
+    this.forgetSeat(playerId);
+    this.setConnection(playerId, "connected");
+    this.apply(playerId, { type: "rejoinMatch" });
+    this.restartTurnOf(playerId);
   }
 
-  onLeave(client: Client) {
+  onLeave(client: Client, code?: number) {
     if (!this.game) {
       this.removePlayer(client.sessionId);
       return;
     }
-    this.setConnection(client.sessionId, "left");
-    if (this.game.phase === "playing" && this.state.currentTurn === client.sessionId) {
+    if (this.game.phase === "ended") {
+      return;
+    }
+    if (this.isEliminated(client.sessionId)) {
+      this.setConnection(client.sessionId, "left");
+      this.stopMatchWhenNobodyIsLeft();
+      return;
+    }
+    if (code !== CloseCode.CONSENTED) {
+      return;
+    }
+    this.keepSeat(client);
+    this.leaveForGood(client.sessionId);
+  }
+
+  private isEliminated(playerId: string) {
+    return this.state.players.get(playerId)?.eliminated === true;
+  }
+
+  private keepSeat(client: Client) {
+    const playerId = client.sessionId;
+    const reservation = this.allowReconnection(client, "manual");
+    reservation.catch(() => {});
+    if (!(reservation instanceof Deferred)) {
+      return reservation;
+    }
+    this.reservations.set(playerId, reservation);
+    const userId = this.userIds.get(playerId);
+    if (this.chips && userId) {
+      openMatches.keepSeat(userId, { matchId: this.state.matchId, reconnectionToken: `${this.roomId}:${client.reconnectionToken}` });
+    }
+    return reservation;
+  }
+
+  private forgetSeat(playerId: string) {
+    const userId = this.userIds.get(playerId);
+    if (userId) {
+      openMatches.forgetSeat(userId);
+    }
+  }
+
+  private closeOpenMatch() {
+    this.reservations.forEach((reservation) => reservation.reject());
+    this.reservations.clear();
+    this.userIds.forEach((userId) => openMatches.forgetSeat(userId));
+    if (this.state.matchId) {
+      openMatches.forgetMatch(this.state.matchId);
+    }
+  }
+
+  private leaveForGood(playerId: string) {
+    this.setConnection(playerId, "left");
+    this.apply(playerId, { type: "leaveMatch" });
+    this.restartTurnOf(playerId);
+    this.stopMatchWhenNobodyIsLeft();
+  }
+
+  private restartTurnOf(playerId: string) {
+    if (this.game?.phase === "playing" && this.state.currentTurn === playerId) {
       this.startTurnTimer();
     }
-    this.stopMatchWhenNobodyIsLeft();
   }
 
   private setConnection(playerId: string, connection: Connection) {
@@ -150,7 +228,7 @@ export abstract class PontinhoRoom extends Room<{ state: PontinhoState; client: 
 
   private stopMatchWhenNobodyIsLeft() {
     const people = [...this.state.players.values()].filter((player) => !player.bot);
-    if (this.game?.phase === "ended" || people.some((player) => player.connection !== "left")) {
+    if (this.game?.phase !== "roundOver" || people.some((player) => player.connection !== "left")) {
       return;
     }
     this.stopMatch();
@@ -201,11 +279,11 @@ export abstract class PontinhoRoom extends Room<{ state: PontinhoState; client: 
         return;
       case "eliminated":
         this.announceBriefly("eliminated", event.playerId);
+        this.chips?.eliminate(event.playerId).catch((error) => console.error(`Erro ao registrar a eliminação na sala ${this.roomId}:`, error));
         this.closeReturnWindowWhenDecided();
         return;
       case "matchEnded":
-        this.announce("won", event.winner);
-        this.finishChips(event.winner || null);
+        this.endMatch(event.winner, event.reason === "points");
         return;
     }
   }
@@ -227,6 +305,7 @@ export abstract class PontinhoRoom extends Room<{ state: PontinhoState; client: 
       .then((opened) => {
         this.state.matchId = opened.matchId;
         this.state.pointValue = opened.pointValue;
+        openMatches.registerMatch(opened.matchId, this.roomId);
         this.mirrorFinances(opened.finances);
       })
       .catch((error) => this.abortMatch(error));
@@ -258,6 +337,14 @@ export abstract class PontinhoRoom extends Room<{ state: PontinhoState; client: 
     this.disconnect(CloseCode.WITH_ERROR);
   }
 
+  private endMatch(winner: string, awardWinBonus: boolean) {
+    if (winner) {
+      this.announce("won", winner);
+    }
+    this.finishChips(winner ? { winnerId: winner, awardWinBonus } : NO_WINNER);
+    this.closeOpenMatch();
+  }
+
   private stopMatch() {
     this.turnTimer?.clear();
     this.nextRoundTimer?.clear();
@@ -268,11 +355,12 @@ export abstract class PontinhoRoom extends Room<{ state: PontinhoState; client: 
       this.game = abandonMatch(this.game);
       mirrorGame(this.state, this.game);
     }
-    this.finishChips(null);
+    this.finishChips(NO_WINNER);
+    this.closeOpenMatch();
   }
 
-  private finishChips(winnerId: string | null) {
-    return this.chips?.finish(winnerId).catch((error) => console.error(`Erro ao encerrar a partida de fichas da sala ${this.roomId}:`, error));
+  private finishChips(result: MatchResult) {
+    return this.chips?.finish(result).catch((error) => console.error(`Erro ao encerrar a partida de fichas da sala ${this.roomId}:`, error));
   }
 
   private mirrorFinances(finances: ChipsFinance[]) {
@@ -347,12 +435,13 @@ export abstract class PontinhoRoom extends Room<{ state: PontinhoState; client: 
       this.breakElapsed = true;
       this.startNextRoundWhenReady();
     }, NEXT_ROUND_DELAY_MS);
+    this.stopMatchWhenNobodyIsLeft();
   }
 
   private startTurnTimer() {
     this.turnTimer?.clear();
     const player = this.state.players.get(this.state.currentTurn);
-    const delay = player?.bot || player?.connection === "left" ? AUTOMATIC_TURN_MS : TURN_MS;
+    const delay = player?.bot || player?.connection !== "connected" ? AUTOMATIC_TURN_MS : TURN_MS;
     this.state.turnNumber++;
     this.state.turnDuration = delay;
     this.turnTimer = this.clock.setTimeout(() => this.apply(this.game?.currentTurn ?? "", { type: "playAutomatically" }), delay);

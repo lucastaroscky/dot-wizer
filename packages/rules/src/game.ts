@@ -9,6 +9,8 @@ export type GamePlayer = {
   points: number;
   roundPoints: number;
   eliminated: boolean;
+  out: boolean;
+  away: boolean;
   awaitingReturn: boolean;
   bluffed: boolean;
 };
@@ -38,11 +40,17 @@ export type Action =
   | { type: "discard"; cardId: string }
   | { type: "goOut" }
   | { type: "chooseReturn"; back: boolean }
+  | { type: "leaveMatch" }
+  | { type: "rejoinMatch" }
   | { type: "playAutomatically" };
 
 export type MoveKind = "draw" | "toTable" | "discard";
 
 export type RoundEndReason = "goOut" | "outOfCards";
+
+export type MatchEndReason = "points" | "walkover";
+
+const MIN_PLAYERS_TO_CONTINUE = 2;
 
 export type GameEvent =
   | { type: "move"; kind: MoveKind; playerId: string; cardIds: string[] }
@@ -52,7 +60,7 @@ export type GameEvent =
   | { type: "returnOffered"; playerIds: string[] }
   | { type: "returned"; playerId: string; points: number }
   | { type: "eliminated"; playerId: string }
-  | { type: "matchEnded"; winner: string };
+  | { type: "matchEnded"; winner: string; reason: MatchEndReason };
 
 export type GameError =
   | "notAllowed"
@@ -72,7 +80,7 @@ export type ActionResult = { game: Game; events: GameEvent[] } | { error: GameEr
 type Random = () => number;
 
 export function startMatch(playerIds: string[], random: Random = Math.random): Game {
-  const players = playerIds.map((id) => ({ id, hand: [], points: 0, roundPoints: 0, eliminated: false, awaitingReturn: false, bluffed: false }));
+  const players = playerIds.map((id) => ({ id, hand: [], points: 0, roundPoints: 0, eliminated: false, out: false, away: false, awaitingReturn: false, bluffed: false }));
   const game: Game = {
     players,
     phase: "roundOver",
@@ -95,7 +103,14 @@ export function startRound(game: Game, random: Random = Math.random): Game {
     return game;
   }
   const next = clone(game);
-  const active = next.players.filter((player) => !player.eliminated);
+  for (const player of next.players) {
+    player.out = player.away;
+  }
+  const dealer = next.players.find((player) => player.id === next.dealer);
+  if (dealer && !isPlaying(dealer)) {
+    next.dealer = nextActive(next, next.dealer);
+  }
+  const active = next.players.filter(isPlaying);
   const round = dealRound(active.length, random);
 
   for (const player of next.players) {
@@ -152,6 +167,10 @@ function run(game: Game, player: GamePlayer, action: Action, events: GameEvent[]
       return goOut(game, player, events);
     case "chooseReturn":
       return chooseReturn(game, player, action.back, events);
+    case "leaveMatch":
+      return leaveMatch(game, player, events);
+    case "rejoinMatch":
+      return rejoinMatch(game, player);
     case "playAutomatically":
       return playAutomatically(game, player, events, random);
   }
@@ -271,7 +290,7 @@ function discard(game: Game, player: GamePlayer, cardId: string, events: GameEve
 
 function goOut(game: Game, player: GamePlayer, events: GameEvent[]) {
   const top = game.discard.at(-1);
-  if (player.eliminated || !top || game.phase !== "playing") {
+  if (!isPlaying(player) || !top || game.phase !== "playing") {
     return "notAllowed";
   }
   if (!canGoOutWithDiscard(game, player.id)) {
@@ -305,12 +324,34 @@ function chooseReturn(game: Game, player: GamePlayer, back: boolean, events: Gam
     player.awaitingReturn = false;
     player.eliminated = true;
     events.push({ type: "eliminated", playerId: player.id });
+    endMatchWhenNobodyIsLeftToPlay(game, events);
     return undefined;
   }
   const staying = game.players.filter((candidate) => !candidate.eliminated && !candidate.awaitingReturn);
   player.points = Math.max(...staying.map((candidate) => candidate.points));
   player.awaitingReturn = false;
   events.push({ type: "returned", playerId: player.id, points: player.points });
+  endMatchWhenNobodyIsLeftToPlay(game, events);
+  return undefined;
+}
+
+function leaveMatch(game: Game, player: GamePlayer, events: GameEvent[]) {
+  if (game.phase === "ended" || player.eliminated) {
+    return "notAllowed";
+  }
+  player.away = true;
+  if (player.awaitingReturn) {
+    return chooseReturn(game, player, true, events);
+  }
+  endMatchWhenNobodyIsLeftToPlay(game, events);
+  return undefined;
+}
+
+function rejoinMatch(game: Game, player: GamePlayer) {
+  if (game.phase === "ended" || player.eliminated) {
+    return "notAllowed";
+  }
+  player.away = false;
   return undefined;
 }
 
@@ -424,7 +465,7 @@ function endRound(game: Game, winner: GamePlayer, events: GameEvent[], reason: R
     }
     game.winner = staying[0]?.id ?? "";
     game.phase = "ended";
-    events.push({ type: "matchEnded", winner: game.winner });
+    events.push({ type: "matchEnded", winner: game.winner, reason: winsByPlaying(staying[0]) ? "points" : "walkover" });
     return;
   }
   if (passed.length > 0) {
@@ -434,12 +475,30 @@ function endRound(game: Game, winner: GamePlayer, events: GameEvent[], reason: R
     events.push({ type: "returnOffered", playerIds: passed.map((player) => player.id) });
   }
   game.dealer = nextActive(game, game.dealer);
+  endMatchWhenNobodyIsLeftToPlay(game, events);
+}
+
+function winsByPlaying(winner: GamePlayer | undefined) {
+  return winner !== undefined && isPlaying(winner) && willPlay(winner);
+}
+
+function endMatchWhenNobodyIsLeftToPlay(game: Game, events: GameEvent[]) {
+  if (game.phase !== "roundOver" || game.players.some((player) => player.awaitingReturn)) {
+    return;
+  }
+  const playing = game.players.filter(willPlay);
+  if (playing.length >= MIN_PLAYERS_TO_CONTINUE) {
+    return;
+  }
+  game.winner = playing[0]?.id ?? "";
+  game.phase = "ended";
+  events.push({ type: "matchEnded", winner: game.winner, reason: "walkover" });
 }
 
 function winnerWithoutCards(game: Game) {
   const dealerSeat = game.players.findIndex((player) => player.id === game.dealer);
   const fromDealer = [...game.players.slice(dealerSeat + 1), ...game.players.slice(0, dealerSeat + 1)];
-  const active = fromDealer.filter((player) => !player.eliminated);
+  const active = fromDealer.filter(isPlaying);
   return active.sort((a, b) => a.points - b.points || handPoints(a.hand) - handPoints(b.hand))[0];
 }
 
@@ -452,11 +511,19 @@ function nextActive(game: Game, playerId: string) {
   const seat = game.players.findIndex((player) => player.id === playerId);
   for (let step = 1; step <= game.players.length; step++) {
     const candidate = game.players[(seat + step) % game.players.length];
-    if (!candidate.eliminated) {
+    if (isPlaying(candidate)) {
       return candidate.id;
     }
   }
   return playerId;
+}
+
+function isPlaying(player: GamePlayer) {
+  return !player.eliminated && !player.out;
+}
+
+function willPlay(player: GamePlayer) {
+  return !player.eliminated && !player.away;
 }
 
 function isTurnOf(game: Game, player: GamePlayer) {

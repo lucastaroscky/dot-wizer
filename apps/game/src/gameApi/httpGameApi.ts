@@ -51,5 +51,6 @@ export function createHttpGameApi({ url, serviceToken, fetch: fetchImplementatio
     startMatch: (body) => post("/matches", body),
     registerRound: ({ matchId, ...body }) => postWithRetries(`/matches/${matchId}/rounds`, body),
     finishMatch: ({ matchId, ...body }) => postWithRetries(`/matches/${matchId}/finish`, body),
+    eliminatePlayer: ({ matchId, ...body }) => postWithRetries(`/matches/${matchId}/eliminations`, body),
   };
 }
