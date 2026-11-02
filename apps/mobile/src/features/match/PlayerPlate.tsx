@@ -7,7 +7,16 @@ import match from "@/messages/match.json";
 import { ChipsAmount } from "./ChipsAmount";
 import { TurnTimer, type TurnClock } from "./TurnTimer";
 
-type Props = { name: string; photoUrl?: string; points?: number; chips?: number; eliminated?: boolean; isTurn?: boolean; turn?: TurnClock };
+type Props = {
+  name: string;
+  photoUrl?: string;
+  points?: number;
+  chips?: number;
+  eliminated?: boolean;
+  offline?: boolean;
+  isTurn?: boolean;
+  turn?: TurnClock;
+};
 
 function details(points?: number, eliminated?: boolean) {
   if (eliminated) {
@@ -19,7 +28,7 @@ function details(points?: number, eliminated?: boolean) {
   return match.points.replace("{points}", String(points));
 }
 
-export function PlayerPlate({ name, photoUrl, points, chips, eliminated = false, isTurn = false, turn }: Props) {
+export function PlayerPlate({ name, photoUrl, points, chips, eliminated = false, offline = false, isTurn = false, turn }: Props) {
   const scale = useSharedValue(1);
   const info = details(points, eliminated);
 
@@ -39,6 +48,7 @@ export function PlayerPlate({ name, photoUrl, points, chips, eliminated = false,
               {name}
             </Text>
             {info && <Text style={styles.info}>{info}</Text>}
+            {offline && <Text style={styles.offline}>{match.offline}</Text>}
             {chips !== undefined && (
               <Text style={styles.info}>
                 <ChipsAmount value={chips} /> {match.chipsUnit}
@@ -71,4 +81,5 @@ const styles = StyleSheet.create({
   },
   name: { color: colors.woodText, fontSize: 13, fontWeight: "700", maxWidth: 110 },
   info: { color: colors.woodText, fontSize: 11 },
+  offline: { color: colors.red, fontSize: 11, fontWeight: "700" },
 });

@@ -3,6 +3,7 @@
   "waiting": "Aguardando jogadores ({count} de {seats})",
   "points": "{points} pts",
   "eliminated": "eliminado",
+  "offline": "Offline",
   "notices": {
     "waitYourTurn": "Espere a sua vez",
     "drawBeforeMeld": "Compre uma carta antes de baixar",

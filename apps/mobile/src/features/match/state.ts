@@ -5,6 +5,7 @@ import type { CardView } from "@/shared/cards/Card";
 import match from "@/messages/match.json";
 
 const TRAINING_TABLE = 0;
+const CONNECTED = "connected";
 
 export type GameState = NonNullable<ReturnType<typeof useRoomState<PontinhoState>>>;
 
@@ -20,6 +21,10 @@ export function announcementText(state: GameState) {
   }
   const player = state.players[state.announcementPlayer];
   return match.announcements[announcement].replace("{name}", player?.name ?? "").replace("{points}", String(player?.points ?? 0));
+}
+
+export function isOffline(player?: { connection: string }) {
+  return player !== undefined && player.connection !== CONNECTED;
 }
 
 export function hasChips(state: GameState) {

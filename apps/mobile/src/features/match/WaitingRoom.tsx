@@ -3,7 +3,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { PlayerPlate } from "./PlayerPlate";
 import { colors } from "@/shared/theme/colors";
 import match from "@/messages/match.json";
-import type { GameState } from "./state";
+import { isOffline, type GameState } from "./state";
 
 export function WaitingRoom({ state }: { state: GameState }) {
   const status = match.waiting.replace("{count}", String(state.order.length)).replace("{seats}", String(state.seats));
@@ -13,7 +13,12 @@ export function WaitingRoom({ state }: { state: GameState }) {
       <Text style={styles.status}>{status}</Text>
       <View style={styles.players}>
         {state.order.map((sessionId) => (
-          <PlayerPlate key={sessionId} name={state.players[sessionId]?.name ?? ""} photoUrl={state.players[sessionId]?.photoUrl} />
+          <PlayerPlate
+            key={sessionId}
+            name={state.players[sessionId]?.name ?? ""}
+            photoUrl={state.players[sessionId]?.photoUrl}
+            offline={isOffline(state.players[sessionId])}
+          />
         ))}
       </View>
     </SafeAreaView>

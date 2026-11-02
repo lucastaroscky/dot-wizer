@@ -16,7 +16,7 @@ import { Measured } from "./Measured";
 import { Melds } from "./Melds";
 import { Piles } from "./Piles";
 import { PlayerPlate } from "./PlayerPlate";
-import { announcementText, hasChips, type GameState } from "./state";
+import { announcementText, hasChips, isOffline, type GameState } from "./state";
 import { useFlights } from "./useFlights";
 import { useTablePlay } from "./useTablePlay";
 
@@ -49,6 +49,7 @@ export function Table({ room, state, onExit }: Props) {
                 points={player?.points}
                 chips={showChips ? player?.chipsResult : undefined}
                 eliminated={player?.eliminated}
+                offline={isOffline(player)}
                 isTurn={state.currentTurn === sessionId}
                 turn={turn}
               />

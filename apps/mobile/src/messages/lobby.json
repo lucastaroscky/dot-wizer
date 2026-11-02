@@ -11,6 +11,8 @@
   "cards": "Cartas",
   "confirm": "OK",
   "connecting": "Conectando…",
+  "openMatch": "Você tem uma partida em andamento",
+  "resumeMatch": "Voltar à partida",
   "back": "Voltar",
   "cardStyles": {
     "jumbo": "Jumbo",
