@@ -3,11 +3,13 @@ import { formatChips } from "@/shared/format/numbers";
 import { colors } from "@/shared/theme/colors";
 import wallet from "@/messages/wallet.json";
 
-export function BalanceCard({ balance }: { balance: number }) {
+const UNKNOWN_BALANCE = "—";
+
+export function BalanceCard({ balance }: { balance?: number }) {
   return (
     <View style={styles.card}>
       <Text style={styles.label}>{wallet.balance}</Text>
-      <Text style={styles.value}>{formatChips(balance)}</Text>
+      <Text style={styles.value}>{balance === undefined ? UNKNOWN_BALANCE : formatChips(balance)}</Text>
     </View>
   );
 }

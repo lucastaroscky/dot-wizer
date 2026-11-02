@@ -4,23 +4,27 @@ import type { Room } from "@colyseus/sdk";
 import { useRoomState } from "@colyseus/react";
 import type { PontinhoState } from "@pontinho/protocol";
 import { colors } from "@/shared/theme/colors";
+import { MatchAborted } from "./MatchAborted";
 import { useMatch } from "./MatchProvider";
 import { RoundSummary } from "./RoundSummary";
 import { Table } from "./Table";
 import { WaitingRoom } from "./WaitingRoom";
 
 export function Match() {
-  const { room, leave } = useMatch();
+  const { room, matchAborted, leave } = useMatch();
   usePreventRemove(room !== undefined, leave);
 
-  return <View style={styles.screen}>{room && <MatchRoom room={room} onExit={leave} />}</View>;
+  return <View style={styles.screen}>{room && <MatchRoom room={room} matchAborted={matchAborted} onExit={leave} />}</View>;
 }
 
-type Props = { room: Room<PontinhoState>; onExit: () => void };
+type Props = { room: Room<PontinhoState>; matchAborted: boolean; onExit: () => void };
 
-function MatchRoom({ room, onExit }: Props) {
+function MatchRoom({ room, matchAborted, onExit }: Props) {
   const state = useRoomState(room);
 
+  if (matchAborted) {
+    return <MatchAborted matchId={room.state.matchId} onExit={onExit} />;
+  }
   if (!state?.order) {
     return null;
   }

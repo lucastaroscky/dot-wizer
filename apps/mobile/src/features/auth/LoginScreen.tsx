@@ -1,4 +1,5 @@
 import { StyleSheet, Text, View } from "react-native";
+import { useSessionEndText } from "@/shared/api/sessionEnd";
 import { MenuScreen } from "@/shared/ui/MenuScreen";
 import { TextField } from "@/shared/ui/TextField";
 import { WoodButton } from "@/shared/ui/WoodButton";
@@ -54,9 +55,10 @@ function CodeStep({ login }: { login: EmailLogin }) {
 export function LoginScreen() {
   const login = useEmailLogin();
   const google = useGoogleLogin();
+  const sessionEndText = useSessionEndText();
 
   return (
-    <MenuScreen title={home.title} error={login.error || google?.error || ""}>
+    <MenuScreen title={home.title} error={login.error || google?.error || sessionEndText}>
       {login.codeSent ? <CodeStep login={login} /> : <EmailStep login={login} google={google} />}
     </MenuScreen>
   );

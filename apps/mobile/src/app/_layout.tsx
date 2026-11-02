@@ -2,15 +2,14 @@ import { useEffect } from "react";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { SessionProvider, useSession } from "@/features/auth/SessionProvider";
 import { MatchProvider, useMatch } from "@/features/match/MatchProvider";
 import { ProfileLoadError } from "@/features/profile/ProfileLoadError";
 import { useProfile } from "@/features/profile/useProfile";
+import { queryClient } from "@/shared/api/queryClient";
 
 SplashScreen.preventAutoHideAsync();
-
-const queryClient = new QueryClient();
 
 export default function RootLayout() {
   return (

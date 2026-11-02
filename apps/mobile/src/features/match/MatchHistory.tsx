@@ -19,11 +19,11 @@ function statsOf(player: MatchPlayerSummary) {
   ];
 }
 
-export function MatchHistory({ matchId }: { matchId: string }) {
-  const { history, failed } = useMatchHistory({ matchId });
+export function MatchHistory({ matchId, polling = true }: { matchId: string; polling?: boolean }) {
+  const { history, error } = useMatchHistory({ matchId, polling });
 
-  if (failed) {
-    return <Text style={styles.message}>{match.history.loadFailed}</Text>;
+  if (error) {
+    return <Text style={styles.message}>{error}</Text>;
   }
   if (!history) {
     return <Text style={styles.message}>{match.history.loading}</Text>;

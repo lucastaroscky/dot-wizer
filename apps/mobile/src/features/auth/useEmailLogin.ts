@@ -1,7 +1,10 @@
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
+import { isAuthApiError, isAuthRetryableFetchError } from "@supabase/supabase-js";
+import { clearSessionEnd } from "@/shared/api/sessionEnd";
 import { supabase } from "@/shared/supabase/client";
 import auth from "@/messages/auth.json";
+import errors from "@/messages/errors.json";
 
 export const CODE_LENGTH = 6;
 
@@ -19,14 +22,28 @@ async function verifyEmailCode({ email, code }: { email: string; code: string })
   }
 }
 
-function loginError({ sendFailed, codeInvalid }: { sendFailed: boolean; codeInvalid: boolean }) {
-  if (sendFailed) {
-    return auth.sendFailed;
+const AUTH_CODE_TEXTS: Record<string, string> = {
+  over_email_send_rate_limit: errors.tooManyRequests,
+  over_request_rate_limit: errors.tooManyRequests,
+  otp_expired: auth.invalidCode,
+  email_address_invalid: auth.sendFailed,
+};
+
+function authErrorText(error: Error | null, fallback: string) {
+  if (!error) {
+    return "";
   }
-  if (codeInvalid) {
-    return auth.invalidCode;
+  if (isAuthRetryableFetchError(error)) {
+    return errors.unreachable;
   }
-  return "";
+  if (!isAuthApiError(error) || !error.code) {
+    return fallback;
+  }
+  return AUTH_CODE_TEXTS[error.code] ?? fallback;
+}
+
+function loginError({ sendError, verifyError }: { sendError: Error | null; verifyError: Error | null }) {
+  return authErrorText(sendError, auth.sendFailed) || authErrorText(verifyError, auth.invalidCode);
 }
 
 export function useEmailLogin() {
@@ -42,6 +59,7 @@ export function useEmailLogin() {
     if (!canRequestCode) {
       return;
     }
+    clearSessionEnd();
     sendCode.mutate(email.trim());
   }
 
@@ -59,7 +77,7 @@ export function useEmailLogin() {
   }
 
   return {
-    error: loginError({ sendFailed: sendCode.isError, codeInvalid: verifyCode.isError }),
+    error: loginError({ sendError: sendCode.error, verifyError: verifyCode.error }),
     email,
     setEmail,
     code,

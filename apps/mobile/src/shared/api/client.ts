@@ -1,43 +1,64 @@
-import { errorResponseSchema } from "@pontinho/api-contract";
+import { errorResponseSchema, type ApiErrorCode } from "@pontinho/api-contract";
 import { API_URL } from "@/shared/config/env";
 import { supabase } from "@/shared/supabase/client";
+import { API_ERROR_TEXTS } from "@/messages/apiErrors";
 import errors from "@/messages/errors.json";
+import { fetchWithTimeout } from "./fetchWithTimeout";
+import { endSession } from "./sessionEnd";
 
-const SERVER_ERROR_STATUS = 500;
+const TOO_MANY_REQUESTS_STATUS = 429;
+const errorCodeSchema = errorResponseSchema.pick({ code: true });
+
+type ApiErrorKind = "response" | "network" | "timeout";
+
+type ApiErrorInput = { statusCode: number; message: string; code?: ApiErrorCode; kind?: ApiErrorKind };
 
 export class ApiError extends Error {
-  status: number;
+  statusCode: number;
+  code?: ApiErrorCode;
+  kind: ApiErrorKind;
 
-  constructor(status: number, message: string) {
+  constructor({ statusCode, message, code, kind = "response" }: ApiErrorInput) {
     super(message);
-    this.status = status;
+    this.statusCode = statusCode;
+    this.code = code;
+    this.kind = kind;
   }
 }
 
 type RequestOptions = { method?: "GET" | "POST" | "PUT"; body?: unknown; headers?: Record<string, string> };
 
-function messageText(message: string | string[]) {
-  if (Array.isArray(message)) {
-    return message.join(" ");
+async function toApiError(response: Response) {
+  const statusCode = response.status;
+  const parsed = errorCodeSchema.safeParse(await response.json().catch(() => undefined));
+  if (parsed.success) {
+    return new ApiError({ statusCode, code: parsed.data.code, message: API_ERROR_TEXTS[parsed.data.code] });
   }
-  return message;
+  if (statusCode === TOO_MANY_REQUESTS_STATUS) {
+    return new ApiError({ statusCode, message: errors.tooManyRequests });
+  }
+  return new ApiError({ statusCode, message: errors.generic });
 }
 
-async function toApiError(response: Response) {
-  if (response.status >= SERVER_ERROR_STATUS) {
-    return new ApiError(response.status, errors.generic);
+function sessionEndReason(code?: ApiErrorCode) {
+  if (code === "invalidToken") {
+    return "expired";
   }
-  const envelope = errorResponseSchema.safeParse(await response.json().catch(() => undefined));
-  if (!envelope.success) {
-    return new ApiError(response.status, errors.generic);
+  if (code === "accountDisabled") {
+    return "accountDisabled";
   }
-  return new ApiError(response.status, messageText(envelope.data.message));
+  return undefined;
+}
+
+function toUnreachableError(reason: unknown) {
+  const timedOut = reason instanceof Error && reason.name === "AbortError";
+  return new ApiError({ statusCode: 0, message: errors.unreachable, kind: timedOut ? "timeout" : "network" });
 }
 
 export async function getAccessToken() {
   const { data } = await supabase.auth.getSession();
   if (!data.session) {
-    throw new ApiError(401, errors.notSignedIn);
+    throw new ApiError({ statusCode: 401, message: errors.notSignedIn });
   }
   return data.session.access_token;
 }
@@ -47,12 +68,20 @@ export async function request<Data>(path: string, { method = "GET", body, header
   if (body !== undefined) {
     headers["Content-Type"] = "application/json";
   }
-  const response = await fetch(`${API_URL}${path}`, { method, headers, body: body === undefined ? undefined : JSON.stringify(body) }).catch(() => undefined);
-  if (!response) {
-    throw new ApiError(0, errors.generic);
-  }
+  const response = await fetchWithTimeout(`${API_URL}${path}`, {
+    method,
+    headers,
+    body: body === undefined ? undefined : JSON.stringify(body),
+  }).catch((reason: unknown) => {
+    throw toUnreachableError(reason);
+  });
   if (!response.ok) {
-    throw await toApiError(response);
+    const error = await toApiError(response);
+    const reason = sessionEndReason(error.code);
+    if (reason) {
+      await endSession(reason);
+    }
+    throw error;
   }
   return (await response.json()) as Data;
 }

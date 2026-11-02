@@ -1,0 +1,33 @@
+import type { ApiErrorCode } from "@pontinho/api-contract";
+import errors from "./errors.json";
+import wallet from "./wallet.json";
+
+export const API_ERROR_TEXTS = {
+  invalidToken: errors.sessionExpired,
+  serviceTokenInvalid: errors.generic,
+  accountDisabled: errors.accountDisabled,
+  validationFailed: errors.generic,
+  badRequest: errors.generic,
+  routeNotFound: errors.generic,
+  tooManyRequests: errors.tooManyRequests,
+  uniqueConflict: errors.generic,
+  internalError: errors.generic,
+  underage: errors.underage,
+  photoNotOwned: errors.generic,
+  profileNotFound: errors.generic,
+  dailyBonusAlreadyClaimed: wallet.dailyBonusClaimed,
+  insufficientBalance: errors.generic,
+  quantityAboveMaximum: errors.quantityAboveMaximum,
+  purchaseNotFound: errors.generic,
+  idempotencyKeyReused: errors.generic,
+  matchNotFound: errors.matchNotFound,
+  tableNotFound: errors.generic,
+  playerNotFound: errors.generic,
+  playerBelowMinimumBalance: errors.generic,
+  playerAlreadyInMatch: errors.generic,
+  playerNotInMatch: errors.generic,
+  matchAlreadyFinished: errors.generic,
+  roundOutOfOrder: errors.generic,
+  winnerEliminated: errors.generic,
+  winnerChanged: errors.generic,
+} satisfies Record<ApiErrorCode, string>;

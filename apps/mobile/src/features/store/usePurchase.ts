@@ -1,10 +1,22 @@
 import { useRef } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { randomUUID } from "expo-crypto";
+import { ApiError } from "@/shared/api/client";
 import { buyChips } from "@/shared/api/store";
 import { walletQueryOptions } from "@/shared/api/wallet";
+import errors from "@/messages/errors.json";
 
 type Attempt = { quantity: number; idempotencyKey: string };
+
+function purchaseError(error: Error | null) {
+  if (!error) {
+    return "";
+  }
+  if (error instanceof ApiError && error.kind === "timeout") {
+    return errors.purchaseUnconfirmed;
+  }
+  return error.message;
+}
 
 export function usePurchase() {
   const queryClient = useQueryClient();
@@ -28,7 +40,7 @@ export function usePurchase() {
   return {
     buy: (quantity: number) => mutation.mutate(quantity),
     pending: mutation.isPending,
-    error: mutation.error?.message ?? "",
+    error: purchaseError(mutation.error),
   };
 }
 

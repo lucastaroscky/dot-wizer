@@ -1,4 +1,12 @@
 {
   "generic": "Algo deu errado. Tente de novo.",
-  "notSignedIn": "Entre na sua conta para continuar."
+  "notSignedIn": "Entre na sua conta para continuar.",
+  "unreachable": "Sem conexão. Confira sua internet e tente de novo.",
+  "tooManyRequests": "Muitas tentativas. Espere um pouco e tente de novo.",
+  "sessionExpired": "Sua sessão expirou. Entre de novo.",
+  "accountDisabled": "Sua conta está desativada.",
+  "purchaseUnconfirmed": "Não deu para confirmar a compra. Confira seu saldo antes de tentar de novo.",
+  "underage": "É preciso ter 18 anos ou mais.",
+  "quantityAboveMaximum": "Quantidade acima do máximo por compra.",
+  "matchNotFound": "Partida não encontrada."
 }

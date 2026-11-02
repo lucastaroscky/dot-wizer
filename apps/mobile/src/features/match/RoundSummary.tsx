@@ -1,5 +1,4 @@
-import { ScrollView, StyleSheet, Text, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { StyleSheet, Text, View } from "react-native";
 import type { Room } from "@colyseus/sdk";
 import type { PontinhoState } from "@pontinho/protocol";
 import { Avatar } from "@/shared/ui/Avatar";
@@ -10,6 +9,7 @@ import { ChipsAmount } from "./ChipsAmount";
 import { ExitButton } from "./ExitButton";
 import { MatchHistory } from "./MatchHistory";
 import { ReturnPrompt } from "./ReturnPrompt";
+import { SummaryBoard } from "./SummaryBoard";
 import { announcementText, hasChips, isSittingOut, needsExitConfirmation, type GameState } from "./state";
 
 type Props = { room: Room<PontinhoState>; state: GameState; onExit: () => void };
@@ -59,60 +59,50 @@ export function RoundSummary({ room, state, onExit }: Props) {
   const choosingReturn = me?.awaitingReturn === true;
 
   return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
-        <View style={styles.board}>
-          <Text style={styles.title}>{announcementText(state)}</Text>
-          <View style={styles.header}>
-            <Text style={[styles.headerText, styles.position]}>{match.summary.position}</Text>
-            <Text style={[styles.headerText, styles.name]}>{match.summary.player}</Text>
-            <Text style={[styles.headerText, styles.number]}>{match.summary.round}</Text>
-            <Text style={[styles.headerText, styles.number]}>{match.summary.total}</Text>
-            {showChips && <Text style={[styles.headerText, styles.number]}>{match.summary.chips}</Text>}
+    <SummaryBoard title={announcementText(state)}>
+      <View style={styles.header}>
+        <Text style={[styles.headerText, styles.position]}>{match.summary.position}</Text>
+        <Text style={[styles.headerText, styles.name]}>{match.summary.player}</Text>
+        <Text style={[styles.headerText, styles.number]}>{match.summary.round}</Text>
+        <Text style={[styles.headerText, styles.number]}>{match.summary.total}</Text>
+        {showChips && <Text style={[styles.headerText, styles.number]}>{match.summary.chips}</Text>}
+      </View>
+      {ranking(state).map((row) => (
+        <View key={row.sessionId} style={[styles.row, row.sessionId === state.wentOut && styles.wentOutRow]}>
+          <Text style={[styles.cell, styles.position]}>{match.summary.place.replace("{position}", String(row.position))}</Text>
+          <View style={[styles.name, styles.player]}>
+            <Avatar name={row.name} size={28} photoUrl={row.photoUrl} />
+            <View>
+              <Text style={styles.cell} numberOfLines={1}>{row.name}</Text>
+              {row.sessionId === state.wentOut && <Text style={styles.badge}>{match.summary.wentOut}</Text>}
+              {row.eliminated && <Text style={styles.eliminated}>{match.summary.eliminated}</Text>}
+              {row.sittingOut && <Text style={styles.badge}>{match.sittingOut}</Text>}
+              {row.awaitingReturn && <Text style={styles.badge}>{match.summary.deciding}</Text>}
+            </View>
           </View>
-          {ranking(state).map((row) => (
-            <View key={row.sessionId} style={[styles.row, row.sessionId === state.wentOut && styles.wentOutRow]}>
-              <Text style={[styles.cell, styles.position]}>{match.summary.place.replace("{position}", String(row.position))}</Text>
-              <View style={[styles.name, styles.player]}>
-                <Avatar name={row.name} size={28} photoUrl={row.photoUrl} />
-                <View>
-                  <Text style={styles.cell} numberOfLines={1}>{row.name}</Text>
-                  {row.sessionId === state.wentOut && <Text style={styles.badge}>{match.summary.wentOut}</Text>}
-                  {row.eliminated && <Text style={styles.eliminated}>{match.summary.eliminated}</Text>}
-                  {row.sittingOut && <Text style={styles.badge}>{match.sittingOut}</Text>}
-                  {row.awaitingReturn && <Text style={styles.badge}>{match.summary.deciding}</Text>}
-                </View>
-              </View>
-              <Text style={[styles.cell, styles.number]}>+{row.roundPoints}</Text>
-              <Text style={[styles.cell, styles.number, styles.total]}>{row.points}</Text>
-              {showChips && <ChipsAmount value={row.roundChips} style={[styles.cell, styles.number]} />}
-            </View>
-          ))}
-          {choosingReturn && <ReturnPrompt room={room} state={state} />}
-          {!matchOver && <Text style={styles.next}>{match.summary.nextRound}</Text>}
-          {matchOver && showChips && <MatchHistory matchId={state.matchId} />}
-          {(matchOver || playingWithBots) && (
-            <View style={styles.exit}>
-              <WoodButton title={match.back} onPress={onExit} />
-            </View>
-          )}
-          {!matchOver && showChips && (
-            <View style={styles.exit}>
-              <ExitButton confirm={needsExitConfirmation(me)} onExit={onExit} />
-            </View>
-          )}
+          <Text style={[styles.cell, styles.number]}>+{row.roundPoints}</Text>
+          <Text style={[styles.cell, styles.number, styles.total]}>{row.points}</Text>
+          {showChips && <ChipsAmount value={row.roundChips} style={[styles.cell, styles.number]} />}
         </View>
-      </ScrollView>
-    </SafeAreaView>
+      ))}
+      {choosingReturn && <ReturnPrompt room={room} state={state} />}
+      {!matchOver && <Text style={styles.next}>{match.summary.nextRound}</Text>}
+      {matchOver && showChips && <MatchHistory matchId={state.matchId} />}
+      {(matchOver || playingWithBots) && (
+        <View style={styles.exit}>
+          <WoodButton title={match.back} onPress={onExit} />
+        </View>
+      )}
+      {!matchOver && showChips && (
+        <View style={styles.exit}>
+          <ExitButton confirm={needsExitConfirmation(me)} onExit={onExit} />
+        </View>
+      )}
+    </SummaryBoard>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  scroll: { flex: 1 },
-  scrollContent: { flexGrow: 1, alignItems: "center", justifyContent: "center", padding: 24 },
-  board: { backgroundImage: colors.woodGradient, borderWidth: 4, borderColor: colors.woodDark, borderRadius: 16, padding: 20, gap: 8, width: "100%", maxWidth: 520 },
-  title: { color: colors.woodText, fontSize: 22, fontWeight: "600", textAlign: "center", marginBottom: 8 },
   header: { flexDirection: "row", alignItems: "center", paddingHorizontal: 10 },
   headerText: { color: colors.woodText, fontSize: 13, fontWeight: "700", opacity: 0.7 },
   row: { flexDirection: "row", alignItems: "center", paddingVertical: 8, paddingHorizontal: 10, borderRadius: 10, backgroundColor: "rgba(40, 14, 2, 0.12)" },

@@ -11,6 +11,7 @@
     "confirm": "Sair",
     "cancel": "Ficar"
   },
+  "matchAborted": "A partida foi encerrada por uma falha nossa. As rodadas já pagas valem.",
   "notices": {
     "waitYourTurn": "Espere a sua vez",
     "drawBeforeMeld": "Compre uma carta antes de baixar",

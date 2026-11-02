@@ -1,4 +1,5 @@
 import { useMutation } from "@tanstack/react-query";
+import { clearSessionEnd } from "@/shared/api/sessionEnd";
 import { supabase } from "@/shared/supabase/client";
 import auth from "@/messages/auth.json";
 import type { GoogleLogin } from "./GoogleLogin";
@@ -19,6 +20,9 @@ export function useGoogleLogin(): GoogleLogin {
   return {
     pending: signIn.isPending,
     error: signIn.isError ? auth.googleFailed : "",
-    signIn: () => signIn.mutate(),
+    signIn: () => {
+      clearSessionEnd();
+      signIn.mutate();
+    },
   };
 }

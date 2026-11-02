@@ -1,14 +1,17 @@
 import { createContext, use, useEffect, useEffectEvent, useRef, useState, type ReactNode } from "react";
+import { AppState } from "react-native";
 import { Asset } from "expo-asset";
-import { Client, CloseCode, type Room } from "@colyseus/sdk";
-import { ROOM_NAME, type CreateOptions, type PontinhoState } from "@pontinho/protocol";
+import { Client, CloseCode, ErrorCode, MatchMakeError, type Room } from "@colyseus/sdk";
+import { CLOSE_CODES, ROOM_NAME, type CreateOptions, type PontinhoState } from "@pontinho/protocol";
 import { getAccessToken } from "@/shared/api/client";
+import { fetchWithTimeout } from "@/shared/api/fetchWithTimeout";
 import { CardStyleContext, type CardStyleName } from "@/shared/cards/Card";
 import { DECK_IMAGES } from "@/shared/cards/deck";
 import { SERVER_URL } from "@/shared/config/env";
+import { onSignedOut } from "@/shared/supabase/session";
 import home from "@/messages/home.json";
 import { toJoinFailure } from "./joinFailure";
-import { forgetReconnectionToken, keepReconnectionToken, loadReconnectionToken } from "./reconnection";
+import { findStoredSeatKey, forgetSeatKey, keepSeatKey, type SeatKey } from "./seatKey";
 import { hasChips } from "./state";
 
 export type JoinRequest = CreateOptions & { cardStyle: CardStyleName };
@@ -17,6 +20,7 @@ type MatchSession = {
   room?: Room<PontinhoState>;
   connecting: boolean;
   error: string;
+  matchAborted: boolean;
   openMatch: boolean;
   canResume: boolean;
   join: (request: JoinRequest) => Promise<void>;
@@ -27,16 +31,22 @@ type MatchSession = {
 
 type OpenMatch = { reconnectionToken?: string };
 
-const REQUEST_TIMEOUT_MS = 10_000;
-
-function fetchWithTimeout(url: string | URL | Request, init?: RequestInit) {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
-  return fetch(url, { ...init, signal: controller.signal }).finally(() => clearTimeout(timer));
-}
+type Entry = {
+  cardStyle: CardStyleName;
+  connect: () => Promise<Room<PontinhoState>>;
+  onFailure?: (reason: unknown) => void;
+};
 
 const client = new Client(SERVER_URL, { fetchFn: fetchWithTimeout });
 const MatchContext = createContext<MatchSession | undefined>(undefined);
+
+function loadDeck(cardStyle: CardStyleName) {
+  return Asset.loadAsync(Object.values(DECK_IMAGES[cardStyle]));
+}
+
+function seatIsGone(reason: unknown) {
+  return reason instanceof MatchMakeError && (reason.code === ErrorCode.MATCHMAKE_INVALID_ROOM_ID || reason.code === ErrorCode.MATCHMAKE_EXPIRED);
+}
 
 export function MatchProvider({ children }: { children: ReactNode }) {
   const [room, setRoom] = useState<Room<PontinhoState>>();
@@ -44,14 +54,19 @@ export function MatchProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState("");
   const [connecting, setConnecting] = useState(false);
   const [openMatch, setOpenMatch] = useState<OpenMatch>();
+  const [matchAborted, setMatchAborted] = useState(false);
   const joining = useRef(false);
-  const launched = useRef(false);
 
-  function watch(joined: Room<PontinhoState>) {
-    keepReconnectionToken(joined);
+  function watch(joined: Room<PontinhoState>, joinedCardStyle: CardStyleName) {
+    keepSeatKey(joined, joinedCardStyle);
     joined.onLeave((code) => {
       if (code === CloseCode.CONSENTED) {
-        forgetReconnectionToken();
+        forgetSeatKey();
+        return;
+      }
+      if (code === CLOSE_CODES.matchAborted) {
+        forgetSeatKey();
+        setMatchAborted(true);
         return;
       }
       if (!hasChips(joined.state)) {
@@ -59,11 +74,11 @@ export function MatchProvider({ children }: { children: ReactNode }) {
         setError(home.connectionClosed);
         return;
       }
-      reconnectAutomatically(joined.reconnectionToken);
+      reconnectAfterDrop(joined.reconnectionToken, joinedCardStyle);
     });
   }
 
-  async function enter(connect: () => Promise<Room<PontinhoState>>, onFailure: (joinError: unknown) => void = showJoinFailure) {
+  async function enter({ cardStyle: entryCardStyle, connect, onFailure = showJoinFailure }: Entry) {
     if (joining.current) {
       return;
     }
@@ -71,48 +86,21 @@ export function MatchProvider({ children }: { children: ReactNode }) {
     setConnecting(true);
     setError("");
     setOpenMatch(undefined);
+    setMatchAborted(false);
+    setCardStyle(entryCardStyle);
     try {
       const joined = await connect();
-      watch(joined);
+      watch(joined, entryCardStyle);
       setRoom(joined);
-    } catch (joinError) {
-      onFailure(joinError);
+    } catch (reason) {
+      onFailure(reason);
     }
     joining.current = false;
     setConnecting(false);
   }
 
-  function reconnectAutomatically(reconnectionToken: string) {
-    return enter(
-      () => client.reconnect<PontinhoState>(reconnectionToken),
-      () => {
-        forgetReconnectionToken();
-        setRoom(undefined);
-        setError(home.connectionClosed);
-        setOpenMatch({ reconnectionToken });
-      },
-    );
-  }
-
-  const resumeStoredMatch = useEffectEvent(async () => {
-    const reconnectionToken = await loadReconnectionToken();
-    if (!reconnectionToken) {
-      return;
-    }
-    await Asset.loadAsync(Object.values(DECK_IMAGES[cardStyle]));
-    await reconnectAutomatically(reconnectionToken);
-  });
-
-  useEffect(() => {
-    if (launched.current) {
-      return;
-    }
-    launched.current = true;
-    resumeStoredMatch();
-  }, []);
-
-  function showJoinFailure(joinError: unknown) {
-    const failure = toJoinFailure(joinError);
+  function showJoinFailure(reason: unknown) {
+    const failure = toJoinFailure(reason);
     if (failure.kind === "openMatch") {
       setOpenMatch({ reconnectionToken: failure.reconnectionToken });
       return;
@@ -120,13 +108,72 @@ export function MatchProvider({ children }: { children: ReactNode }) {
     setError(failure.text);
   }
 
+  function forgetSeatKeyWhenGone(reason: unknown) {
+    if (seatIsGone(reason)) {
+      forgetSeatKey();
+    }
+  }
+
+  function reconnectAfterDrop(reconnectionToken: string, droppedCardStyle: CardStyleName) {
+    return enter({
+      cardStyle: droppedCardStyle,
+      connect: () => client.reconnect<PontinhoState>(reconnectionToken),
+      onFailure: (reason) => {
+        forgetSeatKeyWhenGone(reason);
+        setRoom(undefined);
+        setError(home.connectionClosed);
+      },
+    });
+  }
+
+  const returnToSeat = useEffectEvent(async (seatKey: SeatKey) => {
+    if (room || joining.current) {
+      return;
+    }
+    await enter({
+      cardStyle: seatKey.cardStyle,
+      connect: async () => {
+        await loadDeck(seatKey.cardStyle);
+        return client.reconnect<PontinhoState>(seatKey.reconnectionToken);
+      },
+      onFailure: forgetSeatKeyWhenGone,
+    });
+  });
+
+  const leaveOnSignOut = useEffectEvent(() => {
+    leave();
+    setOpenMatch(undefined);
+  });
+
+  useEffect(() => {
+    const lookForSeat = () =>
+      findStoredSeatKey().then((seatKey) => {
+        if (seatKey) {
+          returnToSeat(seatKey);
+        }
+      });
+    lookForSeat();
+    const appState = AppState.addEventListener("change", (state) => {
+      if (state === "active") {
+        lookForSeat();
+      }
+    });
+    const stopListeningSignOut = onSignedOut(() => leaveOnSignOut());
+    return () => {
+      appState.remove();
+      stopListeningSignOut();
+    };
+  }, []);
+
   async function join(request: JoinRequest) {
     const { cardStyle: chosenCardStyle, ...options } = request;
-    await enter(async () => {
-      setCardStyle(chosenCardStyle);
-      await Asset.loadAsync(Object.values(DECK_IMAGES[chosenCardStyle]));
-      client.auth.token = await getAccessToken();
-      return client.joinOrCreate<PontinhoState>(ROOM_NAME, options);
+    await enter({
+      cardStyle: chosenCardStyle,
+      connect: async () => {
+        await loadDeck(chosenCardStyle);
+        client.auth.token = await getAccessToken();
+        return client.joinOrCreate<PontinhoState>(ROOM_NAME, options);
+      },
     });
   }
 
@@ -135,13 +182,14 @@ export function MatchProvider({ children }: { children: ReactNode }) {
     if (!reconnectionToken) {
       return;
     }
-    await enter(() => client.reconnect<PontinhoState>(reconnectionToken));
+    await enter({ cardStyle, connect: () => client.reconnect<PontinhoState>(reconnectionToken) });
   }
 
   function leave() {
-    forgetReconnectionToken();
+    forgetSeatKey();
     room?.leave();
     setRoom(undefined);
+    setMatchAborted(false);
   }
 
   return (
@@ -150,6 +198,7 @@ export function MatchProvider({ children }: { children: ReactNode }) {
         room,
         connecting,
         error,
+        matchAborted,
         openMatch: openMatch !== undefined,
         canResume: openMatch?.reconnectionToken !== undefined,
         join,

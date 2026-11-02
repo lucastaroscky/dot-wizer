@@ -7,9 +7,8 @@ export function useWallet() {
   const query = useQuery({ ...walletQueryOptions(), subscribed: isFocused });
 
   return {
-    balance: query.data?.balance ?? 0,
-    dailyBonusAvailable: query.data?.dailyBonusAvailable ?? false,
-    loading: query.isLoading,
+    balance: query.data?.balance,
+    dailyBonusAvailable: query.data?.dailyBonusAvailable,
     error: query.error?.message ?? "",
   };
 }

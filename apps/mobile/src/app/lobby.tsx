@@ -24,7 +24,7 @@ export default function Lobby() {
       {openMatch ? (
         <OpenMatchPrompt canResume={canResume} connecting={connecting} onResume={resume} onBack={goBack} />
       ) : (
-        <PreRoom balance={balance} connecting={connecting} onConfirm={join} onBack={goBack} />
+        <PreRoom balance={balance ?? 0} connecting={connecting} onConfirm={join} onBack={goBack} />
       )}
     </MenuScreen>
   );
