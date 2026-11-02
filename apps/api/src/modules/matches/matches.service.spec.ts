@@ -17,7 +17,7 @@ const stranger = "55555555-5555-4555-8555-555555555555";
 const finishedAt = new Date("2026-11-02T18:00:00Z");
 
 function player(userId: string, overrides: Partial<MatchPlayerRecord> = {}): MatchPlayerRecord {
-  return { userId, startBalance: 1000, result: 0, deficit: 0, winBonus: 0, finalBalance: null, ...overrides };
+  return { userId, startBalance: 1000, result: 0, deficit: 0, winBonus: 0, finalBalance: null, eliminatedAt: null, ...overrides };
 }
 
 function openMatch(overrides: Partial<MatchRecord> = {}): MatchRecord {
@@ -51,12 +51,17 @@ function buildService({
   const savedRounds: unknown[] = [];
   const finishes: unknown[] = [];
   const locked: string[][] = [];
+  const eliminations: unknown[] = [];
 
   const matches = fake<MatchesRepository>({
     create: async (input) => {
       created.push(input);
       return openMatch({ players: input.players.map((entry) => player(entry.userId, entry)) });
     },
+    eliminate: async (input) => {
+      eliminations.push(input);
+    },
+    findOpenMatchIdOf: async ({ userId }) => (usersInOpenMatches.includes(userId) ? matchId : null),
     findUsersInOpenMatches: async ({ userIds }) => userIds.filter((userId) => usersInOpenMatches.includes(userId)),
     findById: async () => match,
     getById: async () => match as MatchRecord,
@@ -100,7 +105,7 @@ function buildService({
     usersRepository: users,
     now: () => finishedAt,
   });
-  return { service, entries, created, savedRounds, finishes, locked };
+  return { service, entries, created, savedRounds, finishes, locked, eliminations };
 }
 
 describe("MatchesService", () => {
@@ -340,7 +345,7 @@ describe("MatchesService", () => {
     it("credits the win bonus from the house, ten times the point value, and closes the match", async () => {
       const { service, entries, finishes } = buildService({ balances: finalBalances });
 
-      await service.finish({ matchId, winnerId: ana });
+      await service.finish({ matchId, winnerId: ana, awardWinBonus: true });
 
       assert.deepStrictEqual(entries, [
         {
@@ -369,7 +374,7 @@ describe("MatchesService", () => {
     it("closes the match without any bonus when nobody won", async () => {
       const { service, entries, finishes } = buildService({ balances: finalBalances });
 
-      await service.finish({ matchId, winnerId: null });
+      await service.finish({ matchId, winnerId: null, awardWinBonus: false });
 
       assert.deepStrictEqual(entries, []);
       assert.strictEqual(finishes.length, 1);
@@ -378,7 +383,7 @@ describe("MatchesService", () => {
     it("refuses a winner that is not in the match", async () => {
       const { service, entries, finishes } = buildService();
 
-      await assert.rejects(service.finish({ matchId, winnerId: stranger }), {
+      await assert.rejects(service.finish({ matchId, winnerId: stranger, awardWinBonus: true }), {
         statusCode: 422,
         message: errors.matches.playerNotInMatch,
       });
@@ -386,11 +391,60 @@ describe("MatchesService", () => {
       assert.deepStrictEqual(finishes, []);
     });
 
-    it("does not pay the bonus twice when the match is finished again with the same winner", async () => {
+    it("records the winner without paying the bonus when the winner is not entitled to it", async () => {
+      const { service, entries, finishes } = buildService({ balances: finalBalances });
+
+      await service.finish({ matchId, winnerId: ana, awardWinBonus: false });
+
+      assert.deepStrictEqual(entries, []);
+      assert.deepStrictEqual(finishes, [
+        {
+          matchId,
+          winnerId: ana,
+          finishedAt,
+          players: [
+            { userId: ana, winBonus: 0, finalBalance: 1200 },
+            { userId: bia, winBonus: 0, finalBalance: 900 },
+            { userId: caio, winBonus: 0, finalBalance: 850 },
+          ],
+        },
+      ]);
+    });
+
+    it("repeats a finish without bonus without paying it later", async () => {
       const finished = openMatch({ status: "FINISHED", winnerId: ana });
       const { service, entries, finishes } = buildService({ match: finished });
 
-      const history = await service.finish({ matchId, winnerId: ana });
+      const history = await service.finish({ matchId, winnerId: ana, awardWinBonus: false });
+
+      assert.deepStrictEqual(entries, []);
+      assert.deepStrictEqual(finishes, []);
+      assert.strictEqual(history.winnerId, ana);
+    });
+
+    it("refuses to repeat a finish with a different decision about the bonus", async () => {
+      const withBonus = openMatch({ status: "FINISHED", winnerId: ana, players: [player(ana, { winBonus: 50 }), player(bia), player(caio)] });
+      const withoutBonus = openMatch({ status: "FINISHED", winnerId: ana });
+
+      await assert.rejects(
+        buildService({ match: withBonus }).service.finish({ matchId, winnerId: ana, awardWinBonus: false }),
+        { statusCode: 409, message: errors.matches.winnerChanged },
+      );
+      await assert.rejects(
+        buildService({ match: withoutBonus }).service.finish({ matchId, winnerId: ana, awardWinBonus: true }),
+        { statusCode: 409, message: errors.matches.winnerChanged },
+      );
+    });
+
+    it("does not pay the bonus twice when the match is finished again with the same winner", async () => {
+      const finished = openMatch({
+        status: "FINISHED",
+        winnerId: ana,
+        players: [player(ana, { winBonus: 50 }), player(bia), player(caio)],
+      });
+      const { service, entries, finishes } = buildService({ match: finished });
+
+      const history = await service.finish({ matchId, winnerId: ana, awardWinBonus: true });
 
       assert.deepStrictEqual(entries, []);
       assert.deepStrictEqual(finishes, []);
@@ -401,7 +455,7 @@ describe("MatchesService", () => {
       const finished = openMatch({ status: "FINISHED", winnerId: ana });
       const { service } = buildService({ match: finished });
 
-      await assert.rejects(service.finish({ matchId, winnerId: bia }), {
+      await assert.rejects(service.finish({ matchId, winnerId: bia, awardWinBonus: true }), {
         statusCode: 409,
         message: errors.matches.winnerChanged,
       });
@@ -410,7 +464,72 @@ describe("MatchesService", () => {
     it("answers 404 for an unknown match", async () => {
       const { service } = buildService({ match: null });
 
-      await assert.rejects(service.finish({ matchId, winnerId: ana }), { statusCode: 404 });
+      await assert.rejects(service.finish({ matchId, winnerId: ana, awardWinBonus: true }), { statusCode: 404 });
+    });
+  });
+
+  describe("eliminate", () => {
+    it("records when the player was eliminated", async () => {
+      const { service, eliminations } = buildService();
+
+      const result = await service.eliminate({ matchId, userId: bia });
+
+      assert.deepStrictEqual(eliminations, [{ matchId, userId: bia, eliminatedAt: finishedAt }]);
+      assert.deepStrictEqual(result, { matchId, userId: bia, eliminatedAt: finishedAt.toISOString() });
+    });
+
+    it("keeps the first elimination date when the same player is eliminated again", async () => {
+      const earlier = new Date("2026-11-02T17:30:00Z");
+      const match = openMatch({ players: [player(ana), player(bia, { eliminatedAt: earlier }), player(caio)] });
+      const { service, eliminations } = buildService({ match });
+
+      const result = await service.eliminate({ matchId, userId: bia });
+
+      assert.deepStrictEqual(eliminations, []);
+      assert.strictEqual(result.eliminatedAt, earlier.toISOString());
+    });
+
+    it("refuses a player that is not in the match", async () => {
+      const { service, eliminations } = buildService();
+
+      await assert.rejects(service.eliminate({ matchId, userId: stranger }), {
+        statusCode: 422,
+        message: errors.matches.playerNotInMatch,
+      });
+      assert.deepStrictEqual(eliminations, []);
+    });
+
+    it("refuses an elimination in a match that was already finished", async () => {
+      const { service, eliminations } = buildService({ match: openMatch({ status: "FINISHED" }) });
+
+      await assert.rejects(service.eliminate({ matchId, userId: bia }), {
+        statusCode: 409,
+        message: errors.matches.alreadyFinished,
+      });
+      assert.deepStrictEqual(eliminations, []);
+    });
+
+    it("answers 404 for an unknown match", async () => {
+      const { service } = buildService({ match: null });
+
+      await assert.rejects(service.eliminate({ matchId, userId: bia }), {
+        statusCode: 404,
+        message: errors.matches.notFound,
+      });
+    });
+  });
+
+  describe("openMatchIdOf", () => {
+    it("returns the id of the match the user is in without finishing it", async () => {
+      const { service } = buildService({ usersInOpenMatches: [ana] });
+
+      assert.strictEqual(await service.openMatchIdOf({ userId: ana }), matchId);
+    });
+
+    it("returns null when the user has no open match", async () => {
+      const { service } = buildService();
+
+      assert.strictEqual(await service.openMatchIdOf({ userId: ana }), null);
     });
   });
 

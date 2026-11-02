@@ -29,6 +29,11 @@ describe("internal routes", () => {
     return { playerIds, response, matchId: response.json().matchId as string };
   }
 
+  async function signInAs(userId: string) {
+    const { headers } = await testApp.signIn({ userId });
+    return headers.authorization.replace("Bearer ", "");
+  }
+
   function round(matchId: string, body: unknown) {
     return post(`/internal/matches/${matchId}/rounds`, body);
   }
@@ -91,6 +96,7 @@ describe("internal routes", () => {
         balance: 5000,
         minimumBalance: 5000,
         canJoin: true,
+        openMatchId: null,
       });
       assert.strictEqual(table3.json().canJoin, false);
       assert.strictEqual(table3.json().minimumBalance, 10_000);
@@ -117,7 +123,24 @@ describe("internal routes", () => {
         balance: 0,
         minimumBalance: null,
         canJoin: null,
+        openMatchId: null,
       });
+    });
+
+    it("tells which match the player is in until it is finished, without refusing the entry", async () => {
+      const { playerIds: [ana], matchId } = await startMatch({ table: 1, balances: [5000, 5000, 5000] });
+      const token = await signInAs(ana);
+
+      const withTable = await post("/internal/players/entry", { accessToken: token, table: 1 });
+      const withoutTable = await post("/internal/players/entry", { accessToken: token });
+      await post(`/internal/matches/${matchId}/finish`, { winnerId: null, awardWinBonus: false });
+      const afterFinish = await post("/internal/players/entry", { accessToken: token, table: 1 });
+
+      assert.strictEqual(withTable.statusCode, 200);
+      assert.strictEqual(withTable.json().openMatchId, matchId);
+      assert.strictEqual(withTable.json().canJoin, true);
+      assert.strictEqual(withoutTable.json().openMatchId, matchId);
+      assert.strictEqual(afterFinish.json().openMatchId, null);
     });
 
     it("rejects an invalid access token", async () => {
@@ -182,7 +205,7 @@ describe("internal routes", () => {
     it("frees the players when the match is finished", async () => {
       const { playerIds, matchId } = await startMatch({ balances: [5000, 5000, 5000] });
 
-      await post(`/internal/matches/${matchId}/finish`, { winnerId: null });
+      await post(`/internal/matches/${matchId}/finish`, { winnerId: null, awardWinBonus: false });
       const next = await post("/internal/matches", { table: 1, playerIds });
 
       assert.strictEqual(next.statusCode, 201);
@@ -303,7 +326,7 @@ describe("internal routes", () => {
       const body = { winnerId: ana, losers: [{ userId: bia, handPoints: 10 }] };
 
       const skipped = await round(matchId, { roundNumber: 2, ...body });
-      await post(`/internal/matches/${matchId}/finish`, { winnerId: null });
+      await post(`/internal/matches/${matchId}/finish`, { winnerId: null, awardWinBonus: false });
       const late = await round(matchId, { roundNumber: 1, ...body });
 
       assert.strictEqual(skipped.statusCode, 409);
@@ -353,7 +376,7 @@ describe("internal routes", () => {
       const { playerIds: [ana, bia], matchId } = await startMatch({ table: 2 });
       await round(matchId, { roundNumber: 1, winnerId: ana, losers: [{ userId: bia, handPoints: 10 }] });
 
-      const response = await post(`/internal/matches/${matchId}/finish`, { winnerId: ana });
+      const response = await post(`/internal/matches/${matchId}/finish`, { winnerId: ana, awardWinBonus: true });
 
       assert.strictEqual(response.statusCode, 200);
       const history = response.json();
@@ -378,9 +401,9 @@ describe("internal routes", () => {
     it("pays the bonus only once when the match is finished twice", async () => {
       const { playerIds: [ana], matchId } = await startMatch({ table: 2 });
 
-      await post(`/internal/matches/${matchId}/finish`, { winnerId: ana });
-      const again = await post(`/internal/matches/${matchId}/finish`, { winnerId: ana });
-      const different = await post(`/internal/matches/${matchId}/finish`, { winnerId: null });
+      await post(`/internal/matches/${matchId}/finish`, { winnerId: ana, awardWinBonus: true });
+      const again = await post(`/internal/matches/${matchId}/finish`, { winnerId: ana, awardWinBonus: true });
+      const different = await post(`/internal/matches/${matchId}/finish`, { winnerId: null, awardWinBonus: false });
 
       assert.strictEqual(again.statusCode, 200);
       assert.strictEqual(different.statusCode, 409);
@@ -391,18 +414,52 @@ describe("internal routes", () => {
       const { playerIds: [ana], matchId } = await startMatch({ table: 2 });
 
       const responses = await Promise.all([
-        post(`/internal/matches/${matchId}/finish`, { winnerId: ana }),
-        post(`/internal/matches/${matchId}/finish`, { winnerId: ana }),
+        post(`/internal/matches/${matchId}/finish`, { winnerId: ana, awardWinBonus: true }),
+        post(`/internal/matches/${matchId}/finish`, { winnerId: ana, awardWinBonus: true }),
       ]);
 
       assert.deepStrictEqual(responses.map(({ statusCode }) => statusCode), [200, 200]);
       assert.strictEqual(await testPrisma.walletEntry.count({ where: { type: "WIN_BONUS" } }), 1);
     });
 
+    it("records the winner without paying the bonus when awardWinBonus is false", async () => {
+      const { playerIds: [ana], matchId } = await startMatch({ table: 2 });
+
+      const response = await post(`/internal/matches/${matchId}/finish`, { winnerId: ana, awardWinBonus: false });
+
+      assert.strictEqual(response.statusCode, 200);
+      const history = response.json();
+      assert.strictEqual(history.winnerId, ana);
+      assert.strictEqual(history.status, "FINISHED");
+      const winner = history.players.find((player: { userId: string }) => player.userId === ana);
+      assert.strictEqual(winner.winBonus, 0);
+      assert.strictEqual(winner.finalBalance, 5000);
+      assert.strictEqual(await testPrisma.walletEntry.count({ where: { type: "WIN_BONUS" } }), 0);
+    });
+
+    it("refuses to repeat a finish with a different decision about the bonus", async () => {
+      const { playerIds: [ana], matchId } = await startMatch({ table: 2 });
+      await post(`/internal/matches/${matchId}/finish`, { winnerId: ana, awardWinBonus: false });
+
+      const same = await post(`/internal/matches/${matchId}/finish`, { winnerId: ana, awardWinBonus: false });
+      const different = await post(`/internal/matches/${matchId}/finish`, { winnerId: ana, awardWinBonus: true });
+
+      assert.deepStrictEqual([same.statusCode, different.statusCode], [200, 409]);
+      assert.strictEqual(await testPrisma.walletEntry.count({ where: { type: "WIN_BONUS" } }), 0);
+    });
+
+    it("requires the decision about the bonus", async () => {
+      const { playerIds: [ana], matchId } = await startMatch({ table: 2 });
+
+      const response = await post(`/internal/matches/${matchId}/finish`, { winnerId: ana });
+
+      assert.strictEqual(response.statusCode, 400);
+    });
+
     it("closes a match without winner and pays no bonus", async () => {
       const { matchId } = await startMatch({ table: 2 });
 
-      const response = await post(`/internal/matches/${matchId}/finish`, { winnerId: null });
+      const response = await post(`/internal/matches/${matchId}/finish`, { winnerId: null, awardWinBonus: false });
 
       assert.strictEqual(response.statusCode, 200);
       assert.strictEqual(response.json().winnerId, null);
@@ -412,10 +469,112 @@ describe("internal routes", () => {
     it("refuses a winner that is not in the match and an unknown match", async () => {
       const { matchId } = await startMatch({ table: 2 });
 
-      const stranger = await post(`/internal/matches/${matchId}/finish`, { winnerId: randomUUID() });
-      const unknown = await post(`/internal/matches/${randomUUID()}/finish`, { winnerId: null });
+      const stranger = await post(`/internal/matches/${matchId}/finish`, { winnerId: randomUUID(), awardWinBonus: true });
+      const unknown = await post(`/internal/matches/${randomUUID()}/finish`, { winnerId: null, awardWinBonus: false });
 
       assert.deepStrictEqual([stranger.statusCode, unknown.statusCode], [422, 404]);
+    });
+  });
+
+  describe("eliminations", () => {
+    function eliminate(matchId: string, userId: string) {
+      return post(`/internal/matches/${matchId}/eliminations`, { userId });
+    }
+
+    it("records the elimination and answers the same way when it is repeated", async () => {
+      const { playerIds: [, bia], matchId } = await startMatch({ table: 1, balances: [5000, 5000, 5000] });
+
+      const first = await eliminate(matchId, bia);
+      testApp.clock.now = new Date("2026-11-02T16:00:00Z");
+      const again = await eliminate(matchId, bia);
+
+      assert.strictEqual(first.statusCode, 200);
+      assert.strictEqual(first.json().matchId, matchId);
+      assert.strictEqual(first.json().userId, bia);
+      assert.strictEqual(first.json().eliminatedAt, "2026-11-02T15:00:00.000Z");
+      assert.deepStrictEqual(again.json(), first.json());
+      testApp.clock.now = new Date("2026-11-02T15:00:00Z");
+    });
+
+    it("answers the same when two eliminations of the same player arrive at the same time", async () => {
+      const { playerIds: [, bia], matchId } = await startMatch({ table: 1, balances: [5000, 5000, 5000] });
+
+      const responses = await Promise.all([eliminate(matchId, bia), eliminate(matchId, bia), eliminate(matchId, bia)]);
+
+      assert.deepStrictEqual(responses.map(({ statusCode }) => statusCode), [200, 200, 200]);
+      assert.strictEqual(new Set(responses.map((response) => response.json().eliminatedAt)).size, 1);
+    });
+
+    it("frees only the eliminated account: it leaves the entry check and can join another match", async () => {
+      const { playerIds: [ana, bia, caio], matchId } = await startMatch({ table: 1, balances: [5000, 5000, 5000] });
+      const [biaToken, anaToken] = [await signInAs(bia), await signInAs(ana)];
+
+      await eliminate(matchId, bia);
+      const biaEntry = await post("/internal/players/entry", { accessToken: biaToken });
+      const anaEntry = await post("/internal/players/entry", { accessToken: anaToken });
+      const [dani, edu] = [await seedUser({ balance: 5000 }), await seedUser({ balance: 5000 })];
+      const biaElsewhere = await post("/internal/matches", { table: 1, playerIds: [bia, dani, edu] });
+      const anaElsewhere = await post("/internal/matches", { table: 1, playerIds: [ana, dani, edu] });
+
+      assert.strictEqual(biaEntry.json().openMatchId, null);
+      assert.strictEqual(anaEntry.json().openMatchId, matchId);
+      assert.strictEqual(biaElsewhere.statusCode, 201);
+      assert.strictEqual(anaElsewhere.statusCode, 409);
+      assert.strictEqual(
+        (await post("/internal/matches", { table: 1, playerIds: [caio, await seedUser({ balance: 5000 }), await seedUser({ balance: 5000 })] })).statusCode,
+        409,
+      );
+    });
+
+    it("keeps the eliminated player in the match history", async () => {
+      const { playerIds: [ana, bia], matchId } = await startMatch({ table: 1, balances: [5000, 5000, 5000] });
+      await eliminate(matchId, bia);
+
+      const finished = await post(`/internal/matches/${matchId}/finish`, { winnerId: ana, awardWinBonus: true });
+
+      assert.strictEqual(finished.statusCode, 200);
+      assert.ok(finished.json().players.some((player: { userId: string }) => player.userId === bia));
+    });
+
+    it("refuses a player that is not in the match", async () => {
+      const { matchId } = await startMatch({ table: 1, balances: [5000, 5000, 5000] });
+
+      const response = await eliminate(matchId, await seedUser({ balance: 5000 }));
+
+      assert.strictEqual(response.statusCode, 422);
+      assert.strictEqual(response.json().message, errors.matches.playerNotInMatch);
+    });
+
+    it("refuses an elimination after the match was finished", async () => {
+      const { playerIds: [, bia], matchId } = await startMatch({ table: 1, balances: [5000, 5000, 5000] });
+      await post(`/internal/matches/${matchId}/finish`, { winnerId: null, awardWinBonus: false });
+
+      const response = await eliminate(matchId, bia);
+
+      assert.strictEqual(response.statusCode, 409);
+      assert.strictEqual(response.json().message, errors.matches.alreadyFinished);
+    });
+
+    it("answers 404 for an unknown match and 400 for a body the API does not accept", async () => {
+      const { playerIds: [, bia], matchId } = await startMatch({ table: 1, balances: [5000, 5000, 5000] });
+
+      const unknown = await eliminate(randomUUID(), bia);
+      const extra = await post(`/internal/matches/${matchId}/eliminations`, { userId: bia, reason: "left" });
+      const malformed = await post(`/internal/matches/${matchId}/eliminations`, { userId: "x" });
+
+      assert.deepStrictEqual([unknown.statusCode, extra.statusCode, malformed.statusCode], [404, 400, 400]);
+    });
+
+    it("needs the service token", async () => {
+      const { playerIds: [, bia], matchId } = await startMatch({ table: 1, balances: [5000, 5000, 5000] });
+
+      const response = await testApp.app.inject({
+        method: "POST",
+        url: `/internal/matches/${matchId}/eliminations`,
+        payload: { userId: bia },
+      });
+
+      assert.strictEqual(response.statusCode, 401);
     });
   });
 });

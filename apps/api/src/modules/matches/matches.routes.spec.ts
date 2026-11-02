@@ -37,7 +37,7 @@ describe("matches routes", () => {
       method: "POST",
       url: `/internal/matches/${matchId}/finish`,
       headers: testApp.serviceHeaders,
-      payload: { winnerId: ana },
+      payload: { winnerId: ana, awardWinBonus: true },
     });
     return { players, matchId };
   }

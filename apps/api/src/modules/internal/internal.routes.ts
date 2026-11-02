@@ -1,5 +1,7 @@
 import type { FastifyPluginAsyncZod } from "@fastify/type-provider-zod";
 import {
+  eliminatePlayerBodySchema,
+  eliminatePlayerResponseSchema,
   finishMatchBodySchema,
   matchHistoryResponseSchema,
   matchParamsSchema,
@@ -19,6 +21,11 @@ const registerRoundSchema = {
   params: matchParamsSchema,
   body: registerRoundBodySchema,
   response: { 200: registerRoundResponseSchema },
+};
+const eliminatePlayerSchema = {
+  params: matchParamsSchema,
+  body: eliminatePlayerBodySchema,
+  response: { 200: eliminatePlayerResponseSchema },
 };
 const finishMatchSchema = {
   params: matchParamsSchema,
@@ -40,6 +47,9 @@ export function internalRoutes({ internalService, matchesService }: InternalRout
     });
     app.post("/matches/:matchId/rounds", { schema: registerRoundSchema }, (request) =>
       matchesService.registerRound({ matchId: request.params.matchId, ...request.body }),
+    );
+    app.post("/matches/:matchId/eliminations", { schema: eliminatePlayerSchema }, (request) =>
+      matchesService.eliminate({ matchId: request.params.matchId, ...request.body }),
     );
     app.post("/matches/:matchId/finish", { schema: finishMatchSchema }, (request) =>
       matchesService.finish({ matchId: request.params.matchId, ...request.body }),

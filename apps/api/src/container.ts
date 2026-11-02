@@ -70,6 +70,15 @@ function createMatches({ repositories, unitOfWork, now }: BuildInput): MatchesSe
   });
 }
 
+function createInternal({ auth, profile, wallet, matches }: Omit<Services, "store" | "internal">): InternalService {
+  return new InternalService({
+    authService: auth,
+    profileService: profile,
+    walletService: wallet,
+    matchesService: matches,
+  });
+}
+
 export function createServices(dependencies: AppDependencies): Services {
   const now = dependencies.now ?? (() => new Date());
   const repositories = buildRepositories({ client: dependencies.prisma });
@@ -82,6 +91,7 @@ export function createServices(dependencies: AppDependencies): Services {
     now,
   });
   const wallet = new WalletService({ walletRepository: repositories.wallet, now });
-  const internal = new InternalService({ authService: auth, profileService: profile, walletService: wallet });
-  return { auth, profile, wallet, store: createStore(input), matches: createMatches(input), internal };
+  const matches = createMatches(input);
+  const internal = createInternal({ auth, profile, wallet, matches });
+  return { auth, profile, wallet, store: createStore(input), matches, internal };
 }

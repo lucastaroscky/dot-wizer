@@ -2,13 +2,14 @@ import assert from "node:assert";
 import { fake } from "../../../test/support/fake.ts";
 import errors from "../../common/messages/errors.json" with { type: "json" };
 import type { AuthService } from "../auth/auth.service.ts";
+import type { MatchesService } from "../matches/matches.service.ts";
 import type { ProfileService } from "../profile/profile.service.ts";
 import type { WalletService } from "../wallet/wallet.service.ts";
 import { InternalService } from "./internal.service.ts";
 
 const userId = "11111111-1111-4111-8111-111111111111";
 
-function buildService({ balance = 5000, complete = true, name = "Ana" as string | null } = {}) {
+function buildService({ balance = 5000, complete = true, name = "Ana" as string | null, openMatchId = null as string | null } = {}) {
   const tokens: string[] = [];
   const authService = fake<AuthService>({
     authenticateToken: async ({ token }) => {
@@ -27,7 +28,8 @@ function buildService({ balance = 5000, complete = true, name = "Ana" as string 
     }),
   });
   const walletService = fake<WalletService>({ balanceOf: async () => balance });
-  return { service: new InternalService({ authService, profileService, walletService }), tokens };
+  const matchesService = fake<MatchesService>({ openMatchIdOf: async () => openMatchId });
+  return { service: new InternalService({ authService, profileService, walletService, matchesService }), tokens };
 }
 
 describe("InternalService", () => {
@@ -46,6 +48,7 @@ describe("InternalService", () => {
         balance: 5000,
         minimumBalance: 5000,
         canJoin: true,
+        openMatchId: null,
       });
     });
 
@@ -80,7 +83,20 @@ describe("InternalService", () => {
         balance: 0,
         minimumBalance: null,
         canJoin: null,
+        openMatchId: null,
       });
+    });
+
+    it("tells which match the player is still in, with or without a table", async () => {
+      const matchId = "33333333-3333-4333-8333-333333333333";
+      const { service } = buildService({ openMatchId: matchId });
+
+      const withTable = await service.playerEntry({ accessToken: "user-jwt", table: 2 });
+      const withoutTable = await service.playerEntry({ accessToken: "user-jwt" });
+
+      assert.strictEqual(withTable.openMatchId, matchId);
+      assert.strictEqual(withoutTable.openMatchId, matchId);
+      assert.strictEqual(withTable.canJoin, true);
     });
 
     it("refuses a table that does not exist before looking at the token", async () => {

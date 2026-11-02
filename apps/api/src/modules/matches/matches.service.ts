@@ -1,6 +1,7 @@
 import { settleRound, winBonus } from "@pontinho/rules";
 import type { MatchFinance } from "@pontinho/rules";
 import type {
+  EliminatePlayerResponse,
   MatchHistoryResponse,
   RegisterRoundBody,
   RegisterRoundResponse,
@@ -13,7 +14,7 @@ import errors from "../../common/messages/errors.json" with { type: "json" };
 import type { UsersRepository } from "../users/repository/users.repository.ts";
 import { HOUSE_ACCOUNT, userAccount } from "../wallet/accounts.ts";
 import { postEntries } from "../wallet/post-entries.ts";
-import type { WalletRepository } from "../wallet/repository/wallet.repository.ts";
+import type { NewWalletEntry, WalletRepository } from "../wallet/repository/wallet.repository.ts";
 import { findChipTable } from "./find-chip-table.ts";
 import { summarizePlayers } from "./match-history.ts";
 import type { MatchPlayerRecord, MatchRecord, MatchesRepository } from "./repository/matches.repository.ts";
@@ -41,6 +42,15 @@ interface RegisterRoundInput extends RegisterRoundBody, MatchIdInput {}
 
 interface FinishInput extends MatchIdInput {
   winnerId: string | null;
+  awardWinBonus: boolean;
+}
+
+interface EliminateInput extends MatchIdInput {
+  userId: string;
+}
+
+interface EliminationResponseInput extends EliminateInput {
+  eliminatedAt: Date;
 }
 
 interface GetHistoryInput extends MatchIdInput {
@@ -95,6 +105,19 @@ interface CreditWinBonusInput {
   transaction: MatchesTransaction;
   match: MatchRecord;
   winnerId: string | null;
+  awardWinBonus: boolean;
+}
+
+interface WinBonusEntryInput {
+  matchId: string;
+  winnerId: string;
+  amount: number;
+}
+
+interface AssertSameResultInput {
+  match: MatchRecord;
+  winnerId: string | null;
+  awardWinBonus: boolean;
 }
 
 function toFinance(player: MatchPlayerRecord): MatchFinance {
@@ -106,6 +129,21 @@ function assertParticipants({ match, userIds }: AssertParticipantsInput): void {
   if (!userIds.every((userId) => playerIds.includes(userId))) {
     throw new UnprocessableError(errors.matches.playerNotInMatch);
   }
+}
+
+function winBonusEntry({ matchId, winnerId, amount }: WinBonusEntryInput): NewWalletEntry {
+  return {
+    fromAccount: HOUSE_ACCOUNT,
+    toAccount: userAccount({ userId: winnerId }),
+    amount,
+    type: "WIN_BONUS",
+    idempotencyKey: `match:${matchId}:win-bonus`,
+    matchId,
+  };
+}
+
+function eliminationResponse({ matchId, userId, eliminatedAt }: EliminationResponseInput): EliminatePlayerResponse {
+  return { matchId, userId, eliminatedAt: eliminatedAt.toISOString() };
 }
 
 export class MatchesService {
@@ -160,9 +198,33 @@ export class MatchesService {
     });
   }
 
-  async finish({ matchId, winnerId }: FinishInput): Promise<MatchHistoryResponse> {
-    await this.unitOfWork.run((transaction) => this.closeMatch({ transaction, matchId, winnerId }));
+  async finish(input: FinishInput): Promise<MatchHistoryResponse> {
+    const { matchId } = input;
+    await this.unitOfWork.run((transaction) => this.closeMatch({ transaction, ...input }));
     return this.buildHistory({ match: await this.matchesRepository.getById({ matchId }) });
+  }
+
+  eliminate({ matchId, userId }: EliminateInput): Promise<EliminatePlayerResponse> {
+    return this.unitOfWork.run(async (transaction) => {
+      const match = await this.lockMatch({ transaction, matchId });
+      if (match.status === "FINISHED") {
+        throw new ConflictError(errors.matches.alreadyFinished);
+      }
+      const player = match.players.find((current) => current.userId === userId);
+      if (!player) {
+        throw new UnprocessableError(errors.matches.playerNotInMatch);
+      }
+      if (player.eliminatedAt) {
+        return eliminationResponse({ matchId, userId, eliminatedAt: player.eliminatedAt });
+      }
+      const eliminatedAt = this.now();
+      await transaction.matches.eliminate({ matchId, userId, eliminatedAt });
+      return eliminationResponse({ matchId, userId, eliminatedAt });
+    });
+  }
+
+  openMatchIdOf({ userId }: { userId: string }): Promise<string | null> {
+    return this.matchesRepository.findOpenMatchIdOf({ userId });
   }
 
   async getHistory({ userId, matchId }: GetHistoryInput): Promise<MatchHistoryResponse> {
@@ -237,14 +299,15 @@ export class MatchesService {
     };
   }
 
-  private async closeMatch({ transaction, matchId, winnerId }: CloseMatchInput): Promise<void> {
+  private async closeMatch(input: CloseMatchInput): Promise<void> {
+    const { transaction, matchId, winnerId, awardWinBonus } = input;
     const match = await this.lockMatch({ transaction, matchId });
     if (match.status === "FINISHED") {
-      this.assertSameResult({ match, winnerId });
+      this.assertSameResult({ match, winnerId, awardWinBonus });
       return;
     }
     assertParticipants({ match, userIds: winnerId ? [winnerId] : [] });
-    const bonus = await this.creditWinBonus({ transaction, match, winnerId });
+    const bonus = await this.creditWinBonus({ transaction, match, winnerId, awardWinBonus });
     const players = await this.finishedPlayers({ transaction, match, winnerId, bonus });
     await transaction.matches.finish({ matchId, winnerId, finishedAt: this.now(), players });
   }
@@ -260,30 +323,22 @@ export class MatchesService {
     }));
   }
 
-  private assertSameResult({ match, winnerId }: { match: MatchRecord; winnerId: string | null }): void {
-    if (match.winnerId !== winnerId) {
+  private assertSameResult({ match, winnerId, awardWinBonus }: AssertSameResultInput): void {
+    const sameWinner = match.winnerId === winnerId;
+    const bonusWasPaid = match.players.some((player) => player.winBonus > 0);
+    const sameBonus = winnerId === null || bonusWasPaid === awardWinBonus;
+    if (!sameWinner || !sameBonus) {
       throw new ConflictError(errors.matches.winnerChanged);
     }
   }
 
-  private async creditWinBonus({ transaction, match, winnerId }: CreditWinBonusInput): Promise<number> {
-    if (!winnerId) {
+  private async creditWinBonus(input: CreditWinBonusInput): Promise<number> {
+    const { transaction, match, winnerId, awardWinBonus } = input;
+    if (!winnerId || !awardWinBonus) {
       return 0;
     }
     const amount = winBonus(match.pointValue);
-    await postEntries({
-      repositories: transaction,
-      entries: [
-        {
-          fromAccount: HOUSE_ACCOUNT,
-          toAccount: userAccount({ userId: winnerId }),
-          amount,
-          type: "WIN_BONUS",
-          idempotencyKey: `match:${match.id}:win-bonus`,
-          matchId: match.id,
-        },
-      ],
-    });
+    await postEntries({ repositories: transaction, entries: [winBonusEntry({ matchId: match.id, winnerId, amount })] });
     return amount;
   }
 

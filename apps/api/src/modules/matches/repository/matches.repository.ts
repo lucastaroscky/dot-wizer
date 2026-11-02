@@ -11,7 +11,15 @@ const matchSelect = {
   startedAt: true,
   finishedAt: true,
   players: {
-    select: { userId: true, startBalance: true, result: true, deficit: true, winBonus: true, finalBalance: true },
+    select: {
+      userId: true,
+      startBalance: true,
+      result: true,
+      deficit: true,
+      winBonus: true,
+      finalBalance: true,
+      eliminatedAt: true,
+    },
     orderBy: { userId: "asc" },
   },
 } satisfies Prisma.MatchSelect;
@@ -36,6 +44,11 @@ interface UserIdsInput {
 interface SaveRoundInput extends MatchIdInput {
   roundNumber: number;
   finances: { playerId: string; result: number; deficit: number }[];
+}
+
+interface EliminateInput extends MatchIdInput {
+  userId: string;
+  eliminatedAt: Date;
 }
 
 interface FinishInput extends MatchIdInput {
@@ -66,9 +79,17 @@ export class MatchesRepository {
     return this.client.match.findUniqueOrThrow({ where: { id: matchId }, select: matchSelect });
   }
 
+  async findOpenMatchIdOf({ userId }: { userId: string }): Promise<string | null> {
+    const row = await this.client.matchPlayer.findFirst({
+      where: { userId, eliminatedAt: null, match: { status: "IN_PROGRESS" } },
+      select: { matchId: true },
+    });
+    return row?.matchId ?? null;
+  }
+
   async findUsersInOpenMatches({ userIds }: UserIdsInput): Promise<string[]> {
     const rows = await this.client.matchPlayer.findMany({
-      where: { userId: { in: userIds }, match: { status: "IN_PROGRESS" } },
+      where: { userId: { in: userIds }, eliminatedAt: null, match: { status: "IN_PROGRESS" } },
       select: { userId: true },
     });
     return rows.map(({ userId }) => userId);
@@ -87,6 +108,13 @@ export class MatchesRepository {
       });
     }
     await this.client.match.update({ where: { id: matchId }, data: { lastRound: roundNumber } });
+  }
+
+  async eliminate({ matchId, userId, eliminatedAt }: EliminateInput): Promise<void> {
+    await this.client.matchPlayer.update({
+      where: { matchId_userId: { matchId, userId } },
+      data: { eliminatedAt },
+    });
   }
 
   async finish({ matchId, winnerId, finishedAt, players }: FinishInput): Promise<void> {

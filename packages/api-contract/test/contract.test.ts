@@ -2,11 +2,15 @@ import assert from "node:assert";
 import { randomUUID } from "node:crypto";
 import {
   buyBodySchema,
+  eliminatePlayerBodySchema,
+  eliminatePlayerResponseSchema,
   quoteQuerySchema,
   registerRoundBodySchema,
   saveProfileBodySchema,
   startMatchBodySchema,
+  finishMatchBodySchema,
   playerEntryBodySchema,
+  playerEntryResponseSchema,
   quoteResponseSchema,
   walletEntriesQuerySchema,
 } from "../src/index.ts";
@@ -83,5 +87,47 @@ describe("api-contract", () => {
 
     assert.deepStrictEqual(quoteResponseSchema.parse(quote), quote);
     assert.strictEqual(quoteResponseSchema.safeParse({ quantity: 2000, amountCents: 200_000 }).success, false);
+  });
+
+  it("requires the decision about the win bonus when finishing a match", () => {
+    const winnerId = randomUUID();
+
+    assert.strictEqual(finishMatchBodySchema.safeParse({ winnerId, awardWinBonus: true }).success, true);
+    assert.strictEqual(finishMatchBodySchema.safeParse({ winnerId, awardWinBonus: false }).success, true);
+    assert.strictEqual(finishMatchBodySchema.safeParse({ winnerId: null, awardWinBonus: false }).success, true);
+    assert.strictEqual(finishMatchBodySchema.safeParse({ winnerId }).success, false);
+    assert.strictEqual(finishMatchBodySchema.safeParse({ winnerId, awardWinBonus: "yes" }).success, false);
+  });
+
+  it("describes the open match of the player in the entry response", () => {
+    const entry = {
+      userId: randomUUID(),
+      name: "Ana",
+      photoUrl: null,
+      profileComplete: true,
+      balance: 100,
+      minimumBalance: null,
+      canJoin: null,
+    };
+
+    assert.strictEqual(playerEntryResponseSchema.safeParse({ ...entry, openMatchId: randomUUID() }).success, true);
+    assert.strictEqual(playerEntryResponseSchema.safeParse({ ...entry, openMatchId: null }).success, true);
+    assert.strictEqual(playerEntryResponseSchema.safeParse(entry).success, false);
+  });
+
+  it("takes only the id of a user to record an elimination", () => {
+    const userId = randomUUID();
+
+    assert.strictEqual(eliminatePlayerBodySchema.safeParse({ userId }).success, true);
+    assert.strictEqual(eliminatePlayerBodySchema.safeParse({ userId: "not-a-uuid" }).success, false);
+    assert.strictEqual(eliminatePlayerBodySchema.safeParse({ userId, reason: "left" }).success, false);
+    assert.strictEqual(eliminatePlayerBodySchema.safeParse({}).success, false);
+  });
+
+  it("describes the recorded elimination", () => {
+    const elimination = { matchId: randomUUID(), userId: randomUUID(), eliminatedAt: "2026-11-02T18:00:00.000Z" };
+
+    assert.deepStrictEqual(eliminatePlayerResponseSchema.parse(elimination), elimination);
+    assert.strictEqual(eliminatePlayerResponseSchema.safeParse({ ...elimination, eliminatedAt: "yesterday" }).success, false);
   });
 });

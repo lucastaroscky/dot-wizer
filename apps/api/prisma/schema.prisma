@@ -92,13 +92,14 @@ model Match {
 }
 
 model MatchPlayer {
-  matchId      String @map("match_id") @db.Uuid
-  userId       String @map("user_id") @db.Uuid
-  startBalance Int    @map("start_balance")
-  result       Int    @default(0)
-  deficit      Int    @default(0)
-  winBonus     Int    @default(0) @map("win_bonus")
-  finalBalance Int?   @map("final_balance")
+  matchId      String    @map("match_id") @db.Uuid
+  userId       String    @map("user_id") @db.Uuid
+  startBalance Int       @map("start_balance")
+  result       Int       @default(0)
+  deficit      Int       @default(0)
+  winBonus     Int       @default(0) @map("win_bonus")
+  finalBalance Int?      @map("final_balance")
+  eliminatedAt DateTime? @map("eliminated_at") @db.Timestamptz(6)
 
   match Match @relation(fields: [matchId], references: [id])
   user  User  @relation(fields: [userId], references: [id])

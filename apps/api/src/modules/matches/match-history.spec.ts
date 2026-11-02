@@ -8,8 +8,8 @@ const ana = "11111111-1111-4111-8111-111111111111";
 const bia = "22222222-2222-4222-8222-222222222222";
 
 const players: MatchPlayerRecord[] = [
-  { userId: ana, startBalance: 1000, result: 70, deficit: 0, winBonus: 50, finalBalance: 1120 },
-  { userId: bia, startBalance: 100, result: -100, deficit: 30, winBonus: 0, finalBalance: 0 },
+  { userId: ana, startBalance: 1000, result: 70, deficit: 0, winBonus: 50, finalBalance: 1120, eliminatedAt: null },
+  { userId: bia, startBalance: 100, result: -100, deficit: 30, winBonus: 0, finalBalance: 0, eliminatedAt: null },
 ];
 
 describe("summarizePlayers", () => {

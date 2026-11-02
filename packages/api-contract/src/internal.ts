@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { MATCH_MAX_PLAYERS, MATCH_MIN_PLAYERS } from "./constants.ts";
-import { chipsSchema, matchIdSchema, userIdSchema } from "./common.ts";
+import { chipsSchema, isoDateTimeSchema, matchIdSchema, userIdSchema } from "./common.ts";
 
 const tableSchema = z.number().int().positive();
 
@@ -18,6 +18,7 @@ export const playerEntryResponseSchema = z.object({
   balance: chipsSchema,
   minimumBalance: chipsSchema.nullable(),
   canJoin: z.boolean().nullable(),
+  openMatchId: matchIdSchema.nullable(),
 });
 export type PlayerEntryResponse = z.infer<typeof playerEntryResponseSchema>;
 
@@ -72,5 +73,18 @@ export type RegisterRoundResponse = z.infer<typeof registerRoundResponseSchema>;
 
 export const finishMatchBodySchema = z.strictObject({
   winnerId: userIdSchema.nullable(),
+  awardWinBonus: z.boolean(),
 });
 export type FinishMatchBody = z.infer<typeof finishMatchBodySchema>;
+
+export const eliminatePlayerBodySchema = z.strictObject({
+  userId: userIdSchema,
+});
+export type EliminatePlayerBody = z.infer<typeof eliminatePlayerBodySchema>;
+
+export const eliminatePlayerResponseSchema = z.object({
+  matchId: matchIdSchema,
+  userId: userIdSchema,
+  eliminatedAt: isoDateTimeSchema,
+});
+export type EliminatePlayerResponse = z.infer<typeof eliminatePlayerResponseSchema>;
