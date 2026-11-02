@@ -563,6 +563,18 @@ describe("internal routes", () => {
       assert.strictEqual(summaries[caio].finalBalance, 5000);
     });
 
+    it("does not accept an eliminated player as the winner and keeps the match open", async () => {
+      const { playerIds: [, bia], matchId } = await startMatch({ table: 1, balances: [5000, 5000, 5000] });
+      await eliminate(matchId, bia);
+
+      const response = await post(`/internal/matches/${matchId}/finish`, { winnerId: bia, awardWinBonus: true });
+
+      assert.strictEqual(response.statusCode, 422);
+      assert.strictEqual(response.json().message, errors.matches.winnerEliminated);
+      assert.strictEqual((await testPrisma.match.findUniqueOrThrow({ where: { id: matchId } })).status, "IN_PROGRESS");
+      assert.strictEqual(await testPrisma.walletEntry.count({ where: { type: "WIN_BONUS" } }), 0);
+    });
+
     it("refuses a player that is not in the match", async () => {
       const { matchId } = await startMatch({ table: 1, balances: [5000, 5000, 5000] });
 

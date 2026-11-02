@@ -371,6 +371,20 @@ describe("MatchesService", () => {
       ]);
     });
 
+    it("refuses a winner who was eliminated, without paying or closing anything", async () => {
+      const match = openMatch({
+        players: [player(ana), player(bia, { eliminatedAt: new Date("2026-11-02T17:30:00Z"), finalBalance: 700 }), player(caio)],
+      });
+      const { service, entries, finishes } = buildService({ match, balances: finalBalances });
+
+      await assert.rejects(service.finish({ matchId, winnerId: bia, awardWinBonus: true }), {
+        statusCode: 422,
+        message: errors.matches.winnerEliminated,
+      });
+      assert.deepStrictEqual(entries, []);
+      assert.deepStrictEqual(finishes, []);
+    });
+
     it("closes the match without any bonus when nobody won", async () => {
       const { service, entries, finishes } = buildService({ balances: finalBalances });
 

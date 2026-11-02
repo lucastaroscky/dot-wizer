@@ -77,6 +77,11 @@ interface FinancesResponseInput {
   finances: MatchFinance[];
 }
 
+interface AssertWinnerInput {
+  match: MatchRecord;
+  winnerId: string | null;
+}
+
 interface AssertParticipantsInput {
   match: MatchRecord;
   userIds: string[];
@@ -144,6 +149,13 @@ function winBonusEntry({ matchId, winnerId, amount }: WinBonusEntryInput): NewWa
 
 function eliminationResponse({ matchId, userId, eliminatedAt }: EliminationResponseInput): EliminatePlayerResponse {
   return { matchId, userId, eliminatedAt: eliminatedAt.toISOString() };
+}
+
+function assertWinnerStillPlaying({ match, winnerId }: AssertWinnerInput): void {
+  const winner = match.players.find((player) => player.userId === winnerId);
+  if (winner?.eliminatedAt) {
+    throw new UnprocessableError(errors.matches.winnerEliminated);
+  }
 }
 
 export class MatchesService {
@@ -309,6 +321,7 @@ export class MatchesService {
       return;
     }
     assertParticipants({ match, userIds: winnerId ? [winnerId] : [] });
+    assertWinnerStillPlaying({ match, winnerId });
     const bonus = await this.creditWinBonus({ transaction, match, winnerId, awardWinBonus });
     const players = await this.finishedPlayers({ transaction, match, winnerId, bonus });
     await transaction.matches.finish({ matchId, winnerId, finishedAt: this.now(), players });

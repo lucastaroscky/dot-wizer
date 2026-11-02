@@ -34,6 +34,7 @@
     "playerNotInMatch": "O jogador não está na partida.",
     "alreadyFinished": "A partida já foi encerrada.",
     "roundOutOfOrder": "A rodada não é a próxima da partida.",
+    "winnerEliminated": "O jogador eliminado não pode ser o vencedor.",
     "winnerChanged": "A partida já foi encerrada com outro resultado."
   }
 }
