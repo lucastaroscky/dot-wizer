@@ -143,6 +143,29 @@ describe("PontinhoRoom", () => {
     assert.notStrictEqual(room.state.currentTurn, current.sessionId);
   });
 
+  it("only discards for a person who ran out of the 30 seconds, without laying down melds", async () => {
+    const { room, current } = await startMatchWith(["Lucas", "Ana", "Bruno"]);
+    editGame(room, (game) => ({ ...withHand(game, current.sessionId, ["7-hearts-1", "7-clubs-1", "7-spades-1", "2-clubs-1"]), hasDrawn: true }));
+
+    advance(room, 30_000);
+
+    assert.strictEqual(room.state.melds.length, 0);
+    assert.strictEqual(playerOf(room, current.sessionId).cardCount, 3);
+    assert.notStrictEqual(room.state.currentTurn, current.sessionId);
+  });
+
+  it("keeps the robots of a practice match playing the whole turn", async () => {
+    const options = { seats: 3, bots: true };
+    const room = await createRoom(options);
+    await connect(room, "Lucas", options);
+    await room.waitForNextPatch();
+    editGame(room, (game) => ({ ...withHand(game, "bot-1", ["7-hearts-1", "7-clubs-1", "7-spades-1", "2-clubs-1"]), currentTurn: "bot-1", hasDrawn: true }));
+
+    advance(room, 3_000);
+
+    assert.strictEqual(room.state.melds.length, 1);
+  });
+
   it("survives a malformed message: only the sender is disconnected", async () => {
     const { room, clients } = await startMatchWith(["Lucas", "Ana", "Bruno"]);
     const [attacker, other] = clients;

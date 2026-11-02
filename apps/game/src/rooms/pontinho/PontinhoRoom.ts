@@ -450,7 +450,13 @@ export abstract class PontinhoRoom extends Room<{ state: PontinhoState; client: 
     const delay = player?.bot || player?.connection !== "connected" ? AUTOMATIC_TURN_MS : TURN_MS;
     this.state.turnNumber++;
     this.state.turnDuration = delay;
-    this.turnTimer = this.clock.setTimeout(() => this.apply(this.game?.currentTurn ?? "", { type: "playAutomatically" }), delay);
+    this.turnTimer = this.clock.setTimeout(() => this.playForCurrentPlayer(), delay);
+  }
+
+  private playForCurrentPlayer() {
+    const playerId = this.game?.currentTurn ?? "";
+    const action: Action = this.state.players.get(playerId)?.bot ? { type: "playAutomatically" } : { type: "playMovementOnly" };
+    this.apply(playerId, action);
   }
 
   private announce(announcement: Announcement | "", playerId = "") {

@@ -795,3 +795,77 @@ describe("ending the match when the players are gone", () => {
     assert.deepStrictEqual(events.at(-1), { type: "matchEnded", winner: "ana", reason: "walkover" });
   });
 });
+
+describe("movement-only play for a person who is away or ran out of time", () => {
+  it("draws and discards a random card without laying down a meld it could make", () => {
+    const game = gameWith({ hands: { ana: ["7-hearts-1", "7-clubs-1", "7-spades-1", "2-clubs-1"] }, stock: ["K-spades-1"] });
+
+    const { game: next } = act(game, "ana", { type: "playMovementOnly" }, () => 0);
+
+    assert.deepStrictEqual(next.melds, []);
+    assert.strictEqual(playerOf(next, "ana").hand.length, 4);
+    assert.strictEqual(next.discard.at(-1)?.id, "7-hearts-1");
+    assert.strictEqual(next.currentTurn, "bruno");
+  });
+
+  it("does not lay off a card that fits a meld on the table, discarding another one", () => {
+    const game = gameWith({
+      hands: { ana: ["7-hearts-1", "K-spades-1", "2-clubs-1"] },
+      melds: [meldOf(["4-hearts-1", "5-hearts-1", "6-hearts-1"])],
+      hasDrawn: true,
+    });
+
+    const { game: next } = act(game, "ana", { type: "playMovementOnly" }, () => 0);
+
+    assert.strictEqual(next.melds[0].cards.length, 3);
+    assert.strictEqual(next.discard.at(-1)?.id, "K-spades-1");
+    assert.deepStrictEqual(playerOf(next, "ana").hand.map((card) => card.id), ["7-hearts-1", "2-clubs-1"]);
+  });
+
+  it("only discards when the player already drew", () => {
+    const game = gameWith({ hands: { ana: ["9-hearts-1", "K-spades-1"] }, stock: ["2-clubs-1"], hasDrawn: true });
+
+    const { game: next } = act(game, "ana", { type: "playMovementOnly" }, () => 0);
+
+    assert.strictEqual(next.stock.length, 1);
+    assert.strictEqual(playerOf(next, "ana").hand.length, 1);
+  });
+
+  it("passes the turn without a discard when no card can be discarded", () => {
+    const game = gameWith({ hands: { ana: ["7-hearts-1", "JOKER-1-1"] }, melds: [meldOf(["4-hearts-1", "5-hearts-1", "6-hearts-1"])], stock: ["3-hearts-1"] });
+
+    const { game: next } = act(game, "ana", { type: "playMovementOnly" });
+
+    assert.deepStrictEqual(playerOf(next, "ana").hand.map((card) => card.id), ["7-hearts-1", "JOKER-1-1", "3-hearts-1"]);
+    assert.strictEqual(next.currentTurn, "bruno");
+    assert.strictEqual(next.discardIsFree, false);
+  });
+
+  it("ends the round without a winner by points when there are no cards left to draw, as the full play does", () => {
+    const game = gameWith({
+      hands: { ana: ["K-spades-1"], bruno: ["5-clubs-1"], carla: ["9-hearts-1"] },
+      points: { ana: 40, bruno: 20, carla: 30 },
+      stock: [],
+      discard: ["7-spades-2"],
+    });
+
+    const { game: next } = act(game, "ana", { type: "playMovementOnly" });
+
+    assert.strictEqual(next.phase, "roundOver");
+    assert.strictEqual(next.wentOut, "bruno");
+  });
+
+  it("goes out by discarding the last card when the player had already laid everything else down", () => {
+    const game = gameWith({ hands: { ana: ["K-spades-1"] }, hasDrawn: true });
+
+    const { game: next, events } = act(game, "ana", { type: "playMovementOnly" });
+
+    assert.strictEqual(next.phase, "roundOver");
+    assert.strictEqual(next.wentOut, "ana");
+    assert.deepStrictEqual(events.map((event) => event.type), ["move", "roundEnded"]);
+  });
+
+  it("refuses to play out of turn", () => {
+    assert.strictEqual(refused(gameWith(), "bruno", { type: "playMovementOnly" }), "notAllowed");
+  });
+});

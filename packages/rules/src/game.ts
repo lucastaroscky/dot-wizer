@@ -42,7 +42,8 @@ export type Action =
   | { type: "chooseReturn"; back: boolean }
   | { type: "leaveMatch" }
   | { type: "rejoinMatch" }
-  | { type: "playAutomatically" };
+  | { type: "playAutomatically" }
+  | { type: "playMovementOnly" };
 
 export type MoveKind = "draw" | "toTable" | "discard";
 
@@ -176,6 +177,8 @@ function run(game: Game, player: GamePlayer, action: Action, events: GameEvent[]
       return rejoinMatch(game, player);
     case "playAutomatically":
       return playAutomatically(game, player, events, random);
+    case "playMovementOnly":
+      return playMovementOnly(game, player, events, random);
   }
 }
 
@@ -376,15 +379,34 @@ function playAutomatically(game: Game, player: GamePlayer, events: GameEvent[], 
     return undefined;
   }
 
+  discardAtRandom(game, player, events, random);
+  return undefined;
+}
+
+function playMovementOnly(game: Game, player: GamePlayer, events: GameEvent[], random: Random) {
+  if (!isTurnOf(game, player)) {
+    return "notAllowed";
+  }
+  if (!game.hasDrawn) {
+    drawCard(game, player, events, random);
+  }
+  if (game.phase !== "playing") {
+    return undefined;
+  }
+
+  discardAtRandom(game, player, events, random);
+  return undefined;
+}
+
+function discardAtRandom(game: Game, player: GamePlayer, events: GameEvent[], random: Random) {
   const discardable = player.hand.filter((card) => canDiscard(card, game.melds));
   if (discardable.length === 0) {
     game.hasDrawn = false;
     game.discardIsFree = false;
     passTurn(game, events);
-    return undefined;
+    return;
   }
   discardCard(game, player, discardable[Math.floor(random() * discardable.length)], events);
-  return undefined;
 }
 
 function meldEverythingPossible(game: Game, player: GamePlayer, events: GameEvent[]) {

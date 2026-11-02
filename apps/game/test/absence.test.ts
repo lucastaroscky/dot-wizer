@@ -1,6 +1,6 @@
 import assert from "assert";
 import type { Room } from "@colyseus/sdk";
-import { advance, editGame, eventually, flush, playerOf, readyToGoOut, required, roomStillExists, setupServer, withPlayers } from "./support/harness.js";
+import { advance, editGame, eventually, flush, playerOf, readyToGoOut, required, roomStillExists, setupServer, withHand, withPlayers } from "./support/harness.js";
 
 async function drop(client: Room) {
   client.reconnection.enabled = false;
@@ -87,6 +87,18 @@ describe("PontinhoRoom players who drop or leave", () => {
     assert.strictEqual(room.state.currentTurn, current.sessionId);
     assert.strictEqual(room.state.turnDuration, 3_000);
     advance(room, 3_000);
+    assert.notStrictEqual(room.state.currentTurn, current.sessionId);
+  });
+
+  it("only discards for a person who is offline, after 3 seconds, without laying down melds", async () => {
+    const { room, current } = await startMatchWith(["Lucas", "Ana", "Bruno"]);
+    await drop(current);
+    editGame(room, (game) => ({ ...withHand(game, current.sessionId, ["7-hearts-1", "7-clubs-1", "7-spades-1", "2-clubs-1"]), hasDrawn: true }));
+
+    advance(room, 3_000);
+
+    assert.strictEqual(room.state.melds.length, 0);
+    assert.strictEqual(playerOf(room, current.sessionId).cardCount, 3);
     assert.notStrictEqual(room.state.currentTurn, current.sessionId);
   });
 
