@@ -3,6 +3,7 @@ import { UniqueSessionPlugin } from "colyseus/plugins/unique-session";
 import { StateView } from "@colyseus/schema";
 import { abandonMatch, applyAction, startMatch, startRound, type Action, type Game, type GameError, type GameEvent } from "@pontinho/rules";
 import {
+  CLOSE_CODES,
   chooseReturnMessageSchema,
   createOptionsSchema,
   discardMessageSchema,
@@ -19,7 +20,7 @@ import {
   type Connection,
   type ServerMessages,
 } from "@pontinho/protocol";
-import type { GameApi } from "../../gameApi/GameApi.js";
+import { describeFailure, type GameApi } from "../../gameApi/GameApi.js";
 import { ChipsMatch, NO_WINNER, type ChipsFinance, type MatchResult } from "./ChipsMatch.js";
 import { mirrorGame } from "./mirrorGame.js";
 import { openMatches } from "./openMatches.js";
@@ -286,7 +287,7 @@ export abstract class PontinhoRoom extends Room<{ state: PontinhoState; client: 
         return;
       case "eliminated":
         this.announceBriefly("eliminated", event.playerId);
-        this.chips?.eliminate(event.playerId).catch((error) => console.error(`Erro ao registrar a eliminação na sala ${this.roomId}:`, error));
+        this.chips?.eliminate(event.playerId).catch((error) => this.logFailure("Falha ao registrar a eliminação", error));
         this.closeReturnWindowWhenDecided();
         return;
       case "matchEnded":
@@ -335,12 +336,12 @@ export abstract class PontinhoRoom extends Room<{ state: PontinhoState; client: 
   }
 
   private abortMatch(error: unknown) {
-    console.error(`Erro de fichas na sala ${this.roomId}:`, error);
+    this.logFailure("Partida de fichas abortada", error);
     if (this.game?.phase === "ended") {
       return;
     }
     this.stopMatch();
-    this.disconnect(CloseCode.WITH_ERROR);
+    this.disconnect(CLOSE_CODES.matchAborted);
   }
 
   private endMatch(winner: string, awardWinBonus: boolean) {
@@ -365,8 +366,12 @@ export abstract class PontinhoRoom extends Room<{ state: PontinhoState; client: 
     void this.closeOpenMatch();
   }
 
+  private logFailure(message: string, error: unknown) {
+    console.error(message, { sala: this.roomId, ...describeFailure(error) });
+  }
+
   private finishChips(result: MatchResult) {
-    return this.chips?.finish(result).catch((error) => console.error(`Erro ao encerrar a partida de fichas da sala ${this.roomId}:`, error));
+    return this.chips?.finish(result).catch((error) => this.logFailure("Falha ao encerrar a partida de fichas", error));
   }
 
   private mirrorFinances(finances: ChipsFinance[]) {

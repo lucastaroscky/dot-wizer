@@ -4,7 +4,9 @@ import { matchMaker } from "colyseus";
 import { cardById, type Game } from "@pontinho/rules";
 import { createServer } from "../../src/createServer.js";
 import type { PontinhoRoom } from "../../src/rooms/pontinho/PontinhoRoom.js";
-import { FakeGameApi } from "./fakeGameApi.js";
+import { FakeGameApi, statusOf } from "./fakeGameApi.js";
+
+export { statusOf };
 
 export function required<T>(value: T | undefined): T {
   assert.ok(value !== undefined);
@@ -57,6 +59,22 @@ export async function eventually(check: () => boolean, timeoutMs = 3_000) {
   while (!check() && Date.now() < deadline) {
     await new Promise((resolve) => setTimeout(resolve, 50));
   }
+}
+
+type LoggedCall = { level: "error" | "warn"; args: unknown[] };
+
+export function captureLogs() {
+  const calls: LoggedCall[] = [];
+  const original = { error: console.error, warn: console.warn };
+  console.error = (...args: unknown[]) => calls.push({ level: "error", args });
+  console.warn = (...args: unknown[]) => calls.push({ level: "warn", args });
+  return {
+    calls,
+    restore() {
+      console.error = original.error;
+      console.warn = original.warn;
+    },
+  };
 }
 
 export function flush() {

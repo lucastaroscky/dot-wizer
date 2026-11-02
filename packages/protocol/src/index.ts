@@ -125,6 +125,7 @@ export const JOIN_REFUSALS = {
   invalidOptions: { code: 400, message: "invalidOptions" },
   openMatch: { code: 409, message: "openMatch" },
   accountDisabled: { code: 403, message: "accountDisabled" },
+  entryFailed: { code: 500, message: "entryFailed" },
 } as const;
 export type JoinRefusal = keyof typeof JOIN_REFUSALS;
 
@@ -148,6 +149,10 @@ export function toJoinRefusal(refusalMessage: string): JoinRefusal | undefined {
   const name = refusalMessage.split(":", 1)[0];
   return (Object.keys(JOIN_REFUSALS) as JoinRefusal[]).find((refusal) => refusal === name);
 }
+
+export const CLOSE_CODES = {
+  matchAborted: 4410,
+} as const;
 
 export function toAnnouncement(value: string): Announcement | undefined {
   return ANNOUNCEMENTS.find((announcement) => announcement === value);

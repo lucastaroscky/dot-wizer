@@ -3,8 +3,11 @@ import { ROOM_NAME } from "@pontinho/protocol";
 import type { GameApi } from "./gameApi/GameApi.js";
 import { createPontinhoRoom } from "./rooms/pontinho/PontinhoRoom.js";
 
-export function createServer(gameApi: GameApi) {
+type ServerOptions = { beforeListen?: () => Promise<void> };
+
+export function createServer(gameApi: GameApi, { beforeListen }: ServerOptions = {}) {
   return defineServer({
+    beforeListen,
     rooms: {
       [ROOM_NAME]: defineRoom(createPontinhoRoom(gameApi)).filterBy(["table", "seats", "bots"]),
     },

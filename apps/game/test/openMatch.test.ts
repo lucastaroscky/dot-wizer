@@ -1,7 +1,7 @@
 import assert from "assert";
 import { matchMaker } from "colyseus";
 import { JOIN_REFUSALS, toJoinRefusal, toReconnectionToken } from "@pontinho/protocol";
-import { advance, editGame, flush, playerOf, readyToGoOut, setupServer, withPlayers } from "./support/harness.js";
+import { advance, captureLogs, editGame, flush, playerOf, readyToGoOut, setupServer, withPlayers } from "./support/harness.js";
 
 const TABLE_ONE = { table: 1, seats: 3, bots: false };
 const PRACTICE = { seats: 3, bots: true };
@@ -167,6 +167,35 @@ describe("PontinhoRoom open matches", () => {
 
     assert.ok(joined.sessionId);
     assert.deepStrictEqual(api.finishedMatches, [{ matchId: "stuck-9", winnerId: null, awardWinBonus: false }]);
+  });
+
+  it("logs at error level, and keeps the match going, when the elimination cannot be registered", async () => {
+    const { room, current, others } = await startMatchWith(["Lucas", "Ana", "Bruno"]);
+    const [passer, stayer] = others;
+    api.failNext("eliminatePlayer", 1, "matchNotFound");
+    editGame(room, (game) => ({
+      ...withPlayers(game, {
+        [current.sessionId]: { hand: ["K-spades-1"], points: 20 },
+        [passer.sessionId]: { hand: ["Q-hearts-1"], points: 95 },
+        [stayer.sessionId]: { hand: ["5-hearts-1"], points: 60 },
+      }),
+      hasDrawn: true,
+    }));
+    current.send("discard", "K-spades-1");
+    await room.waitForMessage("discard");
+    const logs = captureLogs();
+
+    try {
+      passer.send("chooseReturn", { back: false });
+      await room.waitForMessage("chooseReturn");
+      await flush();
+    } finally {
+      logs.restore();
+    }
+
+    const failure = logs.calls.find((call) => call.level === "error");
+    assert.deepStrictEqual(failure?.args[1], { sala: room.roomId, chamada: "eliminatePlayer", status: 404, codigo: "matchNotFound", tentativa: 1 });
+    assert.strictEqual(room.state.phase, "roundOver");
   });
 
   it("keeps the match going and logs when the presence fails to remember a seat", async () => {

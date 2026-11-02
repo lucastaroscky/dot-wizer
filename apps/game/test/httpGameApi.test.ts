@@ -12,7 +12,7 @@ function setup(replies: Reply[]) {
       url: String(url),
       method: String(init?.method),
       headers: init?.headers as Record<string, string>,
-      body: JSON.parse(String(init?.body)),
+      body: init?.body === undefined ? undefined : JSON.parse(String(init.body)),
     });
     const reply = replies[Math.min(requests.length, replies.length) - 1];
     if (reply instanceof Error) {
@@ -36,10 +36,22 @@ describe("httpGameApi", () => {
       {
         url: "http://api.test/internal/players/entry",
         method: "POST",
-        headers: { "content-type": "application/json", "x-service-token": "secret" },
+        headers: { "content-type": "application/json", "x-service-token": "secret", "x-request-id": requests[0]?.headers["x-request-id"] },
         body: { accessToken: "jwt", table: 1 },
       },
     ]);
+  });
+
+  it("checks that the API is up and accepts the service token with a GET on /internal/ping", async () => {
+    const { api, requests } = setup([{ status: 200, body: { ok: true } }]);
+
+    const response = await api.ping();
+
+    assert.deepStrictEqual(response, { ok: true });
+    assert.deepStrictEqual(
+      requests.map(({ url, method, headers, body }) => ({ url, method, token: headers["x-service-token"], body })),
+      [{ url: "http://api.test/internal/ping", method: "GET", token: "secret", body: undefined }],
+    );
   });
 
   it("registers a round on the match path without repeating the match id in the body", async () => {
@@ -78,6 +90,59 @@ describe("httpGameApi", () => {
         { url: "http://api.test/internal/matches/m1/eliminations", body: { userId: "a" } },
       ],
     );
+  });
+
+  it("sends a request id for correlation, a different one per call and the same one across the retries of a call", async () => {
+    const { api, requests } = setup([{ status: 200, body: { matchId: "m1", lastRound: 1, players: [] } }, { status: 503 }, { status: 200, body: { matchId: "m1", lastRound: 2, players: [] } }]);
+
+    await api.registerRound({ matchId: "m1", roundNumber: 1, winnerId: "a", losers: [] });
+    await api.registerRound({ matchId: "m1", roundNumber: 2, winnerId: "a", losers: [] });
+
+    const ids = requests.map(({ headers }) => headers["x-request-id"]);
+    assert.ok(ids.every((id) => /^[0-9a-f-]{36}$/.test(id)));
+    assert.notStrictEqual(ids[0], ids[1]);
+    assert.strictEqual(ids[1], ids[2]);
+  });
+
+  describe("failures as GameApiError", () => {
+    const envelope = { statusCode: 409, code: "playerAlreadyInMatch", message: "O jogador já está em uma partida em andamento." };
+
+    it("reads the code from the body, names the call and keeps the raw body out of the message", async () => {
+      const { api } = setup([{ status: 409, body: envelope }]);
+
+      const error = await api.startMatch({ table: 1, playerIds: ["a", "b", "c"] }).catch((failure) => failure);
+
+      assert.ok(error instanceof GameApiError);
+      assert.deepStrictEqual({ status: error.status, code: error.code, call: error.call, attempt: error.attempt }, { status: 409, code: "playerAlreadyInMatch", call: "startMatch", attempt: 1 });
+      assert.ok(!error.message.includes(envelope.message));
+    });
+
+    it("turns a network failure into status 0 and a timeout into its own code", async () => {
+      const network = setup([new TypeError("fetch failed")]);
+      const timeout = setup([new DOMException("The operation was aborted due to timeout", "TimeoutError")]);
+
+      const networkError = await network.api.playerEntry({ accessToken: "jwt" }).catch((failure) => failure);
+      const timeoutError = await timeout.api.playerEntry({ accessToken: "jwt" }).catch((failure) => failure);
+
+      assert.deepStrictEqual([networkError.status, networkError.code], [0, "networkError"]);
+      assert.deepStrictEqual([timeoutError.status, timeoutError.code], [0, "timeout"]);
+    });
+
+    it("marks a body that is not the API envelope as an invalid response, keeping the status", async () => {
+      const { api } = setup([{ status: 502, body: "<html>Bad gateway</html>" }]);
+
+      const error = await api.playerEntry({ accessToken: "jwt" }).catch((failure) => failure);
+
+      assert.deepStrictEqual([error.status, error.code], [502, "invalidResponse"]);
+    });
+
+    it("counts the attempts when it gives up after retrying", async () => {
+      const { api } = setup([{ status: 503, body: { ...envelope, statusCode: 503, code: "internalError" } }]);
+
+      const error = await api.finishMatch({ matchId: "m1", winnerId: null, awardWinBonus: false }).catch((failure) => failure);
+
+      assert.deepStrictEqual([error.call, error.code, error.attempt], ["finishMatch", "internalError", 3]);
+    });
   });
 
   it("raises the status of a refusal and does not retry a client error", async () => {

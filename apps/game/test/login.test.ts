@@ -1,6 +1,6 @@
 import assert from "assert";
 import { JOIN_REFUSALS, type JoinRefusal } from "@pontinho/protocol";
-import { flush, playerOf, setupServer } from "./support/harness.js";
+import { captureLogs, flush, playerOf, required, setupServer, statusOf } from "./support/harness.js";
 
 const TABLE_ONE = { table: 1, seats: 3, bots: false };
 const PRACTICE = { table: 1, seats: 3, bots: true };
@@ -102,10 +102,36 @@ describe("PontinhoRoom login", () => {
   it("tells a disabled account apart from an API that is down", async () => {
     const room = await createRoom(TABLE_ONE);
     const token = api.addAccount("Ana");
-    api.failNext("playerEntry", 1, 403);
+    api.failNext("playerEntry", 1, "accountDisabled");
 
     await assert.rejects(connectWith(room, token, TABLE_ONE), refusedWith("accountDisabled"));
   });
+
+  for (const [code, refusal, level] of [
+    ["serviceTokenInvalid", "apiUnavailable", "error"],
+    ["networkError", "apiUnavailable", "warn"],
+    ["timeout", "apiUnavailable", "warn"],
+    ["internalError", "apiUnavailable", "error"],
+    ["tooManyRequests", "apiUnavailable", "warn"],
+    ["validationFailed", "entryFailed", "error"],
+    ["tableNotFound", "entryFailed", "error"],
+  ] as const) {
+    it(`answers ${refusal} and logs at ${level} level when the API entry fails with ${code}`, async () => {
+      const room = await createRoom(TABLE_ONE);
+      const token = api.addAccount("Ana");
+      api.failNext("playerEntry", 1, code);
+      const logs = captureLogs();
+
+      try {
+        await assert.rejects(connectWith(room, token, TABLE_ONE), refusedWith(refusal));
+      } finally {
+        logs.restore();
+      }
+
+      const [, details] = required(logs.calls.find((call) => call.level === level)).args;
+      assert.deepStrictEqual(details, { chamada: "playerEntry", status: statusOf(code), codigo: code, tentativa: 1 });
+    });
+  }
 
   it("refuses a player who joins by room id declaring another table", async () => {
     const room = await createRoom({ table: 7, seats: 3, bots: false });

@@ -1,5 +1,5 @@
 import assert from "assert";
-import { advance, editGame, flush, playerOf, readyToGoOut, required, setupServer, withHand, withPoints } from "./support/harness.js";
+import { advance, captureLogs, editGame, flush, playerOf, readyToGoOut, required, setupServer, withHand, withPoints } from "./support/harness.js";
 
 describe("PontinhoRoom chips", () => {
   const { api, connect, createRoom, startMatchWith } = setupServer();
@@ -158,7 +158,7 @@ describe("PontinhoRoom chips", () => {
     await connect(room, "Ana", options);
     await connect(room, "Bruno", options);
 
-    assert.strictEqual(await closed, 4002);
+    assert.strictEqual(await closed, 4410);
     assert.strictEqual(room.state.phase, "ended");
     assert.deepStrictEqual(api.finishedMatches, []);
   });
@@ -172,9 +172,27 @@ describe("PontinhoRoom chips", () => {
     current.send("discard", "K-spades-1");
     await room.waitForMessage("discard");
 
-    assert.strictEqual(await closed, 4002);
+    assert.strictEqual(await closed, 4410);
     assert.strictEqual(room.state.phase, "ended");
     assert.deepStrictEqual(api.finishedMatches, [{ matchId: "match-1", winnerId: null, awardWinBonus: false }]);
+  });
+
+  it("logs which call failed, with the room, the status, the code and the attempt, when it ends the match", async () => {
+    const { room, current } = await startMatchWith(["Lucas", "Ana", "Bruno"]);
+    api.failNext("registerRound", 1, "serviceTokenInvalid");
+    editGame(room, (game) => readyToGoOut(game, current.sessionId));
+    const logs = captureLogs();
+
+    try {
+      current.send("discard", "K-spades-1");
+      await room.waitForMessage("discard");
+      await flush();
+    } finally {
+      logs.restore();
+    }
+
+    const failure = logs.calls.find((call) => call.level === "error");
+    assert.deepStrictEqual(failure?.args[1], { sala: room.roomId, chamada: "registerRound", status: 401, codigo: "serviceTokenInvalid", tentativa: 1 });
   });
 
   it("closes an open match without a winner when the room goes away", async () => {

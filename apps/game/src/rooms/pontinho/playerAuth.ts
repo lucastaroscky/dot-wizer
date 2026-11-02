@@ -1,6 +1,6 @@
 import { ServerError } from "colyseus";
 import { createOptionsSchema, JOIN_REFUSALS, openMatchRefusalMessage, PRACTICE_TABLE, type JoinRefusal } from "@pontinho/protocol";
-import { GameApiError, type GameApi } from "../../gameApi/GameApi.js";
+import { describeFailure, GameApiError, type GameApi } from "../../gameApi/GameApi.js";
 import { NO_WINNER } from "./ChipsMatch.js";
 import { openMatches } from "./openMatches.js";
 
@@ -26,30 +26,42 @@ async function settleOpenMatch(gameApi: GameApi, userId: string, openMatchId: st
   try {
     await gameApi.finishMatch({ matchId: openMatchId, ...NO_WINNER });
   } catch (error) {
-    console.error(`Falha ao encerrar a partida presa ${openMatchId}:`, error);
+    console.error(`Falha ao encerrar a partida presa ${openMatchId}:`, describeFailure(error));
     throw refuse("apiUnavailable");
   }
 }
 
-function isUnavailable(error: unknown) {
-  return !(error instanceof GameApiError) || error.status >= 500;
+function isTemporary(error: GameApiError) {
+  return error.status === 0 || error.status === 429;
+}
+
+function refusalFor(error: unknown): JoinRefusal {
+  if (!(error instanceof GameApiError)) {
+    return "entryFailed";
+  }
+  if (error.code === "invalidToken" || error.code === "accountDisabled") {
+    return error.code;
+  }
+  if (error.code === "serviceTokenInvalid" || isTemporary(error) || error.status >= 500) {
+    return "apiUnavailable";
+  }
+  return "entryFailed";
+}
+
+function logEntryFailure(error: unknown) {
+  const log = error instanceof GameApiError && isTemporary(error) ? console.warn : console.error;
+  log("Falha ao consultar o jogador na API:", describeFailure(error));
 }
 
 async function enter(gameApi: GameApi, accessToken: string, table: number | undefined) {
   try {
     return await gameApi.playerEntry({ accessToken, table });
   } catch (error) {
-    if (error instanceof GameApiError && error.status === 401) {
-      throw refuse("invalidToken");
+    const refusal = refusalFor(error);
+    if (refusal !== "invalidToken" && refusal !== "accountDisabled") {
+      logEntryFailure(error);
     }
-    if (error instanceof GameApiError && error.status === 403) {
-      throw refuse("accountDisabled");
-    }
-    console.error("Falha ao consultar o jogador na API:", error);
-    if (isUnavailable(error)) {
-      throw refuse("apiUnavailable");
-    }
-    throw error;
+    throw refuse(refusal);
   }
 }
 

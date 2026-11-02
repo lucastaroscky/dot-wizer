@@ -1,12 +1,23 @@
-import type { EliminatePlayerResponse, MatchHistoryResponse, PlayerEntryBody, PlayerEntryResponse, RegisterRoundResponse, StartMatchBody, StartMatchResponse } from "@pontinho/api-contract";
+import type { EliminatePlayerResponse, MatchHistoryResponse, PingResponse, PlayerEntryBody, PlayerEntryResponse, RegisterRoundResponse, StartMatchBody, StartMatchResponse } from "@pontinho/api-contract";
 import { CHIP_TABLES, settleRound, type MatchFinance } from "@pontinho/rules";
-import { GameApiError, type EliminatePlayerInput, type FinishMatchInput, type GameApi, type RegisterRoundInput } from "../../src/gameApi/GameApi.js";
+import { API_ERROR_STATUS } from "@pontinho/api-contract";
+import { GameApiError, type EliminatePlayerInput, type FinishMatchInput, type GameApi, type GameApiErrorCode, type RegisterRoundInput } from "../../src/gameApi/GameApi.js";
 
 type Account = { token: string; userId: string; name: string | null; photoUrl: string | null; profileComplete: boolean; balance: number; openMatchId: string | null };
 
 type FakeMatch = { id: string; table: number; pointValue: number; finances: MatchFinance[]; lastRound: number };
 
 type AccountOptions = { balance?: number; profileComplete?: boolean; photoUrl?: string | null; openMatchId?: string };
+
+export function statusOf(code: GameApiErrorCode) {
+  if (code === "networkError" || code === "timeout") {
+    return 0;
+  }
+  if (code === "invalidResponse") {
+    return 502;
+  }
+  return API_ERROR_STATUS[code];
+}
 
 export class FakeGameApi implements GameApi {
   playerEntries: PlayerEntryBody[] = [];
@@ -17,7 +28,7 @@ export class FakeGameApi implements GameApi {
 
   private accounts = new Map<string, Account>();
   private matches = new Map<string, FakeMatch>();
-  private failures = new Map<string, { times: number; status: number }>();
+  private failures = new Map<string, { times: number; code: GameApiErrorCode }>();
   private roundGate: Promise<void> = Promise.resolve();
   private startGate: Promise<void> = Promise.resolve();
 
@@ -59,8 +70,8 @@ export class FakeGameApi implements GameApi {
     return `user-${name}`;
   }
 
-  failNext(call: "playerEntry" | "startMatch" | "registerRound" | "finishMatch", times = 1, status = 503) {
-    this.failures.set(call, { times, status });
+  failNext(call: "ping" | "playerEntry" | "startMatch" | "registerRound" | "finishMatch" | "eliminatePlayer", times = 1, code: GameApiErrorCode = "internalError") {
+    this.failures.set(call, { times, code });
   }
 
   holdStart() {
@@ -75,12 +86,17 @@ export class FakeGameApi implements GameApi {
     return release;
   }
 
+  async ping(): Promise<PingResponse> {
+    this.consumeFailure("ping");
+    return { ok: true };
+  }
+
   async playerEntry(body: PlayerEntryBody): Promise<PlayerEntryResponse> {
     this.playerEntries.push(body);
     this.consumeFailure("playerEntry");
     const account = this.accounts.get(body.accessToken);
     if (!account) {
-      throw new GameApiError(401, "invalid token");
+      throw new GameApiError({ status: 401, code: "invalidToken", call: "playerEntry" });
     }
     const chipTable = CHIP_TABLES.find(({ id }) => id === body.table);
     return {
@@ -101,7 +117,7 @@ export class FakeGameApi implements GameApi {
     this.consumeFailure("startMatch");
     const chipTable = CHIP_TABLES.find(({ id }) => id === body.table);
     if (!chipTable) {
-      throw new GameApiError(422, "unknown table");
+      throw new GameApiError({ status: 422, code: "tableNotFound", call: "startMatch" });
     }
     const finances = body.playerIds.map((userId) => ({ playerId: userId, startBalance: this.balanceOf(userId), result: 0, deficit: 0 }));
     const match: FakeMatch = { id: `match-${this.matches.size + 1}`, table: chipTable.id, pointValue: chipTable.pointValue, finances, lastRound: 0 };
@@ -171,6 +187,7 @@ export class FakeGameApi implements GameApi {
 
   async eliminatePlayer(input: EliminatePlayerInput): Promise<EliminatePlayerResponse> {
     this.eliminations.push(input);
+    this.consumeFailure("eliminatePlayer");
     return { matchId: input.matchId, userId: input.userId, eliminatedAt: new Date(0).toISOString() };
   }
 
@@ -184,7 +201,7 @@ export class FakeGameApi implements GameApi {
   private balanceOf(userId: string) {
     const account = [...this.accounts.values()].find((candidate) => candidate.userId === userId);
     if (!account) {
-      throw new GameApiError(404, "unknown player");
+      throw new GameApiError({ status: 404, code: "playerNotFound", call: "startMatch" });
     }
     return account.balance;
   }
@@ -192,7 +209,7 @@ export class FakeGameApi implements GameApi {
   private matchOf(matchId: string) {
     const match = this.matches.get(matchId);
     if (!match) {
-      throw new GameApiError(404, "unknown match");
+      throw new GameApiError({ status: 404, code: "matchNotFound", call: "registerRound" });
     }
     return match;
   }
@@ -203,6 +220,6 @@ export class FakeGameApi implements GameApi {
       return;
     }
     this.failures.set(call, { ...failure, times: failure.times - 1 });
-    throw new GameApiError(failure.status, `${call} unavailable`);
+    throw new GameApiError({ status: statusOf(failure.code), code: failure.code, call });
   }
 }
