@@ -50,7 +50,7 @@ export type PontinhoState = SchemaType<typeof PontinhoState>;
 
 export const ROOM_NAME = "pontinho";
 export const MIN_PLAYERS = 3;
-export const MAX_PLAYERS = 6;
+export const MAX_PLAYERS = 4;
 export const MAX_NAME_LENGTH = 20;
 export const MAX_CARDS_PER_ACTION = 14;
 

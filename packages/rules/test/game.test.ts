@@ -24,6 +24,9 @@ type Setup = {
   hasDrawn?: boolean;
   discardIsFree?: boolean;
   lastDiscarder?: string;
+  players?: string[];
+  eliminated?: string[];
+  dealer?: string;
 };
 
 function cards(ids: string[]) {
@@ -37,17 +40,19 @@ function meldOf(ids: string[]) {
 }
 
 function gameWith(setup: Setup = {}): Game {
-  const base = startMatch(PLAYERS, () => 0);
+  const base = startMatch(setup.players ?? PLAYERS, () => 0);
   return {
     ...base,
     players: base.players.map((player) => ({
       ...player,
       hand: setup.hands?.[player.id] ? cards(setup.hands[player.id]) : player.hand,
       points: setup.points?.[player.id] ?? 0,
+      eliminated: setup.eliminated?.includes(player.id) ?? false,
     })),
     stock: setup.stock ? cards(setup.stock) : base.stock,
     discard: setup.discard ? cards(setup.discard) : base.discard,
     melds: setup.melds ?? [],
+    dealer: setup.dealer ?? base.dealer,
     currentTurn: setup.currentTurn ?? "ana",
     hasDrawn: setup.hasDrawn ?? false,
     discardIsFree: setup.discardIsFree ?? false,
@@ -226,7 +231,7 @@ describe("going out", () => {
 
     assert.strictEqual(next.phase, "roundOver");
     assert.strictEqual(next.wentOut, "ana");
-    assert.deepStrictEqual(events.at(-1), { type: "roundEnded", wentOut: "ana" });
+    assert.deepStrictEqual(events.at(-1), { type: "roundEnded", wentOut: "ana", reason: "goOut" });
   });
 
   it("goes out on their own turn by discarding the last card, then the next dealer deals a new round", () => {
@@ -292,40 +297,222 @@ describe("going out", () => {
 });
 
 describe("end of round and match", () => {
-  it("eliminates a player who passes 100 points", () => {
-    const game = gameWith({ hands: { ana: ["K-spades-1"], bruno: ["K-hearts-1"] }, points: { bruno: 95 }, hasDrawn: true });
-
-    const { game: next } = act(game, "ana", { type: "discard", cardId: "K-spades-1" });
-
-    assert.strictEqual(playerOf(next, "bruno").eliminated, true);
-    assert.strictEqual(next.phase, "roundOver");
-  });
-
-  it("ends the match when only one player is left", () => {
-    const game = gameWith({ hands: { ana: ["K-spades-1"], bruno: ["K-hearts-1"], carla: ["Q-hearts-1"] }, points: { bruno: 95, carla: 95 }, hasDrawn: true });
+  it("offers the return to a player who passes 100 while two or more players stay at 100 or less", () => {
+    const game = gameWith({ hands: { ana: ["K-spades-1"], bruno: ["K-hearts-1"], carla: ["2-clubs-1"] }, points: { bruno: 95 }, hasDrawn: true });
 
     const { game: next, events } = act(game, "ana", { type: "discard", cardId: "K-spades-1" });
 
+    assert.strictEqual(next.phase, "roundOver");
+    assert.strictEqual(playerOf(next, "bruno").points, 105);
+    assert.strictEqual(playerOf(next, "bruno").eliminated, false);
+    assert.strictEqual(playerOf(next, "bruno").awaitingReturn, true);
+    assert.deepStrictEqual(events.at(-1), { type: "returnOffered", playerIds: ["bruno"] });
+  });
+
+  it("lets a player with exactly 100 points keep playing", () => {
+    const game = gameWith({ hands: { ana: ["K-spades-1"], bruno: ["K-hearts-1"], carla: ["2-clubs-1"] }, points: { bruno: 90 }, hasDrawn: true });
+
+    const { game: next, events } = act(game, "ana", { type: "discard", cardId: "K-spades-1" });
+
+    assert.strictEqual(playerOf(next, "bruno").points, 100);
+    assert.strictEqual(playerOf(next, "bruno").awaitingReturn, false);
+    assert.ok(events.every((event) => event.type !== "returnOffered"));
+  });
+
+  it("ends the match when only one player stays at 100 or less, eliminating the others", () => {
+    const game = gameWith({
+      hands: { ana: ["K-spades-1"], bruno: ["K-hearts-1"], carla: ["Q-hearts-1", "2-hearts-1"] },
+      points: { ana: 30, bruno: 95, carla: 100 },
+      hasDrawn: true,
+    });
+
+    const { game: next, events } = act(game, "ana", { type: "discard", cardId: "K-spades-1" });
+
+    assert.deepStrictEqual(next.players.map((player) => player.points), [30, 105, 112]);
+    assert.deepStrictEqual(next.players.map((player) => player.eliminated), [false, true, true]);
+    assert.ok(next.players.every((player) => !player.awaitingReturn));
     assert.strictEqual(next.phase, "ended");
     assert.strictEqual(next.winner, "ana");
     assert.deepStrictEqual(events.at(-1), { type: "matchEnded", winner: "ana" });
   });
 
-  it("ends the round without a winner when there are no cards left to draw", () => {
-    const game = gameWith({ stock: [], discard: ["7-spades-2"] });
+  it("gives the round to the lowest total when there are no cards left to draw", () => {
+    const game = gameWith({
+      hands: { ana: ["K-spades-1"], bruno: ["5-clubs-1"], carla: ["9-hearts-1"] },
+      points: { ana: 40, bruno: 20, carla: 30 },
+      stock: [],
+      discard: ["7-spades-2"],
+    });
 
     const { game: next, events } = act(game, "ana", { type: "draw" });
 
     assert.strictEqual(next.phase, "roundOver");
-    assert.strictEqual(next.wentOut, "");
-    assert.ok(next.players.every((player) => player.points === 0));
-    assert.deepStrictEqual(events, [{ type: "roundEnded", wentOut: "" }]);
+    assert.strictEqual(next.wentOut, "bruno");
+    assert.deepStrictEqual(next.players.map((player) => player.points), [50, 20, 39]);
+    assert.deepStrictEqual(next.players.map((player) => player.roundPoints), [10, 0, 9]);
+    assert.strictEqual(next.dealer, "bruno");
+    assert.deepStrictEqual(events, [{ type: "roundEnded", wentOut: "bruno", reason: "outOfCards" }]);
+  });
+
+  it("breaks a tie on the total by the fewest points in hand", () => {
+    const game = gameWith({
+      hands: { ana: ["K-spades-1"], bruno: ["9-clubs-1"], carla: ["5-hearts-1"] },
+      points: { ana: 30, bruno: 20, carla: 20 },
+      stock: [],
+      discard: ["7-spades-2"],
+    });
+
+    const { game: next } = act(game, "ana", { type: "draw" });
+
+    assert.strictEqual(next.wentOut, "carla");
+    assert.deepStrictEqual(next.players.map((player) => player.points), [40, 29, 20]);
+  });
+
+  it("breaks a tie on the total and on the hand by whoever sits first after the dealer", () => {
+    const game = gameWith({
+      hands: { ana: ["5-clubs-1"], bruno: ["K-spades-1"], carla: ["5-hearts-1"] },
+      points: { ana: 20, bruno: 30, carla: 20 },
+      dealer: "bruno",
+      stock: [],
+      discard: ["7-spades-2"],
+    });
+
+    const { game: next } = act(game, "ana", { type: "draw" });
+
+    assert.strictEqual(next.wentOut, "carla");
+  });
+
+  it("never gives the round to an eliminated player", () => {
+    const game = gameWith({
+      hands: { ana: ["K-spades-1"], bruno: ["9-clubs-1"] },
+      points: { ana: 40, bruno: 30, carla: 0 },
+      eliminated: ["carla"],
+      stock: [],
+      discard: ["7-spades-2"],
+    });
+
+    const { game: next } = act(game, "ana", { type: "draw" });
+
+    assert.strictEqual(next.wentOut, "bruno");
   });
 
   it("does not deal a new round after the match ended", () => {
     const game = abandonMatch(gameWith());
 
     assert.strictEqual(startRound(game), game);
+  });
+});
+
+describe("returning after 100 points", () => {
+  const FOUR_PLAYERS = ["ana", "bruno", "carla", "davi"];
+
+  function afterRound(points: Record<string, number>, hands: Record<string, string[]>) {
+    const game = gameWith({
+      players: FOUR_PLAYERS,
+      hands: { ...hands, davi: ["K-spades-1"] },
+      points,
+      currentTurn: "davi",
+      hasDrawn: true,
+    });
+    return act(game, "davi", { type: "discard", cardId: "K-spades-1" });
+  }
+
+  const rulebookExample = () => afterRound({ ana: 100, bruno: 90, carla: 70, davi: 48 }, { ana: ["K-hearts-1"], bruno: ["2-clubs-1"], carla: ["5-clubs-1"] });
+  const twoPassed = () => afterRound({ ana: 100, bruno: 100, carla: 70, davi: 48 }, { ana: ["K-hearts-1"], bruno: ["5-clubs-1"], carla: ["2-hearts-1"] });
+
+  it("offers the return to every player who passed 100 while two or more stay", () => {
+    const { game, events } = twoPassed();
+
+    assert.deepStrictEqual(game.players.map((player) => player.points), [110, 105, 72, 48]);
+    assert.deepStrictEqual(game.players.map((player) => player.awaitingReturn), [true, true, false, false]);
+    assert.deepStrictEqual(game.players.map((player) => player.eliminated), [false, false, false, false]);
+    assert.deepStrictEqual(events.at(-1), { type: "returnOffered", playerIds: ["ana", "bruno"] });
+  });
+
+  it("returns with the highest score among those who stayed, as in the rulebook example", () => {
+    const { game } = rulebookExample();
+    assert.deepStrictEqual(game.players.map((player) => player.points), [110, 92, 75, 48]);
+
+    const { game: next, events } = act(game, "ana", { type: "chooseReturn", back: true });
+
+    assert.strictEqual(playerOf(next, "ana").points, 92);
+    assert.strictEqual(playerOf(next, "ana").awaitingReturn, false);
+    assert.strictEqual(playerOf(next, "ana").eliminated, false);
+    assert.deepStrictEqual(events, [{ type: "returned", playerId: "ana", points: 92 }]);
+  });
+
+  it("is eliminated by choosing not to return", () => {
+    const { game } = rulebookExample();
+
+    const { game: next, events } = act(game, "ana", { type: "chooseReturn", back: false });
+
+    assert.strictEqual(playerOf(next, "ana").eliminated, true);
+    assert.strictEqual(playerOf(next, "ana").awaitingReturn, false);
+    assert.strictEqual(playerOf(next, "ana").points, 110);
+    assert.deepStrictEqual(events, [{ type: "eliminated", playerId: "ana" }]);
+  });
+
+  it("lets each player who passed decide on their own", () => {
+    const { game } = twoPassed();
+
+    const first = act(game, "bruno", { type: "chooseReturn", back: true });
+    const second = act(first.game, "ana", { type: "chooseReturn", back: false });
+
+    assert.strictEqual(playerOf(second.game, "bruno").points, 72);
+    assert.strictEqual(playerOf(second.game, "ana").eliminated, true);
+  });
+
+  it("only deals the next round when every choice is made", () => {
+    const { game } = twoPassed();
+    assert.strictEqual(startRound(game), game);
+
+    const first = act(game, "ana", { type: "chooseReturn", back: true });
+    assert.strictEqual(startRound(first.game), first.game);
+
+    const second = act(first.game, "bruno", { type: "chooseReturn", back: true });
+    assert.strictEqual(startRound(second.game).phase, "playing");
+  });
+
+  it("deals the next round to the players who returned and skips the ones who left", () => {
+    const { game } = twoPassed();
+    const returned = act(game, "ana", { type: "chooseReturn", back: true });
+    const left = act(returned.game, "bruno", { type: "chooseReturn", back: false });
+
+    const next = startRound(left.game);
+
+    assert.deepStrictEqual(next.players.map((player) => player.hand.length), [9, 0, 9, 9]);
+  });
+
+  it("keeps the match going when only two players are left", () => {
+    const { game } = twoPassed();
+    const first = act(game, "ana", { type: "chooseReturn", back: false });
+    const second = act(first.game, "bruno", { type: "chooseReturn", back: false });
+
+    const next = startRound(second.game);
+
+    assert.strictEqual(second.game.phase, "roundOver");
+    assert.strictEqual(next.phase, "playing");
+    assert.deepStrictEqual(next.players.map((player) => player.hand.length), [0, 0, 9, 9]);
+  });
+
+  it("refuses the choice from a player who was not offered the return", () => {
+    const { game } = rulebookExample();
+
+    assert.strictEqual(refused(game, "bruno", { type: "chooseReturn", back: true }), "notAllowed");
+    assert.strictEqual(refused(game, "davi", { type: "chooseReturn", back: false }), "notAllowed");
+  });
+
+  it("refuses a second choice from the same player", () => {
+    const { game } = rulebookExample();
+    const { game: next } = act(game, "ana", { type: "chooseReturn", back: false });
+
+    assert.strictEqual(refused(next, "ana", { type: "chooseReturn", back: true }), "notAllowed");
+  });
+
+  it("refuses the choice after the match was abandoned", () => {
+    const { game } = rulebookExample();
+
+    assert.strictEqual(refused(abandonMatch(game), "ana", { type: "chooseReturn", back: true }), "notAllowed");
   });
 });
 
