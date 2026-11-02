@@ -164,6 +164,48 @@ describe("internal routes", () => {
       assert.strictEqual(await testPrisma.match.count(), 0);
     });
 
+    it("refuses a player who is already in a match that was not finished", async () => {
+      const { playerIds: [ana, bia, caio], matchId } = await startMatch({ balances: [5000, 5000, 5000] });
+      const [dani, edu] = [await seedUser({ balance: 5000 }), await seedUser({ balance: 5000 })];
+
+      const second = await post("/internal/matches", { table: 1, playerIds: [dani, edu, caio] });
+
+      assert.strictEqual(second.statusCode, 409);
+      assert.strictEqual(second.json().message, errors.matches.playerAlreadyInMatch);
+      assert.strictEqual(await testPrisma.match.count(), 1);
+      assert.deepStrictEqual(
+        (await testPrisma.matchPlayer.findMany({ where: { matchId }, select: { userId: true } })).map(({ userId }) => userId).sort(),
+        [ana, bia, caio].sort(),
+      );
+    });
+
+    it("frees the players when the match is finished", async () => {
+      const { playerIds, matchId } = await startMatch({ balances: [5000, 5000, 5000] });
+
+      await post(`/internal/matches/${matchId}/finish`, { winnerId: null });
+      const next = await post("/internal/matches", { table: 1, playerIds });
+
+      assert.strictEqual(next.statusCode, 201);
+    });
+
+    it("lets only one of two matches that start at the same time with the same player", async () => {
+      const [shared, a1, a2, b1, b2] = [
+        await seedUser({ balance: 5000 }),
+        await seedUser({ balance: 5000 }),
+        await seedUser({ balance: 5000 }),
+        await seedUser({ balance: 5000 }),
+        await seedUser({ balance: 5000 }),
+      ];
+
+      const responses = await Promise.all([
+        post("/internal/matches", { table: 1, playerIds: [shared, a1, a2] }),
+        post("/internal/matches", { table: 1, playerIds: [shared, b1, b2] }),
+      ]);
+
+      assert.deepStrictEqual(responses.map(({ statusCode }) => statusCode).sort(), [201, 409]);
+      assert.strictEqual(await testPrisma.match.count(), 1);
+    });
+
     it("refuses an unknown player, a repeated player and a wrong number of players", async () => {
       const [a, b, c] = [await seedUser({ balance: 5000 }), await seedUser({ balance: 5000 }), await seedUser({ balance: 5000 })];
 
@@ -285,19 +327,24 @@ describe("internal routes", () => {
       assert.strictEqual(await testPrisma.walletEntry.count({ where: { type: "ROUND_PAYMENT" } }), 0);
     });
 
-    it("never lets a user's balance go negative when the same user plays two matches at once", async () => {
-      const shared = await seedUser({ balance: 1000 });
-      const [a1, a2, b1, b2] = [await seedUser({ balance: 1000 }), await seedUser({ balance: 1000 }), await seedUser({ balance: 1000 }), await seedUser({ balance: 1000 })];
-      const first = (await post("/internal/matches", { table: 1, playerIds: [shared, a1, a2] })).json().matchId;
-      const second = (await post("/internal/matches", { table: 1, playerIds: [shared, b1, b2] })).json().matchId;
+    it("never lets a balance go negative when chips leave the wallet during the match", async () => {
+      const { playerIds: [ana, bia], matchId } = await startMatch({ table: 1, balances: [1000, 1000, 1000] });
+      await testPrisma.walletEntry.create({
+        data: {
+          fromAccount: userAccount({ userId: bia }),
+          toAccount: HOUSE_ACCOUNT,
+          amount: 600,
+          type: "DEFICIT_OFFSET",
+          idempotencyKey: "chips-left-the-wallet",
+        },
+      });
 
-      const results = await Promise.all([
-        round(first, { roundNumber: 1, winnerId: a1, losers: [{ userId: shared, handPoints: 1000 }] }),
-        round(second, { roundNumber: 1, winnerId: b1, losers: [{ userId: shared, handPoints: 1000 }] }),
-      ]);
+      const response = await round(matchId, { roundNumber: 1, winnerId: ana, losers: [{ userId: bia, handPoints: 1000 }] });
 
-      assert.deepStrictEqual(results.map(({ statusCode }) => statusCode).sort(), [200, 409]);
-      assert.strictEqual(await ledgerBalance({ account: userAccount({ userId: shared }) }), 0);
+      assert.strictEqual(response.statusCode, 409);
+      assert.strictEqual(response.json().message, errors.wallet.insufficientBalance);
+      assert.strictEqual(await ledgerBalance({ account: userAccount({ userId: bia }) }), 400);
+      assert.strictEqual((await testPrisma.match.findUniqueOrThrow({ where: { id: matchId } })).lastRound, 0);
     });
   });
 

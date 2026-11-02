@@ -29,6 +29,10 @@ interface MatchIdInput {
   matchId: string;
 }
 
+interface UserIdsInput {
+  userIds: string[];
+}
+
 interface SaveRoundInput extends MatchIdInput {
   roundNumber: number;
   finances: { playerId: string; result: number; deficit: number }[];
@@ -60,6 +64,14 @@ export class MatchesRepository {
 
   getById({ matchId }: MatchIdInput): Promise<MatchRecord> {
     return this.client.match.findUniqueOrThrow({ where: { id: matchId }, select: matchSelect });
+  }
+
+  async findUsersInOpenMatches({ userIds }: UserIdsInput): Promise<string[]> {
+    const rows = await this.client.matchPlayer.findMany({
+      where: { userId: { in: userIds }, match: { status: "IN_PROGRESS" } },
+      select: { userId: true },
+    });
+    return rows.map(({ userId }) => userId);
   }
 
   async lockAndFind({ matchId }: MatchIdInput): Promise<MatchRecord | null> {

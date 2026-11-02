@@ -51,6 +51,15 @@ interface TransactionMatchInput extends MatchIdInput {
   transaction: MatchesTransaction;
 }
 
+interface PlayerIdsInput {
+  transaction: MatchesTransaction;
+  playerIds: string[];
+}
+
+interface StartingPlayersInput extends PlayerIdsInput {
+  minimumBalance: number;
+}
+
 interface FinancesResponseInput {
   transaction: MatchesTransaction;
   matchId: string;
@@ -116,23 +125,22 @@ export class MatchesService {
 
   async start({ table, playerIds }: StartMatchBody): Promise<StartMatchResponse> {
     const chipTable = findChipTable({ table });
-    const users = await this.usersRepository.findByIds({ ids: playerIds });
-    if (users.length !== playerIds.length) {
-      throw new NotFoundError(errors.matches.playerNotFound);
-    }
-    const accounts = playerIds.map((userId) => userAccount({ userId }));
-    const balances = await this.walletRepository.balancesOf({ accounts });
-    if (accounts.some((account) => balances[account] < chipTable.minimumBalance)) {
-      throw new ConflictError(errors.matches.playerBelowMinimumBalance);
-    }
-    const players = playerIds.map((userId) => ({ userId, startBalance: balances[userAccount({ userId })] }));
-    const match = await this.matchesRepository.create({ tableId: chipTable.id, pointValue: chipTable.pointValue, players });
-    return {
-      matchId: match.id,
-      table: match.tableId,
-      pointValue: match.pointValue,
-      players: match.players.map(({ userId, startBalance }) => ({ userId, startBalance })),
-    };
+    return this.unitOfWork.run(async (transaction) => {
+      await transaction.users.lockByIds({ ids: [...playerIds].sort() });
+      await this.assertPlayersExistAndAreFree({ transaction, playerIds });
+      const players = await this.startingPlayers({ transaction, playerIds, minimumBalance: chipTable.minimumBalance });
+      const match = await transaction.matches.create({
+        tableId: chipTable.id,
+        pointValue: chipTable.pointValue,
+        players,
+      });
+      return {
+        matchId: match.id,
+        table: match.tableId,
+        pointValue: match.pointValue,
+        players: match.players.map(({ userId, startBalance }) => ({ userId, startBalance })),
+      };
+    });
   }
 
   registerRound({ matchId, roundNumber, winnerId, losers }: RegisterRoundInput): Promise<RegisterRoundResponse> {
@@ -163,6 +171,26 @@ export class MatchesService {
       throw new NotFoundError(errors.matches.notFound);
     }
     return this.buildHistory({ match });
+  }
+
+  private async assertPlayersExistAndAreFree({ transaction, playerIds }: PlayerIdsInput): Promise<void> {
+    const users = await transaction.users.findByIds({ ids: playerIds });
+    if (users.length !== playerIds.length) {
+      throw new NotFoundError(errors.matches.playerNotFound);
+    }
+    const busyPlayerIds = await transaction.matches.findUsersInOpenMatches({ userIds: playerIds });
+    if (busyPlayerIds.length > 0) {
+      throw new ConflictError(errors.matches.playerAlreadyInMatch);
+    }
+  }
+
+  private async startingPlayers({ transaction, playerIds, minimumBalance }: StartingPlayersInput) {
+    const accounts = playerIds.map((userId) => userAccount({ userId }));
+    const balances = await transaction.wallet.balancesOf({ accounts });
+    if (accounts.some((account) => balances[account] < minimumBalance)) {
+      throw new ConflictError(errors.matches.playerBelowMinimumBalance);
+    }
+    return playerIds.map((userId) => ({ userId, startBalance: balances[userAccount({ userId })] }));
   }
 
   private async lockMatch({ transaction, matchId }: TransactionMatchInput): Promise<MatchRecord> {

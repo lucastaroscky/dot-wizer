@@ -83,7 +83,13 @@ describe("StoreService", () => {
     it("multiplies the quantity by the configured price per chip", () => {
       const { service } = buildService();
 
-      assert.deepStrictEqual(service.quote({ quantity: 5_000 }), { quantity: 5_000, amountCents: 500_000 });
+      assert.deepStrictEqual(service.quote({ quantity: 5_000 }), {
+        quantity: 5_000,
+        amountCents: 500_000,
+        minimumQuantity: 1_000,
+        quantityStep: 1_000,
+        maximumQuantity: 200_000,
+      });
     });
 
     it("refuses a quantity above the configured maximum", () => {
@@ -93,6 +99,14 @@ describe("StoreService", () => {
         statusCode: 422,
         message: errors.store.quantityAboveMaximum.replace("{{maximum}}", "10000"),
       });
+    });
+
+    it("tells the limits of a purchase so the app does not have to repeat them", () => {
+      const { service } = buildService({ maxChipsPerPurchase: 10_000 });
+
+      const { minimumQuantity, quantityStep, maximumQuantity } = service.quote({ quantity: 2_000 });
+
+      assert.deepStrictEqual([minimumQuantity, quantityStep, maximumQuantity], [1_000, 1_000, 10_000]);
     });
 
     it("accepts exactly the maximum", () => {

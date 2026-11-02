@@ -7,6 +7,7 @@ import {
   saveProfileBodySchema,
   startMatchBodySchema,
   playerEntryBodySchema,
+  quoteResponseSchema,
   walletEntriesQuerySchema,
 } from "../src/index.ts";
 
@@ -75,5 +76,12 @@ describe("api-contract", () => {
     assert.strictEqual(playerEntryBodySchema.safeParse({ accessToken: "jwt", table: 3 }).success, true);
     assert.strictEqual(playerEntryBodySchema.safeParse({ accessToken: "jwt" }).success, true);
     assert.strictEqual(playerEntryBodySchema.safeParse({ accessToken: "jwt", table: 0 }).success, false);
+  });
+
+  it("describes the purchase limits in the quote", () => {
+    const quote = { quantity: 2000, amountCents: 200_000, minimumQuantity: 1000, quantityStep: 1000, maximumQuantity: 200_000 };
+
+    assert.deepStrictEqual(quoteResponseSchema.parse(quote), quote);
+    assert.strictEqual(quoteResponseSchema.safeParse({ quantity: 2000, amountCents: 200_000 }).success, false);
   });
 });

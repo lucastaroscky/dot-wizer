@@ -44,6 +44,7 @@ function buildService({
   balances = {} as Record<string, number>,
   knownUsers = [user(ana, "Ana"), user(bia, "Bia"), user(caio, "Caio")],
   sums = [] as MatchEntrySum[],
+  usersInOpenMatches = [] as string[],
 } = {}) {
   const entries: NewWalletEntry[] = [];
   const created: unknown[] = [];
@@ -56,6 +57,7 @@ function buildService({
       created.push(input);
       return openMatch({ players: input.players.map((entry) => player(entry.userId, entry)) });
     },
+    findUsersInOpenMatches: async ({ userIds }) => userIds.filter((userId) => usersInOpenMatches.includes(userId)),
     findById: async () => match,
     getById: async () => match as MatchRecord,
     lockAndFind: async () => match,
@@ -133,6 +135,24 @@ describe("MatchesService", () => {
         { userId: bia, startBalance: 7000 },
         { userId: caio, startBalance: 5000 },
       ]);
+    });
+
+    it("locks the players in id order before checking and creating the match", async () => {
+      const { service, locked } = buildService({ balances });
+
+      await service.start({ table: 2, playerIds: [caio, ana, bia] });
+
+      assert.deepStrictEqual(locked, [[ana, bia, caio]]);
+    });
+
+    it("refuses a player who is still in a match that was not finished", async () => {
+      const { service, created } = buildService({ balances, usersInOpenMatches: [bia] });
+
+      await assert.rejects(service.start({ table: 2, playerIds: [ana, bia, caio] }), {
+        statusCode: 409,
+        message: errors.matches.playerAlreadyInMatch,
+      });
+      assert.deepStrictEqual(created, []);
     });
 
     it("refuses a table that does not exist", async () => {

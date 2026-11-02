@@ -1,3 +1,4 @@
+import { CHIP_PURCHASE_MINIMUM, CHIP_PURCHASE_STEP } from "@pontinho/api-contract";
 import type { PurchaseResponse, QuoteResponse } from "@pontinho/api-contract";
 import type { UnitOfWork } from "../../common/database/database-client.ts";
 import { NotFoundError, UnprocessableError } from "../../common/errors/http-errors.ts";
@@ -86,7 +87,13 @@ export class StoreService {
         errors.store.quantityAboveMaximum.replace("{{maximum}}", String(this.maxChipsPerPurchase)),
       );
     }
-    return { quantity, amountCents: quantity * this.chipPriceCents };
+    return {
+      quantity,
+      amountCents: quantity * this.chipPriceCents,
+      minimumQuantity: CHIP_PURCHASE_MINIMUM,
+      quantityStep: CHIP_PURCHASE_STEP,
+      maximumQuantity: this.maxChipsPerPurchase,
+    };
   }
 
   async buy({ userId, quantity }: BuyInput): Promise<PurchaseResponse> {

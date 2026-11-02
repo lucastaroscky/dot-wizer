@@ -29,7 +29,13 @@ describe("store routes", () => {
       const response = await testApp.app.inject({ method: "GET", url: "/store/quote?quantity=3000", headers });
 
       assert.strictEqual(response.statusCode, 200);
-      assert.deepStrictEqual(response.json(), { quantity: 3000, amountCents: 750_000 });
+      assert.deepStrictEqual(response.json(), {
+        quantity: 3000,
+        amountCents: 750_000,
+        minimumQuantity: 1000,
+        quantityStep: 1000,
+        maximumQuantity: 10_000,
+      });
     });
 
     it("rejects quantities below 1.000 or off the 1.000 step", async () => {

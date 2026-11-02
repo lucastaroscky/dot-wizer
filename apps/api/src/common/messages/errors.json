@@ -29,6 +29,7 @@
     "tableNotFound": "Mesa inexistente.",
     "playerNotFound": "Jogador não encontrado.",
     "playerBelowMinimumBalance": "O jogador não tem o saldo mínimo da mesa.",
+    "playerAlreadyInMatch": "O jogador já está em uma partida em andamento.",
     "playerNotInMatch": "O jogador não está na partida.",
     "alreadyFinished": "A partida já foi encerrada.",
     "roundOutOfOrder": "A rodada não é a próxima da partida.",

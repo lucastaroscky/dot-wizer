@@ -1,3 +1,4 @@
+export const CHIP_PURCHASE_MINIMUM = 1_000;
 export const CHIP_PURCHASE_STEP = 1_000;
 export const PROFILE_NAME_MAX_LENGTH = 20;
 export const MATCH_MIN_PLAYERS = 3;
