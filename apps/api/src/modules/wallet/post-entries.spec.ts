@@ -1,6 +1,5 @@
 import assert from "node:assert";
 import { fake } from "../../../test/support/fake.ts";
-import errors from "../../common/messages/errors.json" with { type: "json" };
 import type { UsersRepository } from "../users/repository/users.repository.ts";
 import { HOUSE_ACCOUNT, userAccount } from "./accounts.ts";
 import { postEntries } from "./post-entries.ts";
@@ -89,7 +88,7 @@ describe("postEntries", () => {
 
     await assert.rejects(postEntries({ repositories, entries: [entry({})] }), {
       statusCode: 409,
-      message: errors.wallet.insufficientBalance,
+      code: "insufficientBalance",
     });
   });
 });

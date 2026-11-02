@@ -1,6 +1,5 @@
 import assert from "node:assert";
 import { fake } from "../../../test/support/fake.ts";
-import errors from "../../common/messages/errors.json" with { type: "json" };
 import type { AuthService } from "../auth/auth.service.ts";
 import type { MatchesService } from "../matches/matches.service.ts";
 import type { ProfileService } from "../profile/profile.service.ts";
@@ -104,7 +103,7 @@ describe("InternalService", () => {
 
       await assert.rejects(service.playerEntry({ accessToken: "user-jwt", table: 9 }), {
         statusCode: 422,
-        message: errors.matches.tableNotFound,
+        code: "tableNotFound",
       });
       assert.deepStrictEqual(tokens, []);
     });

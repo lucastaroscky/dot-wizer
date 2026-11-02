@@ -1,16 +1,7 @@
 import { z } from "zod";
 
-export const userIdSchema = z.uuid();
-export const matchIdSchema = z.uuid();
-export const isoDateSchema = z.iso.date();
-export const isoDateTimeSchema = z.iso.datetime();
-export const chipsSchema = z.number().int();
-
-export const errorResponseSchema = z.object({
-  statusCode: z.number().int(),
-  message: z.union([z.string(), z.array(z.string())]),
-  error: z.string(),
-  path: z.string(),
-  timestamp: isoDateTimeSchema,
-});
-export type ErrorResponse = z.infer<typeof errorResponseSchema>;
+export const userIdSchema = z.uuid().describe("Identificador da conta (o `sub` do token do Supabase).");
+export const matchIdSchema = z.uuid().describe("Identificador da partida.");
+export const isoDateSchema = z.iso.date().describe("Data no formato AAAA-MM-DD.");
+export const isoDateTimeSchema = z.iso.datetime().describe("Instante em UTC no formato ISO 8601.");
+export const chipsSchema = z.number().int().describe("Quantidade de fichas (inteiro).");

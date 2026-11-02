@@ -1,5 +1,4 @@
-import { ForbiddenError, UnauthorizedError } from "../../common/errors/http-errors.ts";
-import errors from "../../common/messages/errors.json" with { type: "json" };
+import { ApiError } from "../../common/errors/api-error.ts";
 import type { UsersRepository } from "../users/repository/users.repository.ts";
 import type { TokenVerifier } from "./token-verifier.ts";
 
@@ -35,7 +34,7 @@ export class AuthService {
   async authenticate({ authorization }: AuthenticateInput): Promise<AuthContext> {
     const token = authorization?.match(BEARER_PATTERN)?.[1];
     if (!token) {
-      throw new UnauthorizedError(errors.auth.missingToken);
+      throw new ApiError({ code: "invalidToken" });
     }
     return this.authenticateToken({ token });
   }
@@ -44,7 +43,7 @@ export class AuthService {
     const { userId, email } = await this.tokenVerifier.verify({ token });
     const user = await this.usersRepository.findOrCreate({ id: userId, email });
     if (!user.active) {
-      throw new ForbiddenError(errors.auth.inactiveUser);
+      throw new ApiError({ code: "accountDisabled" });
     }
     return { userId: user.id, email: user.email };
   }

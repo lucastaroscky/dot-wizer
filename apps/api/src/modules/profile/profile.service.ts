@@ -1,8 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { brasiliaDay } from "@pontinho/rules";
 import type { PhotoUploadBody, PhotoUploadResponse, ProfileResponse, SaveProfileBody } from "@pontinho/api-contract";
-import { NotFoundError, UnprocessableError } from "../../common/errors/http-errors.ts";
-import errors from "../../common/messages/errors.json" with { type: "json" };
+import { ApiError } from "../../common/errors/api-error.ts";
 import type { UserRecord, UsersRepository } from "../users/repository/users.repository.ts";
 import { isAdult } from "./adulthood.ts";
 import type { AvatarStorage } from "./avatar-storage/avatar-storage.ts";
@@ -50,17 +49,17 @@ export class ProfileService {
   async get({ userId }: UserInput): Promise<ProfileResponse> {
     const user = await this.usersRepository.findById({ id: userId });
     if (!user) {
-      throw new NotFoundError(errors.profile.notFound);
+      throw new ApiError({ code: "profileNotFound" });
     }
     return this.toResponse({ user });
   }
 
   async save({ userId, name, birthDate, photoPath }: SaveInput): Promise<ProfileResponse> {
     if (!isAdult({ birthDate, today: brasiliaDay(this.now()) })) {
-      throw new UnprocessableError(errors.profile.underage);
+      throw new ApiError({ code: "underage" });
     }
     if (photoPath !== undefined && !isOwnPhotoPath({ userId, photoPath })) {
-      throw new UnprocessableError(errors.profile.photoNotOwned);
+      throw new ApiError({ code: "photoNotOwned" });
     }
     const user = await this.usersRepository.updateProfile({ id: userId, name, birthDate, photoPath });
     return this.toResponse({ user });

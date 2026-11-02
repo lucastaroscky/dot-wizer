@@ -1,5 +1,4 @@
 import assert from "node:assert";
-import errors from "../../common/messages/errors.json" with { type: "json" };
 import { seedUser } from "../../../test/support/seed.ts";
 import { createTestApp } from "../../../test/support/test-app.ts";
 import type { TestApp } from "../../../test/support/test-app.ts";
@@ -47,7 +46,7 @@ describe("wallet routes", () => {
     assert.strictEqual(first.statusCode, 200);
     assert.deepStrictEqual(first.json(), { amount: 100, balance: 100 });
     assert.strictEqual(second.statusCode, 409);
-    assert.strictEqual(second.json().message, errors.wallet.dailyBonusAlreadyClaimed);
+    assert.strictEqual(second.json().code, "dailyBonusAlreadyClaimed");
     assert.deepStrictEqual(await getWallet(headers), { balance: 100, dailyBonusAvailable: false });
   });
 

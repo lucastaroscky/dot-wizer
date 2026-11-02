@@ -1,29 +1,30 @@
-import { STATUS_CODES } from "node:http";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { hasZodFastifySchemaValidationErrors } from "@fastify/type-provider-zod";
+import { API_ERROR_STATUS } from "@pontinho/api-contract";
+import type { ApiErrorCode } from "@pontinho/api-contract";
 import { Prisma } from "../../generated/prisma/client.ts";
-import errors from "../messages/errors.json" with { type: "json" };
+import { ApiError, ERROR_MESSAGES } from "./api-error.ts";
 
 const UNIQUE_CONSTRAINT_VIOLATION_CODE = "P2002";
 
 interface ErrorBody {
   statusCode: number;
+  code: ApiErrorCode;
   message: string | string[];
-}
-
-interface ErrorEnvelope extends ErrorBody {
-  error: string;
-  path: string;
-  timestamp: string;
-}
-
-interface ToEnvelopeInput {
-  error: unknown;
-  path: string;
 }
 
 interface RegisterErrorHandlerInput {
   app: FastifyInstance;
+}
+
+interface BodyOfInput {
+  code: ApiErrorCode;
+  statusCode?: number;
+  message?: string | string[];
+}
+
+function bodyOf({ code, statusCode = API_ERROR_STATUS[code], message = ERROR_MESSAGES[code] }: BodyOfInput): ErrorBody {
+  return { statusCode, code, message };
 }
 
 export function registerErrorHandler({ app }: RegisterErrorHandlerInput): void {
@@ -32,43 +33,32 @@ export function registerErrorHandler({ app }: RegisterErrorHandlerInput): void {
 }
 
 function handleError(error: unknown, request: FastifyRequest, reply: FastifyReply) {
-  const envelope = toEnvelope({ error, path: request.url });
+  const envelope = toErrorBody({ error });
   if (envelope.statusCode >= 500) {
     request.log.error({ err: error }, `${request.method} ${request.url} -> ${envelope.statusCode}`);
   }
   return reply.status(envelope.statusCode).send(envelope);
 }
 
-function handleNotFound(request: FastifyRequest, reply: FastifyReply) {
-  const envelope = toEnvelope({
-    error: { statusCode: 404, message: errors.common.routeNotFound },
-    path: request.url,
-  });
+function handleNotFound(_request: FastifyRequest, reply: FastifyReply) {
+  const envelope = toErrorBody({ error: new ApiError({ code: "routeNotFound" }) });
   return reply.status(envelope.statusCode).send(envelope);
 }
 
-function toEnvelope({ error, path }: ToEnvelopeInput): ErrorEnvelope {
-  const { statusCode, message } = toErrorBody({ error });
-  return {
-    statusCode,
-    message,
-    error: STATUS_CODES[statusCode] ?? "Error",
-    path,
-    timestamp: new Date().toISOString(),
-  };
-}
-
 function toErrorBody({ error }: { error: unknown }): ErrorBody {
+  if (error instanceof ApiError) {
+    return bodyOf({ code: error.code, message: error.message });
+  }
   if (hasZodFastifySchemaValidationErrors(error)) {
-    return { statusCode: 400, message: describeValidationErrors({ error }) };
+    return bodyOf({ code: "validationFailed", message: describeValidationErrors({ error }) });
   }
   if (isUniqueConstraintViolation(error)) {
-    return { statusCode: 409, message: errors.common.uniqueConflict };
+    return bodyOf({ code: "uniqueConflict" });
   }
   if (isClientError(error)) {
-    return { statusCode: error.statusCode, message: error.message };
+    return bodyOf({ code: "badRequest", statusCode: error.statusCode });
   }
-  return { statusCode: 500, message: errors.common.internalError };
+  return bodyOf({ code: "internalError" });
 }
 
 interface DescribeValidationErrorsInput {
@@ -87,10 +77,10 @@ function isUniqueConstraintViolation(error: unknown): boolean {
   );
 }
 
-function isClientError(error: unknown): error is { statusCode: number; message: string } {
+function isClientError(error: unknown): error is { statusCode: number } {
   if (typeof error !== "object" || error === null) {
     return false;
   }
-  const { statusCode, message } = error as { statusCode?: unknown; message?: unknown };
-  return typeof statusCode === "number" && statusCode >= 400 && statusCode < 500 && typeof message === "string";
+  const { statusCode } = error as { statusCode?: unknown };
+  return typeof statusCode === "number" && statusCode >= 400 && statusCode < 500;
 }

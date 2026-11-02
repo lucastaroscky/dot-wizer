@@ -6,8 +6,7 @@ import type {
   WalletEntryResponse,
   WalletResponse,
 } from "@pontinho/api-contract";
-import { ConflictError } from "../../common/errors/http-errors.ts";
-import errors from "../../common/messages/errors.json" with { type: "json" };
+import { ApiError } from "../../common/errors/api-error.ts";
 import { HOUSE_ACCOUNT, userAccount } from "./accounts.ts";
 import type { WalletEntryRecord, WalletRepository } from "./repository/wallet.repository.ts";
 
@@ -72,7 +71,7 @@ export class WalletService {
       },
     });
     if (!claimed) {
-      throw new ConflictError(errors.wallet.dailyBonusAlreadyClaimed);
+      throw new ApiError({ code: "dailyBonusAlreadyClaimed" });
     }
     return { amount: DAILY_BONUS, balance: await this.balanceOf({ userId }) };
   }

@@ -1,6 +1,5 @@
 import assert from "node:assert";
 import { randomUUID } from "node:crypto";
-import errors from "../../common/messages/errors.json" with { type: "json" };
 import { createTestApp } from "../../../test/support/test-app.ts";
 import type { TestApp } from "../../../test/support/test-app.ts";
 import { testPrisma } from "../../../test/support/test-database.ts";
@@ -59,7 +58,7 @@ describe("store routes", () => {
       const response = await testApp.app.inject({ method: "GET", url: "/store/quote?quantity=11000", headers });
 
       assert.strictEqual(response.statusCode, 422);
-      assert.strictEqual(response.json().message, errors.store.quantityAboveMaximum.replace("{{maximum}}", "10000"));
+      assert.strictEqual(response.json().code, "quantityAboveMaximum");
     });
 
     it("answers 401 without a token", async () => {
@@ -222,7 +221,7 @@ describe("store routes", () => {
       const response = await buy(headers, 2000, key);
 
       assert.strictEqual(response.statusCode, 409);
-      assert.strictEqual(response.json().message, errors.store.idempotencyKeyReused);
+      assert.strictEqual(response.json().code, "idempotencyKeyReused");
       assert.strictEqual(await balanceOf(headers), 1000);
     });
 

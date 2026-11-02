@@ -1,7 +1,6 @@
 import assert from "node:assert";
 import { randomUUID } from "node:crypto";
 import { fake } from "../../../test/support/fake.ts";
-import errors from "../../common/messages/errors.json" with { type: "json" };
 import type { UserRecord, UsersRepository } from "../users/repository/users.repository.ts";
 import type { AvatarStorage } from "./avatar-storage/avatar-storage.ts";
 import { ProfileService } from "./profile.service.ts";
@@ -70,7 +69,7 @@ describe("ProfileService", () => {
       const usersRepository = fake<UsersRepository>({ findById: async () => null });
       const service = new ProfileService({ usersRepository, avatarStorage: fake<AvatarStorage>({}), now });
 
-      await assert.rejects(service.get({ userId }), { statusCode: 404, message: errors.profile.notFound });
+      await assert.rejects(service.get({ userId }), { statusCode: 404, code: "profileNotFound" });
     });
   });
 
@@ -99,7 +98,7 @@ describe("ProfileService", () => {
 
       await assert.rejects(service.save({ userId, name: "Ana", birthDate: "2008-11-03" }), {
         statusCode: 422,
-        message: errors.profile.underage,
+        code: "underage",
       });
     });
 
@@ -108,7 +107,7 @@ describe("ProfileService", () => {
 
       await assert.rejects(service.save({ userId, name: "Ana", birthDate: "2008-11-03" }), {
         statusCode: 422,
-        message: errors.profile.underage,
+        code: "underage",
       });
       assert.deepStrictEqual(updates, []);
     });
@@ -127,7 +126,7 @@ describe("ProfileService", () => {
 
       await assert.rejects(
         service.save({ userId, name: "Ana", birthDate: "1990-05-20", photoPath: `${randomUUID()}/${randomUUID()}.png` }),
-        { statusCode: 422, message: errors.profile.photoNotOwned },
+        { statusCode: 422, code: "photoNotOwned" },
       );
       assert.deepStrictEqual(updates, []);
     });

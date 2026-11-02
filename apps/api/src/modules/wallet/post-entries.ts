@@ -1,5 +1,4 @@
-import { ConflictError } from "../../common/errors/http-errors.ts";
-import errors from "../../common/messages/errors.json" with { type: "json" };
+import { ApiError } from "../../common/errors/api-error.ts";
 import type { UsersRepository } from "../users/repository/users.repository.ts";
 import { userAccount, userIdOfAccount } from "./accounts.ts";
 import type { NewWalletEntry, WalletRepository } from "./repository/wallet.repository.ts";
@@ -24,6 +23,6 @@ export async function postEntries({ repositories, entries }: PostEntriesInput): 
   const accounts = userIds.map((userId) => userAccount({ userId }));
   const balances = await repositories.wallet.balancesOf({ accounts });
   if (accounts.some((account) => balances[account] < 0)) {
-    throw new ConflictError(errors.wallet.insufficientBalance);
+    throw new ApiError({ code: "insufficientBalance" });
   }
 }

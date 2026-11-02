@@ -1,6 +1,5 @@
 import assert from "node:assert";
 import { fake } from "../../../test/support/fake.ts";
-import errors from "../../common/messages/errors.json" with { type: "json" };
 import type { UnitOfWork } from "../../common/database/database-client.ts";
 import type { UsersRepository } from "../users/repository/users.repository.ts";
 import { HOUSE_ACCOUNT, userAccount } from "../wallet/accounts.ts";
@@ -104,7 +103,7 @@ describe("StoreService", () => {
 
       assert.throws(() => service.quote({ quantity: 11_000 }), {
         statusCode: 422,
-        message: errors.store.quantityAboveMaximum.replace("{{maximum}}", "10000"),
+        code: "quantityAboveMaximum",
       });
     });
 
@@ -204,7 +203,7 @@ describe("StoreService", () => {
 
       await assert.rejects(service.buy({ userId, quantity: 3_000, idempotencyKey }), {
         statusCode: 409,
-        message: errors.store.idempotencyKeyReused,
+        code: "idempotencyKeyReused",
       });
       assert.deepStrictEqual(charges, []);
     });
@@ -254,7 +253,7 @@ describe("StoreService", () => {
 
       await assert.rejects(service.confirmPurchase({ providerTransactionId: "unknown" }), {
         statusCode: 404,
-        message: errors.store.purchaseNotFound,
+        code: "purchaseNotFound",
       });
     });
   });

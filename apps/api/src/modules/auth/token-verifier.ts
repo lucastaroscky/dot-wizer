@@ -1,8 +1,7 @@
 import { errors as joseErrors, jwtVerify } from "jose";
 import type { JWTVerifyGetKey } from "jose";
 import { z } from "zod";
-import { UnauthorizedError } from "../../common/errors/http-errors.ts";
-import errors from "../../common/messages/errors.json" with { type: "json" };
+import { ApiError } from "../../common/errors/api-error.ts";
 
 const SUPABASE_AUDIENCE = "authenticated";
 const SUPABASE_ALGORITHMS = ["ES256", "RS256"];
@@ -47,7 +46,7 @@ export class TokenVerifier {
     const payload = await this.readPayload({ token });
     const claims = claimsSchema.safeParse(payload);
     if (!claims.success) {
-      throw new UnauthorizedError(errors.auth.invalidToken);
+      throw new ApiError({ code: "invalidToken" });
     }
     return { userId: claims.data.sub, email: claims.data.email };
   }
@@ -62,7 +61,7 @@ export class TokenVerifier {
       return payload;
     } catch (error) {
       if (INVALID_TOKEN_ERRORS.some((invalidTokenError) => error instanceof invalidTokenError)) {
-        throw new UnauthorizedError(errors.auth.invalidToken);
+        throw new ApiError({ code: "invalidToken" });
       }
       throw error;
     }

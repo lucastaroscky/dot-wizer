@@ -1,5 +1,4 @@
 import assert from "node:assert";
-import errors from "./common/messages/errors.json" with { type: "json" };
 import { createTestApp, TEST_ORIGIN } from "../test/support/test-app.ts";
 import type { TestApp } from "../test/support/test-app.ts";
 
@@ -39,11 +38,27 @@ describe("app", () => {
       assert.strictEqual(response.headers["access-control-allow-origin"], TEST_ORIGIN);
     });
 
+    it("lets the browser send the idempotency key of a purchase in the preflight", async () => {
+      const response = await testApp.app.inject({
+        method: "OPTIONS",
+        url: "/store/purchases",
+        headers: {
+          origin: TEST_ORIGIN,
+          "access-control-request-method": "POST",
+          "access-control-request-headers": "authorization,content-type,idempotency-key",
+        },
+      });
+
+      assert.strictEqual(response.statusCode, 204);
+      assert.strictEqual(response.headers["access-control-allow-origin"], TEST_ORIGIN);
+      assert.match(String(response.headers["access-control-allow-headers"]).toLowerCase(), /idempotency-key/);
+    });
+
     it("answers an unknown route with the fixed error envelope", async () => {
       const response = await testApp.app.inject({ method: "GET", url: "/nowhere" });
 
       assert.strictEqual(response.statusCode, 404);
-      assert.strictEqual(response.json().message, errors.common.routeNotFound);
+      assert.strictEqual(response.json().code, "routeNotFound");
     });
 
     it("answers malformed JSON with 400 in the fixed envelope", async () => {
@@ -57,7 +72,31 @@ describe("app", () => {
       });
 
       assert.strictEqual(response.statusCode, 400);
-      assert.deepStrictEqual(Object.keys(response.json()).sort(), ["error", "message", "path", "statusCode", "timestamp"]);
+      assert.deepStrictEqual(Object.keys(response.json()).sort(), ["code", "message", "statusCode"]);
+      assert.strictEqual(response.json().code, "badRequest");
+    });
+  });
+
+  describe("request id", () => {
+    let testApp: TestApp;
+
+    before(async () => {
+      testApp = await createTestApp();
+    });
+    after(async () => testApp.app.close());
+
+    it("answers with the id the caller sends in x-request-id", async () => {
+      const response = await testApp.app.inject({ method: "GET", url: "/wallet", headers: { "x-request-id": "call-123" } });
+
+      assert.strictEqual(response.headers["x-request-id"], "call-123");
+    });
+
+    it("creates an id when the caller does not send one", async () => {
+      const first = await testApp.app.inject({ method: "GET", url: "/wallet" });
+      const second = await testApp.app.inject({ method: "GET", url: "/wallet" });
+
+      assert.ok(first.headers["x-request-id"]);
+      assert.notStrictEqual(first.headers["x-request-id"], second.headers["x-request-id"]);
     });
   });
 
@@ -78,7 +117,7 @@ describe("app", () => {
       }
 
       assert.deepStrictEqual(statuses, [401, 401, 401, 429, 429]);
-      assert.strictEqual(last?.json().message, errors.common.tooManyRequests);
+      assert.strictEqual(last?.json().code, "tooManyRequests");
     });
 
     it("does not limit the game server when it sends the service token", async () => {

@@ -6,6 +6,7 @@ import { createServices } from "./container.ts";
 import type { AppDependencies, Services } from "./container.ts";
 import type { Env } from "./common/env/env.ts";
 import { registerErrorHandler } from "./common/errors/error-handler.ts";
+import { registerOpenApi } from "./common/openapi/openapi.ts";
 import { registerSecurity } from "./common/security/security.ts";
 import { createAuthenticateHook, decorateRequestWithAuth } from "./modules/auth/auth.hooks.ts";
 import { createServiceTokenHook } from "./modules/auth/service-token.ts";
@@ -15,6 +16,7 @@ import { profileRoutes } from "./modules/profile/profile.routes.ts";
 import { storeRoutes } from "./modules/store/store.routes.ts";
 import { walletRoutes } from "./modules/wallet/wallet.routes.ts";
 
+const REQUEST_ID_HEADER = "x-request-id";
 const LOG_LEVELS = { development: "debug", test: "silent", production: "info" };
 
 interface RegisterRoutesInput {
@@ -43,11 +45,19 @@ function registerRoutes({ app, services, env }: RegisterRoutesInput): void {
 
 export async function buildApp(dependencies: AppDependencies): Promise<FastifyInstance> {
   const { env } = dependencies;
-  const app = Fastify({ logger: { level: LOG_LEVELS[env.NODE_ENV] }, trustProxy: env.TRUST_PROXY });
+  const app = Fastify({
+    logger: { level: LOG_LEVELS[env.NODE_ENV] },
+    trustProxy: env.TRUST_PROXY,
+    requestIdHeader: REQUEST_ID_HEADER,
+  });
   app.setValidatorCompiler(validatorCompiler);
   app.setSerializerCompiler(serializerCompiler);
+  app.addHook("onRequest", async (request, reply) => {
+    reply.header(REQUEST_ID_HEADER, request.id);
+  });
   registerErrorHandler({ app });
   await registerSecurity({ app, env });
+  await registerOpenApi({ app, nodeEnv: env.NODE_ENV });
   decorateRequestWithAuth({ app });
   registerRoutes({ app, services: createServices(dependencies), env });
   return app;

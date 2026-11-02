@@ -1,8 +1,7 @@
 import { CHIP_PURCHASE_MINIMUM, CHIP_PURCHASE_STEP } from "@pontinho/api-contract";
 import type { PurchaseResponse, QuoteResponse } from "@pontinho/api-contract";
 import type { UnitOfWork } from "../../common/database/database-client.ts";
-import { ConflictError, NotFoundError, UnprocessableError } from "../../common/errors/http-errors.ts";
-import errors from "../../common/messages/errors.json" with { type: "json" };
+import { ApiError } from "../../common/errors/api-error.ts";
 import type { UsersRepository } from "../users/repository/users.repository.ts";
 import { HOUSE_ACCOUNT, userAccount } from "../wallet/accounts.ts";
 import { postEntries } from "../wallet/post-entries.ts";
@@ -89,9 +88,7 @@ export class StoreService {
 
   quote({ quantity }: QuoteInput): QuoteResponse {
     if (quantity > this.maxChipsPerPurchase) {
-      throw new UnprocessableError(
-        errors.store.quantityAboveMaximum.replace("{{maximum}}", String(this.maxChipsPerPurchase)),
-      );
+      throw new ApiError({ code: "quantityAboveMaximum", values: { maximum: this.maxChipsPerPurchase } });
     }
     return {
       quantity,
@@ -126,7 +123,7 @@ export class StoreService {
         providerTransactionId,
       });
       if (!purchase) {
-        throw new NotFoundError(errors.store.purchaseNotFound);
+        throw new ApiError({ code: "purchaseNotFound" });
       }
       if (purchase.status === "PAID") {
         return toResponse({ purchase });
@@ -137,7 +134,7 @@ export class StoreService {
 
   private replay({ purchase, quantity }: ReplayInput): PurchaseResponse {
     if (purchase.quantity !== quantity) {
-      throw new ConflictError(errors.store.idempotencyKeyReused);
+      throw new ApiError({ code: "idempotencyKeyReused" });
     }
     return toResponse({ purchase });
   }

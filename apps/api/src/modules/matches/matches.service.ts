@@ -9,8 +9,7 @@ import type {
   StartMatchResponse,
 } from "@pontinho/api-contract";
 import type { UnitOfWork } from "../../common/database/database-client.ts";
-import { ConflictError, NotFoundError, UnprocessableError } from "../../common/errors/http-errors.ts";
-import errors from "../../common/messages/errors.json" with { type: "json" };
+import { ApiError } from "../../common/errors/api-error.ts";
 import type { UsersRepository } from "../users/repository/users.repository.ts";
 import { HOUSE_ACCOUNT, userAccount } from "../wallet/accounts.ts";
 import { postEntries } from "../wallet/post-entries.ts";
@@ -132,7 +131,7 @@ function toFinance(player: MatchPlayerRecord): MatchFinance {
 function assertParticipants({ match, userIds }: AssertParticipantsInput): void {
   const playerIds = match.players.map(({ userId }) => userId);
   if (!userIds.every((userId) => playerIds.includes(userId))) {
-    throw new UnprocessableError(errors.matches.playerNotInMatch);
+    throw new ApiError({ code: "playerNotInMatch" });
   }
 }
 
@@ -154,7 +153,7 @@ function eliminationResponse({ matchId, userId, eliminatedAt }: EliminationRespo
 function assertWinnerStillPlaying({ match, winnerId }: AssertWinnerInput): void {
   const winner = match.players.find((player) => player.userId === winnerId);
   if (winner?.eliminatedAt) {
-    throw new UnprocessableError(errors.matches.winnerEliminated);
+    throw new ApiError({ code: "winnerEliminated" });
   }
 }
 
@@ -197,13 +196,13 @@ export class MatchesService {
     return this.unitOfWork.run(async (transaction) => {
       const match = await this.lockMatch({ transaction, matchId });
       if (match.status === "FINISHED") {
-        throw new ConflictError(errors.matches.alreadyFinished);
+        throw new ApiError({ code: "matchAlreadyFinished" });
       }
       if (roundNumber <= match.lastRound) {
         return this.financesResponse({ transaction, matchId, lastRound: match.lastRound, finances: match.players.map(toFinance) });
       }
       if (roundNumber !== match.lastRound + 1) {
-        throw new ConflictError(errors.matches.roundOutOfOrder);
+        throw new ApiError({ code: "roundOutOfOrder" });
       }
       assertParticipants({ match, userIds: [winnerId, ...losers.map(({ userId }) => userId)] });
       return this.settleAndSave({ transaction, match, roundNumber, winnerId, losers });
@@ -220,11 +219,11 @@ export class MatchesService {
     return this.unitOfWork.run(async (transaction) => {
       const match = await this.lockMatch({ transaction, matchId });
       if (match.status === "FINISHED") {
-        throw new ConflictError(errors.matches.alreadyFinished);
+        throw new ApiError({ code: "matchAlreadyFinished" });
       }
       const player = match.players.find((current) => current.userId === userId);
       if (!player) {
-        throw new UnprocessableError(errors.matches.playerNotInMatch);
+        throw new ApiError({ code: "playerNotInMatch" });
       }
       if (player.eliminatedAt) {
         return eliminationResponse({ matchId, userId, eliminatedAt: player.eliminatedAt });
@@ -244,7 +243,7 @@ export class MatchesService {
   async getHistory({ userId, matchId }: GetHistoryInput): Promise<MatchHistoryResponse> {
     const match = await this.matchesRepository.findById({ matchId });
     if (!match || !match.players.some((player) => player.userId === userId)) {
-      throw new NotFoundError(errors.matches.notFound);
+      throw new ApiError({ code: "matchNotFound" });
     }
     return this.buildHistory({ match });
   }
@@ -252,11 +251,11 @@ export class MatchesService {
   private async assertPlayersExistAndAreFree({ transaction, playerIds }: PlayerIdsInput): Promise<void> {
     const users = await transaction.users.findByIds({ ids: playerIds });
     if (users.length !== playerIds.length) {
-      throw new NotFoundError(errors.matches.playerNotFound);
+      throw new ApiError({ code: "playerNotFound" });
     }
     const busyPlayerIds = await transaction.matches.findUsersInOpenMatches({ userIds: playerIds });
     if (busyPlayerIds.length > 0) {
-      throw new ConflictError(errors.matches.playerAlreadyInMatch);
+      throw new ApiError({ code: "playerAlreadyInMatch" });
     }
   }
 
@@ -264,7 +263,7 @@ export class MatchesService {
     const accounts = playerIds.map((userId) => userAccount({ userId }));
     const balances = await transaction.wallet.balancesOf({ accounts });
     if (accounts.some((account) => balances[account] < minimumBalance)) {
-      throw new ConflictError(errors.matches.playerBelowMinimumBalance);
+      throw new ApiError({ code: "playerBelowMinimumBalance" });
     }
     return playerIds.map((userId) => ({ userId, startBalance: balances[userAccount({ userId })] }));
   }
@@ -272,7 +271,7 @@ export class MatchesService {
   private async lockMatch({ transaction, matchId }: TransactionMatchInput): Promise<MatchRecord> {
     const match = await transaction.matches.lockAndFind({ matchId });
     if (!match) {
-      throw new NotFoundError(errors.matches.notFound);
+      throw new ApiError({ code: "matchNotFound" });
     }
     return match;
   }
@@ -343,7 +342,7 @@ export class MatchesService {
     const bonusWasPaid = match.players.some((player) => player.winBonus > 0);
     const sameBonus = winnerId === null || bonusWasPaid === awardWinBonus;
     if (!sameWinner || !sameBonus) {
-      throw new ConflictError(errors.matches.winnerChanged);
+      throw new ApiError({ code: "winnerChanged" });
     }
   }
 

@@ -1,6 +1,5 @@
 import assert from "node:assert";
 import { fake } from "../../../test/support/fake.ts";
-import errors from "../../common/messages/errors.json" with { type: "json" };
 import type { UnitOfWork } from "../../common/database/database-client.ts";
 import type { UserRecord, UsersRepository } from "../users/repository/users.repository.ts";
 import { HOUSE_ACCOUNT, userAccount } from "../wallet/accounts.ts";
@@ -155,7 +154,7 @@ describe("MatchesService", () => {
 
       await assert.rejects(service.start({ table: 2, playerIds: [ana, bia, caio] }), {
         statusCode: 409,
-        message: errors.matches.playerAlreadyInMatch,
+        code: "playerAlreadyInMatch",
       });
       assert.deepStrictEqual(created, []);
     });
@@ -165,7 +164,7 @@ describe("MatchesService", () => {
 
       await assert.rejects(service.start({ table: 8, playerIds: [ana, bia, caio] }), {
         statusCode: 422,
-        message: errors.matches.tableNotFound,
+        code: "tableNotFound",
       });
     });
 
@@ -174,7 +173,7 @@ describe("MatchesService", () => {
 
       await assert.rejects(service.start({ table: 2, playerIds: [ana, bia, caio] }), {
         statusCode: 404,
-        message: errors.matches.playerNotFound,
+        code: "playerNotFound",
       });
       assert.deepStrictEqual(created, []);
     });
@@ -185,7 +184,7 @@ describe("MatchesService", () => {
 
       await assert.rejects(service.start({ table: 2, playerIds: [ana, bia, caio] }), {
         statusCode: 409,
-        message: errors.matches.playerBelowMinimumBalance,
+        code: "playerBelowMinimumBalance",
       });
       assert.deepStrictEqual(created, []);
     });
@@ -297,7 +296,7 @@ describe("MatchesService", () => {
 
       await assert.rejects(
         service.registerRound({ matchId, roundNumber: 3, winnerId: ana, losers: [{ userId: bia, handPoints: 10 }] }),
-        { statusCode: 409, message: errors.matches.roundOutOfOrder },
+        { statusCode: 409, code: "roundOutOfOrder" },
       );
       assert.deepStrictEqual(entries, []);
     });
@@ -307,7 +306,7 @@ describe("MatchesService", () => {
 
       await assert.rejects(
         service.registerRound({ matchId, roundNumber: 1, winnerId: ana, losers: [{ userId: bia, handPoints: 10 }] }),
-        { statusCode: 404, message: errors.matches.notFound },
+        { statusCode: 404, code: "matchNotFound" },
       );
     });
 
@@ -316,7 +315,7 @@ describe("MatchesService", () => {
 
       await assert.rejects(
         service.registerRound({ matchId, roundNumber: 1, winnerId: ana, losers: [{ userId: bia, handPoints: 10 }] }),
-        { statusCode: 409, message: errors.matches.alreadyFinished },
+        { statusCode: 409, code: "matchAlreadyFinished" },
       );
     });
 
@@ -325,11 +324,11 @@ describe("MatchesService", () => {
 
       await assert.rejects(
         service.registerRound({ matchId, roundNumber: 1, winnerId: stranger, losers: [{ userId: bia, handPoints: 10 }] }),
-        { statusCode: 422, message: errors.matches.playerNotInMatch },
+        { statusCode: 422, code: "playerNotInMatch" },
       );
       await assert.rejects(
         service.registerRound({ matchId, roundNumber: 1, winnerId: ana, losers: [{ userId: stranger, handPoints: 10 }] }),
-        { statusCode: 422, message: errors.matches.playerNotInMatch },
+        { statusCode: 422, code: "playerNotInMatch" },
       );
       assert.deepStrictEqual(entries, []);
     });
@@ -379,7 +378,7 @@ describe("MatchesService", () => {
 
       await assert.rejects(service.finish({ matchId, winnerId: bia, awardWinBonus: true }), {
         statusCode: 422,
-        message: errors.matches.winnerEliminated,
+        code: "winnerEliminated",
       });
       assert.deepStrictEqual(entries, []);
       assert.deepStrictEqual(finishes, []);
@@ -399,7 +398,7 @@ describe("MatchesService", () => {
 
       await assert.rejects(service.finish({ matchId, winnerId: stranger, awardWinBonus: true }), {
         statusCode: 422,
-        message: errors.matches.playerNotInMatch,
+        code: "playerNotInMatch",
       });
       assert.deepStrictEqual(entries, []);
       assert.deepStrictEqual(finishes, []);
@@ -464,11 +463,11 @@ describe("MatchesService", () => {
 
       await assert.rejects(
         buildService({ match: withBonus }).service.finish({ matchId, winnerId: ana, awardWinBonus: false }),
-        { statusCode: 409, message: errors.matches.winnerChanged },
+        { statusCode: 409, code: "winnerChanged" },
       );
       await assert.rejects(
         buildService({ match: withoutBonus }).service.finish({ matchId, winnerId: ana, awardWinBonus: true }),
-        { statusCode: 409, message: errors.matches.winnerChanged },
+        { statusCode: 409, code: "winnerChanged" },
       );
     });
 
@@ -493,7 +492,7 @@ describe("MatchesService", () => {
 
       await assert.rejects(service.finish({ matchId, winnerId: bia, awardWinBonus: true }), {
         statusCode: 409,
-        message: errors.matches.winnerChanged,
+        code: "winnerChanged",
       });
     });
 
@@ -530,7 +529,7 @@ describe("MatchesService", () => {
 
       await assert.rejects(service.eliminate({ matchId, userId: stranger }), {
         statusCode: 422,
-        message: errors.matches.playerNotInMatch,
+        code: "playerNotInMatch",
       });
       assert.deepStrictEqual(eliminations, []);
     });
@@ -540,7 +539,7 @@ describe("MatchesService", () => {
 
       await assert.rejects(service.eliminate({ matchId, userId: bia }), {
         statusCode: 409,
-        message: errors.matches.alreadyFinished,
+        code: "matchAlreadyFinished",
       });
       assert.deepStrictEqual(eliminations, []);
     });
@@ -550,7 +549,7 @@ describe("MatchesService", () => {
 
       await assert.rejects(service.eliminate({ matchId, userId: bia }), {
         statusCode: 404,
-        message: errors.matches.notFound,
+        code: "matchNotFound",
       });
     });
   });
@@ -596,7 +595,7 @@ describe("MatchesService", () => {
 
       await assert.rejects(service.getHistory({ userId: stranger, matchId }), {
         statusCode: 404,
-        message: errors.matches.notFound,
+        code: "matchNotFound",
       });
     });
 

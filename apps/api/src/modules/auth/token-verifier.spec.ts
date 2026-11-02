@@ -2,7 +2,6 @@ import assert from "node:assert";
 import { randomUUID } from "node:crypto";
 import { errors as joseErrors } from "jose";
 import { SignJWT } from "jose";
-import errors from "../../common/messages/errors.json" with { type: "json" };
 import { strangerKey, signTestToken, TEST_ISSUER, testKeySet } from "../../../test/support/test-keys.ts";
 import { TokenVerifier } from "./token-verifier.ts";
 
@@ -10,9 +9,9 @@ describe("TokenVerifier", () => {
   const verifier = new TokenVerifier({ keySet: testKeySet, issuer: TEST_ISSUER });
 
   async function assertRejected(token: string) {
-    await assert.rejects(verifier.verify({ token }), (error: { statusCode: number; message: string }) => {
+    await assert.rejects(verifier.verify({ token }), (error: { statusCode: number; code: string }) => {
       assert.strictEqual(error.statusCode, 401);
-      assert.strictEqual(error.message, errors.auth.invalidToken);
+      assert.strictEqual(error.code, "invalidToken");
       return true;
     });
   }

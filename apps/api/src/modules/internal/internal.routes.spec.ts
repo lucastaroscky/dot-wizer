@@ -1,6 +1,5 @@
 import assert from "node:assert";
 import { randomUUID } from "node:crypto";
-import errors from "../../common/messages/errors.json" with { type: "json" };
 import { allBalances, ledgerBalance, seedUser } from "../../../test/support/seed.ts";
 import { createTestApp } from "../../../test/support/test-app.ts";
 import type { TestApp } from "../../../test/support/test-app.ts";
@@ -43,7 +42,7 @@ describe("internal routes", () => {
       const response = await testApp.app.inject({ method: "POST", url: "/internal/matches", payload: {} });
 
       assert.strictEqual(response.statusCode, 401);
-      assert.strictEqual(response.json().message, errors.auth.invalidServiceToken);
+      assert.strictEqual(response.json().code, "serviceTokenInvalid");
     });
 
     it("rejects a wrong service token", async () => {
@@ -55,6 +54,7 @@ describe("internal routes", () => {
       });
 
       assert.strictEqual(response.statusCode, 401);
+      assert.strictEqual(response.json().code, "serviceTokenInvalid");
     });
 
     it("does not accept a player's access token on an internal route", async () => {
@@ -69,6 +69,31 @@ describe("internal routes", () => {
       const response = await testApp.app.inject({ method: "GET", url: "/wallet", headers: testApp.serviceHeaders });
 
       assert.strictEqual(response.statusCode, 401);
+    });
+  });
+
+  describe("ping", () => {
+    it("confirms that the service token is accepted", async () => {
+      const response = await testApp.app.inject({ method: "GET", url: "/internal/ping", headers: testApp.serviceHeaders });
+
+      assert.strictEqual(response.statusCode, 200);
+      assert.deepStrictEqual(response.json(), { ok: true });
+    });
+
+    it("answers serviceTokenInvalid without the token, with a wrong token and with a player's token", async () => {
+      const { headers } = await testApp.signIn();
+      const missing = await testApp.app.inject({ method: "GET", url: "/internal/ping" });
+      const wrong = await testApp.app.inject({
+        method: "GET",
+        url: "/internal/ping",
+        headers: { "x-service-token": "x".repeat(40) },
+      });
+      const player = await testApp.app.inject({ method: "GET", url: "/internal/ping", headers });
+
+      for (const response of [missing, wrong, player]) {
+        assert.strictEqual(response.statusCode, 401);
+        assert.strictEqual(response.json().code, "serviceTokenInvalid");
+      }
     });
   });
 
@@ -152,7 +177,7 @@ describe("internal routes", () => {
       const response = await post("/internal/players/entry", { accessToken: "garbage", table: 1 });
 
       assert.strictEqual(response.statusCode, 401);
-      assert.strictEqual(response.json().message, errors.auth.invalidToken);
+      assert.strictEqual(response.json().code, "invalidToken");
     });
 
     it("rejects a table that does not exist", async () => {
@@ -187,7 +212,7 @@ describe("internal routes", () => {
       const { response, matchId } = await startMatch({ table: 2, balances: [5000, 4999, 5000] });
 
       assert.strictEqual(response.statusCode, 409);
-      assert.strictEqual(response.json().message, errors.matches.playerBelowMinimumBalance);
+      assert.strictEqual(response.json().code, "playerBelowMinimumBalance");
       assert.strictEqual(matchId, undefined);
       assert.strictEqual(await testPrisma.match.count(), 0);
     });
@@ -199,7 +224,7 @@ describe("internal routes", () => {
       const second = await post("/internal/matches", { table: 1, playerIds: [dani, edu, caio] });
 
       assert.strictEqual(second.statusCode, 409);
-      assert.strictEqual(second.json().message, errors.matches.playerAlreadyInMatch);
+      assert.strictEqual(second.json().code, "playerAlreadyInMatch");
       assert.strictEqual(await testPrisma.match.count(), 1);
       assert.deepStrictEqual(
         (await testPrisma.matchPlayer.findMany({ where: { matchId }, select: { userId: true } })).map(({ userId }) => userId).sort(),
@@ -335,9 +360,9 @@ describe("internal routes", () => {
       const late = await round(matchId, { roundNumber: 1, ...body });
 
       assert.strictEqual(skipped.statusCode, 409);
-      assert.strictEqual(skipped.json().message, errors.matches.roundOutOfOrder);
+      assert.strictEqual(skipped.json().code, "roundOutOfOrder");
       assert.strictEqual(late.statusCode, 409);
-      assert.strictEqual(late.json().message, errors.matches.alreadyFinished);
+      assert.strictEqual(late.json().code, "matchAlreadyFinished");
     });
 
     it("refuses players that are not in the match and invalid bodies", async () => {
@@ -370,7 +395,7 @@ describe("internal routes", () => {
       const response = await round(matchId, { roundNumber: 1, winnerId: ana, losers: [{ userId: bia, handPoints: 1000 }] });
 
       assert.strictEqual(response.statusCode, 409);
-      assert.strictEqual(response.json().message, errors.wallet.insufficientBalance);
+      assert.strictEqual(response.json().code, "insufficientBalance");
       assert.strictEqual(await ledgerBalance({ account: userAccount({ userId: bia }) }), 400);
       assert.strictEqual((await testPrisma.match.findUniqueOrThrow({ where: { id: matchId } })).lastRound, 0);
     });
@@ -570,7 +595,7 @@ describe("internal routes", () => {
       const response = await post(`/internal/matches/${matchId}/finish`, { winnerId: bia, awardWinBonus: true });
 
       assert.strictEqual(response.statusCode, 422);
-      assert.strictEqual(response.json().message, errors.matches.winnerEliminated);
+      assert.strictEqual(response.json().code, "winnerEliminated");
       assert.strictEqual((await testPrisma.match.findUniqueOrThrow({ where: { id: matchId } })).status, "IN_PROGRESS");
       assert.strictEqual(await testPrisma.walletEntry.count({ where: { type: "WIN_BONUS" } }), 0);
     });
@@ -581,7 +606,7 @@ describe("internal routes", () => {
       const response = await eliminate(matchId, await seedUser({ balance: 5000 }));
 
       assert.strictEqual(response.statusCode, 422);
-      assert.strictEqual(response.json().message, errors.matches.playerNotInMatch);
+      assert.strictEqual(response.json().code, "playerNotInMatch");
     });
 
     it("refuses an elimination after the match was finished", async () => {
@@ -591,7 +616,7 @@ describe("internal routes", () => {
       const response = await eliminate(matchId, bia);
 
       assert.strictEqual(response.statusCode, 409);
-      assert.strictEqual(response.json().message, errors.matches.alreadyFinished);
+      assert.strictEqual(response.json().code, "matchAlreadyFinished");
     });
 
     it("answers 404 for an unknown match and 400 for a body the API does not accept", async () => {

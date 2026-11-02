@@ -1,6 +1,5 @@
 import assert from "node:assert";
 import { fake } from "../../../test/support/fake.ts";
-import errors from "../../common/messages/errors.json" with { type: "json" };
 import { HOUSE_ACCOUNT, userAccount } from "./accounts.ts";
 import type { NewWalletEntry, WalletEntryRecord, WalletRepository } from "./repository/wallet.repository.ts";
 import { WalletService } from "./wallet.service.ts";
@@ -95,7 +94,7 @@ describe("WalletService", () => {
 
       await assert.rejects(service.claimDailyBonus({ userId }), {
         statusCode: 409,
-        message: errors.wallet.dailyBonusAlreadyClaimed,
+        code: "dailyBonusAlreadyClaimed",
       });
       assert.deepStrictEqual(created, []);
     });

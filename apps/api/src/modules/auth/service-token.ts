@@ -1,8 +1,7 @@
 import { createHash, timingSafeEqual } from "node:crypto";
 import type { FastifyRequest } from "fastify";
 import { SERVICE_TOKEN_HEADER } from "@pontinho/api-contract";
-import { UnauthorizedError } from "../../common/errors/http-errors.ts";
-import errors from "../../common/messages/errors.json" with { type: "json" };
+import { ApiError } from "../../common/errors/api-error.ts";
 
 interface IsServiceTokenInput {
   provided: string | string[] | undefined;
@@ -23,7 +22,7 @@ export function isServiceToken({ provided, expected }: IsServiceTokenInput): boo
 export function createServiceTokenHook({ serviceToken }: { serviceToken: string }) {
   return async function requireServiceToken(request: FastifyRequest): Promise<void> {
     if (!isServiceToken({ provided: request.headers[SERVICE_TOKEN_HEADER], expected: serviceToken })) {
-      throw new UnauthorizedError(errors.auth.invalidServiceToken);
+      throw new ApiError({ code: "serviceTokenInvalid" });
     }
   };
 }

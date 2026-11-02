@@ -1,5 +1,6 @@
 export * from "./constants.ts";
 export * from "./common.ts";
+export * from "./errors.ts";
 export * from "./profile.ts";
 export * from "./wallet.ts";
 export * from "./store.ts";

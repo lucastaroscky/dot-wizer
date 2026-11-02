@@ -1,8 +1,7 @@
 import assert from "node:assert";
 import { randomUUID } from "node:crypto";
 import { fake } from "../../../test/support/fake.ts";
-import { UnauthorizedError } from "../../common/errors/http-errors.ts";
-import errors from "../../common/messages/errors.json" with { type: "json" };
+import { ApiError } from "../../common/errors/api-error.ts";
 import type { UsersRepository } from "../users/repository/users.repository.ts";
 import { AuthService } from "./auth.service.ts";
 import type { TokenVerifier } from "./token-verifier.ts";
@@ -14,7 +13,7 @@ function buildService({ active = true, verifyFails = false } = {}) {
   const tokenVerifier = fake<TokenVerifier>({
     verify: async ({ token }) => {
       if (verifyFails) {
-        throw new UnauthorizedError(errors.auth.invalidToken);
+        throw new ApiError({ code: "invalidToken" });
       }
       return { userId, email: `${token}@example.com` };
     },
@@ -49,9 +48,9 @@ describe("AuthService", () => {
   it("rejects a missing header", async () => {
     const { service } = buildService();
 
-    await assert.rejects(service.authenticate({ authorization: undefined }), (error: { statusCode: number; message: string }) => {
+    await assert.rejects(service.authenticate({ authorization: undefined }), (error: { statusCode: number; code: string }) => {
       assert.strictEqual(error.statusCode, 401);
-      assert.strictEqual(error.message, errors.auth.missingToken);
+      assert.strictEqual(error.code, "invalidToken");
       return true;
     });
   });
@@ -72,9 +71,9 @@ describe("AuthService", () => {
   it("blocks a deactivated user", async () => {
     const { service } = buildService({ active: false });
 
-    await assert.rejects(service.authenticate({ authorization: "Bearer ana" }), (error: { statusCode: number; message: string }) => {
+    await assert.rejects(service.authenticate({ authorization: "Bearer ana" }), (error: { statusCode: number; code: string }) => {
       assert.strictEqual(error.statusCode, 403);
-      assert.strictEqual(error.message, errors.auth.inactiveUser);
+      assert.strictEqual(error.code, "accountDisabled");
       return true;
     });
   });

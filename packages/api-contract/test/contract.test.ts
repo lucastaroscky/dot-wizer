@@ -13,6 +13,7 @@ import {
   startMatchBodySchema,
   finishMatchBodySchema,
   playerEntryBodySchema,
+  pingResponseSchema,
   playerEntryResponseSchema,
   quoteResponseSchema,
   walletEntriesQuerySchema,
@@ -152,5 +153,10 @@ describe("api-contract", () => {
     });
     assert.strictEqual(buyHeadersSchema.safeParse({ authorization: "Bearer x" }).success, false);
     assert.strictEqual(buyHeadersSchema.safeParse({ "idempotency-key": "abc" }).success, false);
+  });
+
+  it("describes the answer of the service ping", () => {
+    assert.deepStrictEqual(pingResponseSchema.parse({ ok: true }), { ok: true });
+    assert.strictEqual(pingResponseSchema.safeParse({ ok: false }).success, false);
   });
 });

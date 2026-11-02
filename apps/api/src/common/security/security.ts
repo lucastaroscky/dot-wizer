@@ -1,10 +1,9 @@
 import cors from "@fastify/cors";
 import rateLimit from "@fastify/rate-limit";
 import type { FastifyInstance } from "fastify";
-import { SERVICE_TOKEN_HEADER } from "@pontinho/api-contract";
+import { IDEMPOTENCY_KEY_HEADER, SERVICE_TOKEN_HEADER } from "@pontinho/api-contract";
 import type { Env } from "../env/env.ts";
-import { TooManyRequestsError } from "../errors/http-errors.ts";
-import errors from "../messages/errors.json" with { type: "json" };
+import { ApiError } from "../errors/api-error.ts";
 import { isServiceToken } from "../../modules/auth/service-token.ts";
 
 interface RegisterSecurityInput {
@@ -16,7 +15,7 @@ export async function registerSecurity({ app, env }: RegisterSecurityInput): Pro
   await app.register(cors, {
     origin: env.CORS_ORIGINS,
     methods: ["GET", "POST", "PUT", "OPTIONS"],
-    allowedHeaders: ["Authorization", "Content-Type"],
+    allowedHeaders: ["Authorization", "Content-Type", IDEMPOTENCY_KEY_HEADER],
   });
   await app.register(rateLimit, {
     global: false,
@@ -24,7 +23,7 @@ export async function registerSecurity({ app, env }: RegisterSecurityInput): Pro
     timeWindow: "1 minute",
     allowList: (request) =>
       isServiceToken({ provided: request.headers[SERVICE_TOKEN_HEADER], expected: env.SERVICE_TOKEN }),
-    errorResponseBuilder: () => new TooManyRequestsError(errors.common.tooManyRequests),
+    errorResponseBuilder: () => new ApiError({ code: "tooManyRequests" }),
   });
   app.addHook("onRequest", app.rateLimit());
 }

@@ -1,6 +1,5 @@
 import assert from "node:assert";
 import { randomUUID } from "node:crypto";
-import errors from "../../common/messages/errors.json" with { type: "json" };
 import { createTestApp } from "../../../test/support/test-app.ts";
 import type { TestApp } from "../../../test/support/test-app.ts";
 import { testPrisma } from "../../../test/support/test-database.ts";
@@ -54,9 +53,8 @@ describe("profile routes", () => {
 
     assert.strictEqual(response.statusCode, 401);
     const body = response.json();
-    assert.strictEqual(body.message, errors.auth.missingToken);
-    assert.strictEqual(body.error, "Unauthorized");
-    assert.strictEqual(body.path, "/profile");
+    assert.strictEqual(body.code, "invalidToken");
+    assert.deepStrictEqual(Object.keys(body).sort(), ["code", "message", "statusCode"]);
   });
 
   it("answers 401 for a token signed by someone else", async () => {
@@ -67,7 +65,7 @@ describe("profile routes", () => {
     });
 
     assert.strictEqual(response.statusCode, 401);
-    assert.strictEqual(response.json().message, errors.auth.invalidToken);
+    assert.strictEqual(response.json().code, "invalidToken");
   });
 
   it("answers 403 for a deactivated account", async () => {
@@ -78,7 +76,7 @@ describe("profile routes", () => {
     const response = await testApp.app.inject({ method: "GET", url: "/profile", headers });
 
     assert.strictEqual(response.statusCode, 403);
-    assert.strictEqual(response.json().message, errors.auth.inactiveUser);
+    assert.strictEqual(response.json().code, "accountDisabled");
   });
 
   it("saves name and birth date and completes the profile", async () => {
@@ -110,7 +108,7 @@ describe("profile routes", () => {
     });
 
     assert.strictEqual(response.statusCode, 422);
-    assert.strictEqual(response.json().message, errors.profile.underage);
+    assert.strictEqual(response.json().code, "underage");
     testApp.clock.now = new Date("2026-11-02T15:00:00Z");
   });
 
@@ -195,7 +193,7 @@ describe("profile routes", () => {
     });
 
     assert.strictEqual(response.statusCode, 422);
-    assert.strictEqual(response.json().message, errors.profile.photoNotOwned);
+    assert.strictEqual(response.json().code, "photoNotOwned");
   });
 
   it("never exposes fields outside the contract", async () => {
