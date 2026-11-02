@@ -1,0 +1,37 @@
+{
+  "common": {
+    "internalError": "Erro interno. Tente novamente em instantes.",
+    "uniqueConflict": "Já existe um registro com esses dados.",
+    "routeNotFound": "Rota não encontrada.",
+    "tooManyRequests": "Muitas requisições. Tente novamente em instantes."
+  },
+  "auth": {
+    "missingToken": "Informe o token de acesso.",
+    "invalidToken": "Token de acesso inválido ou expirado.",
+    "inactiveUser": "Conta desativada.",
+    "invalidServiceToken": "Token de serviço inválido."
+  },
+  "profile": {
+    "underage": "É preciso ter 18 anos ou mais.",
+    "photoNotOwned": "A foto não pertence a este usuário.",
+    "notFound": "Perfil não encontrado."
+  },
+  "wallet": {
+    "dailyBonusAlreadyClaimed": "O bônus de hoje já foi resgatado.",
+    "insufficientBalance": "Saldo insuficiente."
+  },
+  "store": {
+    "quantityAboveMaximum": "A quantidade máxima por compra é {{maximum}} fichas.",
+    "purchaseNotFound": "Compra não encontrada."
+  },
+  "matches": {
+    "notFound": "Partida não encontrada.",
+    "tableNotFound": "Mesa inexistente.",
+    "playerNotFound": "Jogador não encontrado.",
+    "playerBelowMinimumBalance": "O jogador não tem o saldo mínimo da mesa.",
+    "playerNotInMatch": "O jogador não está na partida.",
+    "alreadyFinished": "A partida já foi encerrada.",
+    "roundOutOfOrder": "A rodada não é a próxima da partida.",
+    "winnerChanged": "A partida já foi encerrada com outro resultado."
+  }
+}

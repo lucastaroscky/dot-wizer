@@ -8,6 +8,22 @@ on:
 jobs:
   check:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: pontinho
+          POSTGRES_PASSWORD: pontinho
+          POSTGRES_DB: pontinho_test
+        ports:
+          - 54329:5432
+        options: >-
+          --health-cmd "pg_isready -U pontinho -d pontinho_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgresql://pontinho:pontinho@localhost:54329/pontinho_test
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -20,4 +36,6 @@ jobs:
       - run: npm test
       - run: npm run build --workspace @pontinho/game
       - run: node --input-type=module -e "await import('./apps/game/build/app.config.js')"
+      - run: npm run build --workspace @pontinho/api
+      - run: node --input-type=module -e "await import('./apps/api/build/app.js')"
       - run: npm run check:bundle --workspace @pontinho/mobile

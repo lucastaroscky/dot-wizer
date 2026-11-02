@@ -1,0 +1,130 @@
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "esm"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum WalletEntryType {
+  PURCHASE
+  DAILY_BONUS
+  ROUND_PAYMENT
+  DEFICIT_OFFSET
+  WIN_BONUS
+
+  @@map("wallet_entry_type")
+}
+
+enum PurchaseStatus {
+  PENDING
+  PAID
+
+  @@map("purchase_status")
+}
+
+enum PaymentProviderName {
+  TEST
+
+  @@map("payment_provider")
+}
+
+enum MatchStatus {
+  IN_PROGRESS
+  FINISHED
+
+  @@map("match_status")
+}
+
+model User {
+  id        String    @id @db.Uuid
+  email     String
+  name      String?
+  birthDate DateTime? @map("birth_date") @db.Date
+  photoPath String?   @map("photo_path")
+  active    Boolean   @default(true)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  purchases    Purchase[]
+  matchPlayers MatchPlayer[]
+  wonMatches   Match[]       @relation("MatchWinner")
+
+  @@map("users")
+}
+
+model Purchase {
+  id                    String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId                String              @map("user_id") @db.Uuid
+  quantity              Int
+  amountCents           Int                 @map("amount_cents")
+  provider              PaymentProviderName
+  status                PurchaseStatus      @default(PENDING)
+  providerTransactionId String?             @map("provider_transaction_id")
+  createdAt             DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+  paidAt                DateTime?           @map("paid_at") @db.Timestamptz(6)
+
+  user    User          @relation(fields: [userId], references: [id])
+  entries WalletEntry[]
+
+  @@unique([provider, providerTransactionId])
+  @@index([userId])
+  @@map("purchases")
+}
+
+model Match {
+  id         String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tableId    Int         @map("table_id")
+  pointValue Int         @map("point_value")
+  status     MatchStatus @default(IN_PROGRESS)
+  winnerId   String?     @map("winner_id") @db.Uuid
+  lastRound  Int         @default(0) @map("last_round")
+  startedAt  DateTime    @default(now()) @map("started_at") @db.Timestamptz(6)
+  finishedAt DateTime?   @map("finished_at") @db.Timestamptz(6)
+
+  winner  User?         @relation("MatchWinner", fields: [winnerId], references: [id])
+  players MatchPlayer[]
+  entries WalletEntry[]
+
+  @@map("matches")
+}
+
+model MatchPlayer {
+  matchId      String @map("match_id") @db.Uuid
+  userId       String @map("user_id") @db.Uuid
+  startBalance Int    @map("start_balance")
+  result       Int    @default(0)
+  deficit      Int    @default(0)
+  winBonus     Int    @default(0) @map("win_bonus")
+  finalBalance Int?   @map("final_balance")
+
+  match Match @relation(fields: [matchId], references: [id])
+  user  User  @relation(fields: [userId], references: [id])
+
+  @@id([matchId, userId])
+  @@index([userId])
+  @@map("match_players")
+}
+
+model WalletEntry {
+  id             String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  fromAccount    String          @map("from_account")
+  toAccount      String          @map("to_account")
+  amount         Int
+  type           WalletEntryType
+  idempotencyKey String          @unique @map("idempotency_key")
+  matchId        String?         @map("match_id") @db.Uuid
+  roundNumber    Int?            @map("round_number")
+  purchaseId     String?         @map("purchase_id") @db.Uuid
+  createdAt      DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  match    Match?    @relation(fields: [matchId], references: [id])
+  purchase Purchase? @relation(fields: [purchaseId], references: [id])
+
+  @@index([fromAccount, createdAt])
+  @@index([toAccount, createdAt])
+  @@index([matchId])
+  @@map("wallet_entries")
+}

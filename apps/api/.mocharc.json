@@ -1,0 +1,6 @@
+{
+  "require": ["tsx"],
+  "spec": ["src/**/*.spec.ts"],
+  "exit": true,
+  "timeout": 15000
+}
