@@ -198,7 +198,31 @@ describe("PontinhoRoom chips", () => {
 
     assert.strictEqual(await closed, 4410);
     assert.strictEqual(room.state.phase, "ended");
+    assert.strictEqual(room.state.winner, "");
+    assert.notStrictEqual(room.state.announcement, "won");
     assert.deepStrictEqual(api.finishedMatches, [{ matchId: "match-1", winnerId: null, awardWinBonus: false }]);
+  });
+
+  it("shows the winner and the won announcement only after the API confirms the last round", async () => {
+    const { room, current } = await lastRoundOfAMatchWonByPoints();
+    const release = api.holdRounds();
+
+    try {
+      current.send("discard", "K-spades-1");
+      await room.waitForMessage("discard");
+      await flush();
+
+      assert.strictEqual(room.state.phase, "ended");
+      assert.strictEqual(room.state.winner, "");
+      assert.strictEqual(room.state.announcement, "wentOut");
+    } finally {
+      release();
+    }
+    await flush();
+
+    assert.strictEqual(room.state.winner, current.sessionId);
+    assert.strictEqual(room.state.announcement, "won");
+    assert.strictEqual(room.state.announcementPlayer, current.sessionId);
   });
 
   it("keeps the room open and only logs when the finish with a winner cannot reach the API", async () => {

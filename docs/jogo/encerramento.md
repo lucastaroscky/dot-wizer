@@ -14,6 +14,8 @@ Código: `PontinhoRoom.endMatch`, `stopMatch`, `onDispose` e `ChipsMatch.finish`
 | O servidor do jogo vai desligar (`onBeforeShutdown`) | Sem vencedor, sem bônus. |
 | A sala é descartada sem ter encerrado (`onDispose`) | Sem vencedor, sem bônus. |
 
+O vencedor só aparece no estado da sala (`winner` e o anúncio `won`) depois que a API confirma o registro da última rodada; no treino aparece na hora (ver [rodada](rodada.md), "Última rodada da partida").
+
 Há ainda um caminho fora da sala: a entrada de um jogador que tem uma partida presa a fecha sem vencedor (ver [entrada](entrada.md), "Partida aberta").
 
 Se a partida nunca abriu na API (não há `matchId`) ou é treino, o jogo não chama nada. Depois de encerrar, a sala esquece a partida e as cadeiras guardadas: ninguém volta a ela com a chave antiga.

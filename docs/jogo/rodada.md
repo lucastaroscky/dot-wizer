@@ -20,7 +20,8 @@ Código: `PontinhoRoom.endRound` e `settleChips`, `ChipsMatch.settleRound` (`app
 A API responde 200 com `matchId`, `lastRound` e, por jogador, `startBalance`, `result`, `deficit` e `balance`. O jogo:
 
 - espelha no estado da sala `chipsResult`, `chipsDeficit` e `chipsBalance`, e calcula `roundChips` como a diferença do resultado desta rodada;
-- libera a próxima rodada. Ela só começa depois do registro, passados os 8 s de intervalo e fechada a janela de volta após 100.
+- libera a próxima rodada. Ela só começa depois do registro, passados os 8 s de intervalo e fechada a janela de volta após 100;
+- se esta foi a rodada que encerrou a partida, mostra o vencedor: só agora `winner` e o anúncio `won` entram no estado da sala (ver "Última rodada da partida").
 
 ## Erros
 
@@ -55,6 +56,8 @@ Em todos os casos o log é `error`, `Partida de fichas abortada`, com `{ sala, c
 
 Quando a rodada que falha é a que acabou a partida, o motor já está em `phase === "ended"` e o encerramento com vencedor já está na fila. A falha da rodada tem o mesmo efeito que numa rodada do meio: a partida acaba sem vencedor e sem bônus, mesmo que o motor tivesse apontado um vencedor, e a sala fecha com 4410. Valem as rodadas já pagas; a última não é cobrada. (Regras.md, «Fim da partida»)
 
+O vencedor não aparece antes da confirmação. A `phase` já passa a `ended` quando o motor encerra a partida, mas `winner` fica vazio e o anúncio continua sendo o da rodada (`wentOut` ou `outOfCards`) até a API confirmar a última rodada; só então entram `winner` e o anúncio `won`. Como as 3 tentativas podem levar uns 15 s, se a rodada falhar o jogador nunca vê um vencedor: a sala fecha com 4410 sem que ele tenha aparecido. No treino com robôs não há registro a esperar, e o vencedor aparece na hora.
+
 Como funciona: depois de uma rodada que falhou, o pedido de encerramento que estava na fila sai como `{ winnerId: null, awardWinBonus: false }` (`ChipsMatch.finish`), e `abortMatch` desconecta todos mesmo com a partida já encerrada no motor.
 
 O outro caso é diferente e fica como está, por decisão do Lucas: se a última rodada foi registrada e é o encerramento com vencedor que não chega à API, a sala não fecha e só registra o log. A partida é fechada depois como presa, sem vencedor e sem bônus (ver [encerramento](encerramento.md), "Partida que não fecha").
@@ -72,7 +75,8 @@ Regras.md e Revisao.md ficam no Obsidian, em `dotwize/`, fora do repositório.
 
 ## Testes
 
-- `apps/game/test/chips.test.ts`: "registers the round with the winner and what each loser held, and mirrors what was paid and received", "charges the players who passed 100 in the round that ended the match, and finishes the match after that round is registered", "deals the next round only after the previous one is registered, and numbers the rounds", "deals the next round 8 seconds after the round is registered when the registration was quick", "mirrors the deficit of a player who could not pay everything", "ends the match without a winner and disconnects everybody when a round cannot be registered", "ends without a winner and without the bonus, and closes the room, when the round that ended the match cannot be registered" e "logs which call failed, with the room, the status, the code and the attempt, when it ends the match".
+- `apps/game/test/chips.test.ts`: "registers the round with the winner and what each loser held, and mirrors what was paid and received", "charges the players who passed 100 in the round that ended the match, and finishes the match after that round is registered", "deals the next round only after the previous one is registered, and numbers the rounds", "deals the next round 8 seconds after the round is registered when the registration was quick", "mirrors the deficit of a player who could not pay everything", "ends the match without a winner and disconnects everybody when a round cannot be registered", "ends without a winner and without the bonus, and closes the room, when the round that ended the match cannot be registered", "shows the winner and the won announcement only after the API confirms the last round" e "logs which call failed, with the room, the status, the code and the attempt, when it ends the match".
+- `apps/game/test/PontinhoRoom.test.ts`: "shows the winner of a practice match at once, with no chips to wait for".
 - `apps/game/test/httpGameApi.test.ts`: "registers a round on the match path without repeating the match id in the body", "retries a round that failed on the server or on the network, up to 3 attempts", "gives up after 3 failed attempts", "raises the status of a refusal and does not retry a client error" e "sends a request id for correlation, a different one per call and the same one across the retries of a call".
 - `apps/api/src/modules/internal/internal.routes.spec.ts`, grupo "register round": fichas da rodada, rodada repetida sem cobrar de novo, duas iguais ao mesmo tempo, déficit, muitas rodadas sem saldo negativo, rodada pulada ou depois do fim, jogador fora da partida e corpo inválido, e saldo que não fica negativo quando fichas saem da carteira.
 - Sem teste: o log de cada código da API na rodada.

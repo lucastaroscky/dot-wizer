@@ -66,6 +66,7 @@ export abstract class PontinhoRoom extends Room<{ state: PontinhoState; client: 
   private breakElapsed = false;
   private registering = false;
   private aborted = false;
+  private winnerToShow = "";
   private userIds = new Map<string, string>();
   private reservations = new Map<string, Reservation>();
 
@@ -331,6 +332,8 @@ export abstract class PontinhoRoom extends Room<{ state: PontinhoState; client: 
       .then((finances) => {
         this.mirrorFinances(finances);
         this.registering = false;
+        this.showWinner(this.winnerToShow);
+        this.winnerToShow = "";
         this.startNextRoundWhenReady();
       })
       .catch((error) => this.abortMatch(error));
@@ -342,16 +345,27 @@ export abstract class PontinhoRoom extends Room<{ state: PontinhoState; client: 
       return;
     }
     this.aborted = true;
+    this.winnerToShow = "";
     this.stopMatch();
     this.disconnect(CLOSE_CODES.matchAborted);
   }
 
   private endMatch(winner: string, awardWinBonus: boolean) {
-    if (winner) {
-      this.announce("won", winner);
-    }
     this.finishChips(winner ? { winnerId: winner, awardWinBonus } : NO_WINNER);
     void this.closeOpenMatch();
+    if (this.registering) {
+      this.winnerToShow = winner;
+      return;
+    }
+    this.showWinner(winner);
+  }
+
+  private showWinner(winner: string) {
+    if (!winner) {
+      return;
+    }
+    this.state.winner = winner;
+    this.announce("won", winner);
   }
 
   private stopMatch() {

@@ -154,6 +154,29 @@ describe("PontinhoRoom", () => {
     assert.notStrictEqual(room.state.currentTurn, current.sessionId);
   });
 
+  it("shows the winner of a practice match at once, with no chips to wait for", async () => {
+    const options = { seats: 3, bots: true };
+    const room = await createRoom(options);
+    const human = await connect(room, "Lucas", options);
+    await room.waitForNextPatch();
+    editGame(room, (game) => ({
+      ...withPlayers(game, {
+        [human.sessionId]: { hand: ["K-spades-1"] },
+        "bot-1": { hand: ["Q-hearts-1"], points: 95 },
+        "bot-2": { hand: ["Q-spades-1"], points: 95 },
+      }),
+      currentTurn: human.sessionId,
+      hasDrawn: true,
+    }));
+
+    human.send("discard", "K-spades-1");
+    await room.waitForMessage("discard");
+
+    assert.strictEqual(room.state.phase, "ended");
+    assert.strictEqual(room.state.winner, human.sessionId);
+    assert.strictEqual(room.state.announcement, "won");
+  });
+
   it("keeps the robots of a practice match playing the whole turn", async () => {
     const options = { seats: 3, bots: true };
     const room = await createRoom(options);

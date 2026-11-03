@@ -62,7 +62,6 @@ export function mirrorGame(state: PontinhoState, game: Game) {
   state.discardIsFree = game.discardIsFree;
   state.lastDiscarder = game.lastDiscarder;
   state.wentOut = game.wentOut;
-  state.winner = game.winner;
   state.stockCount = game.stock.length;
   mirrorMelds(state.melds, game.melds);
 
