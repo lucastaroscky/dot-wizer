@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { Pressable, StyleSheet, View } from "react-native";
+import { Pressable, StyleSheet, View, type HostInstance } from "react-native";
 import Animated, { useAnimatedStyle, useSharedValue, withRepeat, withTiming } from "react-native-reanimated";
 import { Card, CardBack, type CardView, CARD_RATIO } from "@/shared/cards/Card";
 import { colors } from "@/shared/theme/colors";
@@ -16,6 +16,7 @@ type Props = {
   onStockPress: () => void;
   onDiscardPress: () => void;
   onDiscardMeasure: (rect: Rect) => void;
+  onDiscardView: (view: HostInstance | null) => void;
   onStockMeasure: (rect: Rect) => void;
 };
 
@@ -24,7 +25,7 @@ function tiltFor(id: string, layer: number) {
   return (seed % 9) - 4;
 }
 
-export function Piles({ discardTop, highlightDiscard, onStockPress, onDiscardPress, onDiscardMeasure, onStockMeasure }: Props) {
+export function Piles({ discardTop, highlightDiscard, onStockPress, onDiscardPress, onDiscardMeasure, onDiscardView, onStockMeasure }: Props) {
   const pulse = useSharedValue(0);
 
   useEffect(() => {
@@ -46,7 +47,7 @@ export function Piles({ discardTop, highlightDiscard, onStockPress, onDiscardPre
       </Measured>
 
       <Pressable onPress={onDiscardPress}>
-        <Measured onMeasure={onDiscardMeasure} style={styles.discard}>
+        <Measured onMeasure={onDiscardMeasure} onView={onDiscardView} style={styles.discard}>
           {discardTop && (
             <>
               <View style={[styles.under, { transform: [{ rotate: `${tiltFor(discardTop.id, 1)}deg` }] }]} />

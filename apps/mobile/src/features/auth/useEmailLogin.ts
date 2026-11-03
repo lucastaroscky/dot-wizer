@@ -7,6 +7,7 @@ import auth from "@/messages/auth.json";
 import errors from "@/messages/errors.json";
 
 export const CODE_LENGTH = 6;
+const NETWORK_FAILURE_STATUS = 0;
 
 async function sendEmailCode(email: string) {
   const { error } = await supabase.auth.signInWithOtp({ email });
@@ -29,12 +30,14 @@ const AUTH_CODE_TEXTS: Record<string, string> = {
   email_address_invalid: auth.sendFailed,
 };
 
-function authErrorText(error: Error | null, fallback: string) {
+type AuthTexts = { fallback: string; serverFailure: string };
+
+function authErrorText(error: Error | null, { fallback, serverFailure }: AuthTexts) {
   if (!error) {
     return "";
   }
   if (isAuthRetryableFetchError(error)) {
-    return errors.unreachable;
+    return error.status === NETWORK_FAILURE_STATUS ? errors.unreachable : serverFailure;
   }
   if (!isAuthApiError(error) || !error.code) {
     return fallback;
@@ -42,8 +45,11 @@ function authErrorText(error: Error | null, fallback: string) {
   return AUTH_CODE_TEXTS[error.code] ?? fallback;
 }
 
+const SEND_TEXTS: AuthTexts = { fallback: auth.sendFailed, serverFailure: auth.sendFailed };
+const VERIFY_TEXTS: AuthTexts = { fallback: auth.invalidCode, serverFailure: errors.generic };
+
 function loginError({ sendError, verifyError }: { sendError: Error | null; verifyError: Error | null }) {
-  return authErrorText(sendError, auth.sendFailed) || authErrorText(verifyError, auth.invalidCode);
+  return authErrorText(sendError, SEND_TEXTS) || authErrorText(verifyError, VERIFY_TEXTS);
 }
 
 export function useEmailLogin() {

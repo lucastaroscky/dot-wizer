@@ -1,34 +1,44 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { CHIP_PURCHASE_MINIMUM } from "@pontinho/api-contract";
 import { quoteQueryOptions } from "@/shared/api/store";
 
+const QUOTE_DELAY_MS = 300;
+
 export function useQuote() {
   const [quantity, setQuantity] = useState(CHIP_PURCHASE_MINIMUM);
-  const query = useQuery(quoteQueryOptions({ quantity }));
-  const limits = query.data;
+  const [quotedQuantity, setQuotedQuantity] = useState(CHIP_PURCHASE_MINIMUM);
+  const quoteTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const query = useQuery(quoteQueryOptions({ quantity: quotedQuantity }));
+  const lastQuote = query.data;
 
-  const canDecrease = limits !== undefined && quantity - limits.quantityStep >= limits.minimumQuantity;
-  const canIncrease = limits !== undefined && quantity + limits.quantityStep <= limits.maximumQuantity;
+  const canDecrease = lastQuote !== undefined && quantity - lastQuote.quantityStep >= lastQuote.minimumQuantity;
+  const canIncrease = lastQuote !== undefined && quantity + lastQuote.quantityStep <= lastQuote.maximumQuantity;
+
+  function changeQuantity(nextQuantity: number) {
+    setQuantity(nextQuantity);
+    clearTimeout(quoteTimer.current);
+    quoteTimer.current = setTimeout(() => setQuotedQuantity(nextQuantity), QUOTE_DELAY_MS);
+  }
 
   function decrease() {
-    if (!limits || !canDecrease) {
+    if (!lastQuote || !canDecrease) {
       return;
     }
-    setQuantity(quantity - limits.quantityStep);
+    changeQuantity(quantity - lastQuote.quantityStep);
   }
 
   function increase() {
-    if (!limits || !canIncrease) {
+    if (!lastQuote || !canIncrease) {
       return;
     }
-    setQuantity(quantity + limits.quantityStep);
+    changeQuantity(quantity + lastQuote.quantityStep);
   }
 
   return {
     quantity,
-    amountCents: limits?.amountCents,
-    upToDate: limits !== undefined && !query.isPlaceholderData,
+    amountCents: lastQuote && Math.round((lastQuote.amountCents * quantity) / lastQuote.quantity),
+    upToDate: lastQuote?.quantity === quantity,
     canDecrease,
     canIncrease,
     decrease,

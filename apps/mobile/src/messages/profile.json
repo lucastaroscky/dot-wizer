@@ -2,6 +2,7 @@
   "nameLabel": "Nome",
   "birthDateLabel": "Data de nascimento",
   "birthDatePlaceholder": "DD/MM/AAAA",
+  "invalidBirthDate": "Data inválida.",
   "choosePhoto": "Escolher foto (opcional)",
   "changePhoto": "Trocar foto",
   "save": "Salvar",

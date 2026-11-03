@@ -1,3 +1,4 @@
+import { isAuthRetryableFetchError } from "@supabase/supabase-js";
 import { errorResponseSchema, type ApiErrorCode } from "@pontinho/api-contract";
 import { API_URL } from "@/shared/config/env";
 import { supabase } from "@/shared/supabase/client";
@@ -56,7 +57,10 @@ function toUnreachableError(reason: unknown) {
 }
 
 export async function getAccessToken() {
-  const { data } = await supabase.auth.getSession();
+  const { data, error } = await supabase.auth.getSession();
+  if (isAuthRetryableFetchError(error)) {
+    throw new ApiError({ statusCode: 0, message: errors.unreachable, kind: "network" });
+  }
   if (!data.session) {
     throw new ApiError({ statusCode: 401, message: errors.notSignedIn });
   }

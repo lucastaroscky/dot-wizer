@@ -38,5 +38,5 @@ function MatchRoom({ room, matchAborted, onExit }: Props) {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.felt, backgroundImage: colors.feltGradient },
+  screen: { flex: 1, backgroundColor: colors.felt, backgroundImage: colors.feltGradient, userSelect: "none" },
 });

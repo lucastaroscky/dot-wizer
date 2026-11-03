@@ -13,4 +13,9 @@ function shouldRetryRead(failureCount: number, error: Error) {
   return failureCount < MAX_READ_RETRIES;
 }
 
-export const queryClient = new QueryClient({ defaultOptions: { queries: { retry: shouldRetryRead } } });
+export const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: { retry: shouldRetryRead, networkMode: "always" },
+    mutations: { networkMode: "always" },
+  },
+});

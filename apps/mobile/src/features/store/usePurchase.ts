@@ -40,6 +40,8 @@ export function usePurchase() {
   return {
     buy: (quantity: number) => mutation.mutate(quantity),
     pending: mutation.isPending,
+    purchasedQuantity: mutation.data?.status === "PAID" ? mutation.data.quantity : undefined,
+    clear: () => mutation.reset(),
     error: purchaseError(mutation.error),
   };
 }

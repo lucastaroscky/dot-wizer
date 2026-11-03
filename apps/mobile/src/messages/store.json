@@ -6,5 +6,6 @@
   "buy": "Comprar",
   "buying": "Comprando…",
   "testNotice": "Teste: nada é cobrado",
-  "back": "Voltar"
+  "back": "Voltar",
+  "purchased": "Compra feita: {quantity} fichas."
 }

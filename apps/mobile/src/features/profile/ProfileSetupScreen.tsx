@@ -29,6 +29,8 @@ export function ProfileSetupScreen() {
           placeholder={profile.birthDatePlaceholder}
           keyboardType="number-pad"
           maxLength={BIRTH_DATE_INPUT_LENGTH}
+          onBlur={setup.leaveBirthDate}
+          error={setup.birthDateError}
           onSubmitEditing={setup.submit}
         />
         <WoodButton title={setup.saving ? profile.saving : profile.save} onPress={setup.submit} disabled={!setup.canSave || setup.saving} large />

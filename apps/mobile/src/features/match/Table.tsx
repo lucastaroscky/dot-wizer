@@ -24,7 +24,7 @@ import { useTablePlay } from "./useTablePlay";
 type Props = { room: Room<PontinhoState>; state: GameState; onExit: () => void };
 
 export function Table({ room, state, onExit }: Props) {
-  const areas = useRef<TableAreas>({ plates: {}, melds: [] });
+  const areas = useRef<TableAreas>({ plates: {}, meldViews: [] });
   const play = useTablePlay(room, state, areas);
   const { flights, land } = useFlights(room, areas);
 
@@ -73,6 +73,7 @@ export function Table({ room, state, onExit }: Props) {
           onStockPress={play.pressStock}
           onDiscardPress={play.pressDiscard}
           onDiscardMeasure={(rect) => (areas.current.discard = rect)}
+          onDiscardView={(view) => (areas.current.discardView = view)}
           onStockMeasure={(rect) => (areas.current.stock = rect)}
         />
         <Measured style={styles.felt} onMeasure={(rect) => (areas.current.table = rect)}>
@@ -81,7 +82,7 @@ export function Table({ room, state, onExit }: Props) {
               melds={state.melds}
               highlightIndex={play.jokerMeldIndex}
               onMeldPress={play.pressMeld}
-              onMeldMeasure={(index, rect) => (areas.current.melds[index] = rect)}
+              onMeldView={(index, view) => (areas.current.meldViews[index] = view)}
             />
           </Pressable>
         </Measured>

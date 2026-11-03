@@ -4,7 +4,7 @@ import * as ImagePicker from "expo-image-picker";
 import { AVATAR_CONTENT_TYPES } from "@pontinho/api-contract";
 import { profileQueryOptions, requestPhotoUpload, saveProfile } from "@/shared/api/profile";
 import profileMessages from "@/messages/profile.json";
-import { formatBirthDateInput, toIsoDate } from "./birthDate";
+import { BIRTH_DATE_INPUT_LENGTH, formatBirthDateInput, toIsoDate } from "./birthDate";
 
 type Photo = ImagePicker.ImagePickerAsset;
 
@@ -58,6 +58,7 @@ export function useProfileSetup() {
   const queryClient = useQueryClient();
   const [name, setName] = useState("");
   const [birthDateText, setBirthDateText] = useState("");
+  const [birthDateLeft, setBirthDateLeft] = useState(false);
   const [photo, setPhoto] = useState<Photo>();
   const save = useMutation({
     mutationFn: saveProfileWithPhoto,
@@ -65,6 +66,7 @@ export function useProfileSetup() {
   });
 
   const birthDate = toIsoDate(birthDateText);
+  const birthDateTyped = birthDateText.length > 0 && (birthDateLeft || birthDateText.length === BIRTH_DATE_INPUT_LENGTH);
   const invalidPhoto = photo !== undefined && toAvatarContentType(photo.mimeType) === undefined;
   const canSave = name.trim().length > 0 && birthDate !== undefined && !invalidPhoto;
 
@@ -93,6 +95,8 @@ export function useProfileSetup() {
     setName,
     birthDateText,
     changeBirthDate: (text: string) => setBirthDateText(formatBirthDateInput(text)),
+    leaveBirthDate: () => setBirthDateLeft(true),
+    birthDateError: birthDateTyped && birthDate === undefined ? profileMessages.invalidBirthDate : "",
     photoUri: photo?.uri,
     pickPhoto,
     canSave,

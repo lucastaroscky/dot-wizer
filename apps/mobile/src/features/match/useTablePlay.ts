@@ -3,7 +3,7 @@ import type { Room } from "@colyseus/sdk";
 import { toMeld, type PontinhoState } from "@pontinho/protocol";
 import { addToMeld, canGoOutWithDiscard, cardById, replaceJoker } from "@pontinho/rules";
 import match from "@/messages/match.json";
-import { contains, type TableAreas } from "./areas";
+import { contains, measureRect, type TableAreas } from "./areas";
 import { sendAction, useServerMessage } from "./messaging";
 import type { GameState } from "./state";
 
@@ -19,30 +19,35 @@ function isJokerSwap(state: GameState, meldIndex: number, cardId: string) {
 
 export function useTablePlay(room: Room<PontinhoState>, state: GameState, areas: RefObject<TableAreas>) {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [notice, setNotice] = useState("");
+  const [notice, setNotice] = useState({ text: "", turnNumber: 0 });
   const [jokerSwap, setJokerSwap] = useState<JokerSwap>();
   const lastTableTap = useRef(0);
 
-  useServerMessage(room, "invalid", (error) => setNotice(match.errors[error]));
+  useServerMessage(room, "invalid", (error) => showNotice(match.errors[error]));
 
+  const noticeText = notice.turnNumber === state.turnNumber ? notice.text : "";
   const me = state.players[room.sessionId];
   const isMyTurn = state.currentTurn === room.sessionId;
   const canGoOut = canGoOutWithDiscard(state, room.sessionId) && !me?.bluffed;
 
+  function showNotice(text: string) {
+    setNotice({ text, turnNumber: state.turnNumber });
+  }
+
   function play(action: () => void) {
     if (!isMyTurn) {
-      setNotice(match.notices.waitYourTurn);
+      showNotice(match.notices.waitYourTurn);
       return;
     }
     action();
     setSelectedIds([]);
     setJokerSwap(undefined);
-    setNotice("");
+    showNotice("");
   }
 
   function meldCards(cardIds: string[]) {
     if (!state.hasDrawn) {
-      setNotice(match.notices.drawBeforeMeld);
+      showNotice(match.notices.drawBeforeMeld);
       return;
     }
     play(() => sendAction(room, "meld", { cardIds }));
@@ -50,13 +55,13 @@ export function useTablePlay(room: Room<PontinhoState>, state: GameState, areas:
 
   function layOffCards(cardIds: string[], meldIndex: number) {
     if (!state.hasDrawn) {
-      setNotice(match.notices.drawBeforeLayOff);
+      showNotice(match.notices.drawBeforeLayOff);
       return;
     }
     if (cardIds.length === 1 && isJokerSwap(state, meldIndex, cardIds[0])) {
       setJokerSwap({ cardId: cardIds[0], meldIndex });
       setSelectedIds([]);
-      setNotice("");
+      showNotice("");
       return;
     }
     play(() => sendAction(room, "layOff", { cardIds, meldIndex }));
@@ -64,7 +69,7 @@ export function useTablePlay(room: Room<PontinhoState>, state: GameState, areas:
 
   function discardCard(cardId: string) {
     if (!state.hasDrawn) {
-      setNotice(match.notices.drawBeforeDiscard);
+      showNotice(match.notices.drawBeforeDiscard);
       return;
     }
     play(() => sendAction(room, "discard", cardId));
@@ -85,11 +90,11 @@ export function useTablePlay(room: Room<PontinhoState>, state: GameState, areas:
       return;
     }
     sendAction(room, "goOut");
-    setNotice("");
+    showNotice("");
   }
 
   function toggle(cardId: string) {
-    setNotice("");
+    showNotice("");
     if (selectedIds.includes(cardId)) {
       setSelectedIds(selectedIds.filter((id) => id !== cardId));
       return;
@@ -99,7 +104,7 @@ export function useTablePlay(room: Room<PontinhoState>, state: GameState, areas:
 
   function pressStock() {
     if (state.hasDrawn) {
-      setNotice(match.notices.alreadyDrew);
+      showNotice(match.notices.alreadyDrew);
       return;
     }
     play(() => sendAction(room, "draw"));
@@ -111,7 +116,7 @@ export function useTablePlay(room: Room<PontinhoState>, state: GameState, areas:
       return;
     }
     if (selectedIds.length !== 1) {
-      setNotice(match.notices.selectOneToDiscard);
+      showNotice(match.notices.selectOneToDiscard);
       return;
     }
     discardCard(selectedIds[0]);
@@ -143,13 +148,15 @@ export function useTablePlay(room: Room<PontinhoState>, state: GameState, areas:
     layOffCards(selectedIds, meldIndex);
   }
 
-  function dropOutside(cardId: string, x: number, y: number) {
+  async function dropOutside(cardId: string, x: number, y: number) {
     const cardIds = selectedIds.includes(cardId) ? selectedIds : [...selectedIds, cardId];
-    if (contains(areas.current.discard, x, y)) {
+    const meldViews = areas.current.meldViews.slice(0, state.melds.length);
+    const [discard, ...melds] = await Promise.all([areas.current.discardView, ...meldViews].map(measureRect));
+    if (contains(discard, x, y)) {
       discardCard(cardId);
       return;
     }
-    const meldIndex = areas.current.melds.findIndex((rect, index) => index < state.melds.length && contains(rect, x, y));
+    const meldIndex = melds.findIndex((rect) => contains(rect, x, y));
     if (meldIndex !== -1) {
       layOffCards(cardIds, meldIndex);
       return;
@@ -158,8 +165,8 @@ export function useTablePlay(room: Room<PontinhoState>, state: GameState, areas:
   }
 
   function status() {
-    if (notice) {
-      return notice;
+    if (noticeText) {
+      return noticeText;
     }
     if (jokerSwap) {
       return match.status.placeJoker;
@@ -178,7 +185,7 @@ export function useTablePlay(room: Room<PontinhoState>, state: GameState, areas:
 
   return {
     selectedIds,
-    hasNotice: notice !== "",
+    hasNotice: noticeText !== "",
     status: status(),
     jokerMeldIndex: jokerSwap?.meldIndex,
     highlightDiscard: (isMyTurn && state.hasDrawn) || canGoOut,

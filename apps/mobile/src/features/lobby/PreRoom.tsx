@@ -33,20 +33,11 @@ export function PreRoom({ balance, connecting, onConfirm, onBack }: Props) {
     if (!selectedTable) {
       return;
     }
-    onConfirm({ bots: false, seats, table: selectedTable.id, cardStyle });
+    onConfirm({ bots: false, table: selectedTable.id, cardStyle });
   }
 
   return (
     <View style={styles.content}>
-      <Text style={styles.label}>{lobby.seats}</Text>
-      <View style={styles.row}>
-        {SEAT_OPTIONS.map((option) => (
-          <Pressable key={option} onPress={() => setSeats(option)} style={[styles.chip, option === seats && styles.chipSelected]}>
-            <Text style={styles.chipText}>{option}</Text>
-          </Pressable>
-        ))}
-      </View>
-
       <Text style={styles.label}>{lobby.bots}</Text>
       <View style={styles.row}>
         <Pressable onPress={() => setBots(true)} style={[styles.wideChip, bots && styles.chipSelected]}>
@@ -58,7 +49,17 @@ export function PreRoom({ balance, connecting, onConfirm, onBack }: Props) {
       </View>
 
       {bots ? (
-        <Text style={styles.hint}>{lobby.trainingHint}</Text>
+        <>
+          <Text style={styles.hint}>{lobby.trainingHint}</Text>
+          <Text style={styles.label}>{lobby.seats}</Text>
+          <View style={styles.row}>
+            {SEAT_OPTIONS.map((option) => (
+              <Pressable key={option} onPress={() => setSeats(option)} style={[styles.chip, option === seats && styles.chipSelected]}>
+                <Text style={styles.chipText}>{option}</Text>
+              </Pressable>
+            ))}
+          </View>
+        </>
       ) : (
         <>
           <Text style={styles.label}>{lobby.tables}</Text>

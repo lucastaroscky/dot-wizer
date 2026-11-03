@@ -22,16 +22,24 @@ export function ChipStore({ quote, purchase }: Props) {
   const price = quote.amountCents === undefined ? "" : formatReais(quote.amountCents);
   const priceText = store.price.replace("{value}", price);
 
+  function changeQuantity(change: () => void) {
+    purchase.clear();
+    change();
+  }
+
   return (
     <View style={styles.content}>
       <Text style={styles.label}>{store.quantity}</Text>
       <View style={styles.row}>
-        <StepButton label={store.decrease} symbol="−" disabled={!quote.canDecrease} onPress={quote.decrease} />
+        <StepButton label={store.decrease} symbol="−" disabled={!quote.canDecrease} onPress={() => changeQuantity(quote.decrease)} />
         <Text style={styles.quantity}>{formatChips(quote.quantity)}</Text>
-        <StepButton label={store.increase} symbol="+" disabled={!quote.canIncrease} onPress={quote.increase} />
+        <StepButton label={store.increase} symbol="+" disabled={!quote.canIncrease} onPress={() => changeQuantity(quote.increase)} />
       </View>
       <Text style={styles.price}>{priceText}</Text>
       <Text style={styles.notice}>{store.testNotice}</Text>
+      {purchase.purchasedQuantity !== undefined && (
+        <Text style={styles.purchased}>{store.purchased.replace("{quantity}", formatChips(purchase.purchasedQuantity))}</Text>
+      )}
       <WoodButton
         title={purchase.pending ? store.buying : store.buy}
         onPress={() => purchase.buy(quote.quantity)}
@@ -61,4 +69,5 @@ const styles = StyleSheet.create({
   quantity: { minWidth: 120, textAlign: "center", color: colors.woodText, fontSize: 28, fontWeight: "700" },
   price: { color: colors.woodText, fontSize: 20, fontWeight: "600" },
   notice: { color: colors.red, fontSize: 15, fontWeight: "700" },
+  purchased: { color: colors.felt, fontSize: 16, fontWeight: "700" },
 });
