@@ -2,7 +2,7 @@ import assert from "assert";
 import { JOIN_REFUSALS, type JoinRefusal } from "@pontinho/protocol";
 import { captureLogs, flush, playerOf, required, setupServer, statusOf } from "./support/harness.js";
 
-const TABLE_ONE = { table: 1, seats: 3, bots: false };
+const TABLE_ONE = { table: 1, bots: false };
 const PRACTICE = { table: 1, seats: 3, bots: true };
 
 function refusedWith(refusal: JoinRefusal) {
@@ -48,10 +48,10 @@ describe("PontinhoRoom login", () => {
   });
 
   it("refuses a player below the minimum balance of the table", async () => {
-    const room = await createRoom({ table: 2, seats: 3, bots: false });
+    const room = await createRoom({ table: 2, bots: false });
     const token = api.addAccount("Ana", { balance: 4_999 });
 
-    await assert.rejects(connectWith(room, token, { table: 2, seats: 3, bots: false }), refusedWith("insufficientBalance"));
+    await assert.rejects(connectWith(room, token, { table: 2, bots: false }), refusedWith("insufficientBalance"));
   });
 
   it("lets a player below the minimum balance practice against robots", async () => {
@@ -78,16 +78,16 @@ describe("PontinhoRoom login", () => {
   it("refuses a room of people without a table", async () => {
     const token = api.addAccount("Ana");
 
-    await assert.rejects(createRoom({ seats: 3, bots: false }));
+    await assert.rejects(createRoom({ bots: false }));
     const room = await createRoom(TABLE_ONE);
-    await assert.rejects(connectWith(room, token, { seats: 3, bots: false }), refusedWith("invalidOptions"));
+    await assert.rejects(connectWith(room, token, { bots: false }), refusedWith("invalidOptions"));
   });
 
   it("refuses options that are not a table, seats and bots", async () => {
     const room = await createRoom(TABLE_ONE);
     const token = api.addAccount("Ana");
 
-    await assert.rejects(connectWith(room, token, { table: 8, seats: 3, bots: false }), refusedWith("invalidOptions"));
+    await assert.rejects(connectWith(room, token, { table: 8, bots: false }), refusedWith("invalidOptions"));
     await assert.rejects(connectWith(room, token, { seats: 3 }), refusedWith("invalidOptions"));
   });
 
@@ -134,7 +134,7 @@ describe("PontinhoRoom login", () => {
   }
 
   it("refuses a player who joins by room id declaring another table", async () => {
-    const room = await createRoom({ table: 7, seats: 3, bots: false });
+    const room = await createRoom({ table: 7, bots: false });
     const token = api.addAccount("Ana", { balance: 1_000 });
 
     await assert.rejects(connectWith(room, token, TABLE_ONE), refusedWith("invalidOptions"));
@@ -142,7 +142,7 @@ describe("PontinhoRoom login", () => {
   });
 
   it("refuses a player who joins a table room declaring practice", async () => {
-    const room = await createRoom({ table: 7, seats: 3, bots: false });
+    const room = await createRoom({ table: 7, bots: false });
     const token = api.addAccount("Ana", { balance: 0 });
 
     await assert.rejects(connectWith(room, token, PRACTICE), refusedWith("invalidOptions"));
@@ -183,7 +183,7 @@ describe("PontinhoRoom login", () => {
   it("creates the room for the first player and seats the next ones in it, by table, seats and bots", async () => {
     const first = await joinOrCreate(api.addAccount("Lucas"), TABLE_ONE);
     const second = await joinOrCreate(api.addAccount("Ana"), TABLE_ONE);
-    const otherTable = await joinOrCreate(api.addAccount("Bruno", { balance: 5_000 }), { table: 2, seats: 3, bots: false });
+    const otherTable = await joinOrCreate(api.addAccount("Bruno", { balance: 5_000 }), { table: 2, bots: false });
 
     assert.strictEqual(second.roomId, first.roomId);
     assert.notStrictEqual(otherTable.roomId, first.roomId);

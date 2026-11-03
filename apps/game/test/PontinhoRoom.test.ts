@@ -6,7 +6,7 @@ describe("PontinhoRoom", () => {
   const { connect, createRoom, startMatchWith } = setupServer();
 
   it("waits in the lobby until the table is full", async () => {
-    const options = { table: 1, seats: 3, bots: false };
+    const options = { table: 1, bots: false };
     const room = await createRoom(options);
     await connect(room, "Lucas", options);
     await connect(room, "Ana", options);
@@ -201,9 +201,9 @@ describe("PontinhoRoom", () => {
     assert.ok(room.clients.some((client) => client.sessionId === other.sessionId));
   });
 
-  it("refuses to create a table with fewer than 3 or more than 4 seats", async () => {
-    await assert.rejects(createRoom({ table: 1, seats: 2, bots: false }));
-    await assert.rejects(createRoom({ table: 1, seats: 5, bots: false }));
+  it("refuses to create a practice match with fewer than 3 or more than 4 seats", async () => {
+    await assert.rejects(createRoom({ seats: 2, bots: true }));
+    await assert.rejects(createRoom({ seats: 5, bots: true }));
   });
 
   it("seats 4 players at a table of 4", async () => {

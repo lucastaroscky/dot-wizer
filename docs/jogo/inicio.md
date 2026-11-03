@@ -1,6 +1,6 @@
 # Início da partida
 
-Quando a mesa enche, o jogo abre a partida de fichas na API, que guarda o saldo inicial de cada jogador. Quem dispara é a sala: o último jogador a sentar faz `players.size >= seats` no `onJoin`.
+Quando a partida online começa, o jogo abre a partida de fichas na API, que guarda o saldo inicial de cada jogador. A mesa online tem sempre 4 lugares e começa quando enche; com 3 pessoas sentadas, uma contagem de 10 s (`countdownDuration` e `countdownNumber` no estado) começa e, ao fim dela, a partida começa com as 3. A contagem para se a mesa cair para 2. Quem dispara é a sala, no `onJoin` ou no fim da contagem.
 
 Código: `PontinhoRoom.startMatch` e `openChipsMatch`, `ChipsMatch.open` (`apps/game/src/rooms/pontinho/`).
 
@@ -65,7 +65,7 @@ Rede, timeout e resposta ilegível deixam o resultado incerto: a API pode ter cr
 
 ## Regra
 
-- A partida online começa quando a mesa enche. (Plano.md, «Decisões»; Regras.md, «Tipos de partida»)
+- A partida online tem sempre 4 lugares e começa quando a mesa enche. Com 3 pessoas sentadas, uma contagem de 10 segundos começa e, ao fim dela, a partida começa; a contagem para se a mesa cair para 2. (Regras.md, «Tipos de partida»)
 - O saldo mínimo é só requisito de entrada: nada é descontado. A API guarda o saldo inicial de cada jogador. (Regras.md, «Mesas e saldo mínimo» e «Histórico da partida»)
 - O treino com robôs não movimenta fichas. (Regras.md, «Tipos de partida»)
 - Partida que cai por falha nossa, como API fora do ar, acaba sem vencedor, sem bônus, e só valem as rodadas já pagas. No início ainda não há rodada paga. (Regras.md, «Fim da partida»)

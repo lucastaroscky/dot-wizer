@@ -125,12 +125,13 @@ describe("PontinhoRoom chips", () => {
   });
 
   it("mirrors the deficit of a player who could not pay everything", async () => {
-    const options = { table: 2, seats: 3, bots: false };
+    const options = { table: 2, bots: false };
     const room = await createRoom(options);
     const lucas = await connect(room, "Lucas", options);
     api.setBalance("Lucas", 20);
     const ana = await connect(room, "Ana", options);
     const bruno = await connect(room, "Bruno", options);
+    advance(room, 10_000);
     await room.waitForNextPatch();
     editGame(room, (game) => ({
       ...withHand(withHand(withHand(game, ana.sessionId, ["K-spades-1"]), lucas.sessionId, ["Q-hearts-1"]), bruno.sessionId, ["5-hearts-1", "7-hearts-1"]),
@@ -151,12 +152,13 @@ describe("PontinhoRoom chips", () => {
 
   it("ends the match and disconnects everybody when the chips match cannot be opened", async () => {
     api.failNext("startMatch");
-    const options = { table: 1, seats: 3, bots: false };
+    const options = { table: 1, bots: false };
     const room = await createRoom(options);
     const first = await connect(room, "Lucas", options);
     const closed = new Promise((resolve) => first.onLeave(resolve));
     await connect(room, "Ana", options);
     await connect(room, "Bruno", options);
+    advance(room, 10_000);
 
     assert.strictEqual(await closed, 4410);
     assert.strictEqual(room.state.phase, "ended");

@@ -3,7 +3,7 @@ import { matchMaker } from "colyseus";
 import { JOIN_REFUSALS, toJoinRefusal, toReconnectionToken } from "@pontinho/protocol";
 import { advance, captureLogs, editGame, flush, playerOf, readyToGoOut, setupServer, withPlayers } from "./support/harness.js";
 
-const TABLE_ONE = { table: 1, seats: 3, bots: false };
+const TABLE_ONE = { table: 1, bots: false };
 const PRACTICE = { seats: 3, bots: true };
 
 function refusalMessage(error: unknown) {
@@ -142,6 +142,7 @@ describe("PontinhoRoom open matches", () => {
     for (const name of ["Lucas", "Ana", "Bruno"]) {
       await connect(room, name, TABLE_ONE);
     }
+    advance(room, 10_000);
     api.setOpenMatch("Lucas", "match-1");
 
     const error = await joinOrCreate("token-Lucas", TABLE_ONE).catch((refusal) => refusal);
@@ -160,6 +161,7 @@ describe("PontinhoRoom open matches", () => {
     const closed = new Promise((resolve) => first.onLeave(resolve));
     await connect(room, "Ana", TABLE_ONE);
     await connect(room, "Bruno", TABLE_ONE);
+    advance(room, 10_000);
     await closed;
     api.setOpenMatch("Lucas", "stuck-9");
 

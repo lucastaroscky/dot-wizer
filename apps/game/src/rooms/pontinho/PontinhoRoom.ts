@@ -11,6 +11,7 @@ import {
   layOffMessageSchema,
   MAX_PLAYERS,
   meldMessageSchema,
+  MIN_PLAYERS,
   Player,
   PontinhoState,
   PRACTICE_TABLE,
@@ -31,6 +32,7 @@ const NEXT_ROUND_DELAY_MS = 8_000;
 const BLUFF_MESSAGE_MS = 5_000;
 const TURN_MS = 30_000;
 const RETURN_MS = 15_000;
+const COUNTDOWN_MS = 10_000;
 const AUTOMATIC_TURN_MS = 3_000;
 const MAX_MESSAGES_PER_SECOND = 10;
 
@@ -61,6 +63,7 @@ export abstract class PontinhoRoom extends Room<{ state: PontinhoState; client: 
   private turnTimer?: Delayed;
   private nextRoundTimer?: Delayed;
   private returnTimer?: Delayed;
+  private countdownTimer?: Delayed;
   private withBots = false;
   private chips?: ChipsMatch;
   private breakElapsed = false;
@@ -83,8 +86,8 @@ export abstract class PontinhoRoom extends Room<{ state: PontinhoState; client: 
   onCreate(options: unknown) {
     const parsed = createOptionsSchema.parse(options);
     this.withBots = parsed.bots;
-    this.maxClients = parsed.bots ? 1 : parsed.seats;
-    this.state.seats = parsed.seats;
+    this.maxClients = parsed.bots ? 1 : MAX_PLAYERS;
+    this.state.seats = parsed.bots ? parsed.seats : MAX_PLAYERS;
     this.state.table = parsed.bots ? PRACTICE_TABLE : parsed.table;
   }
 
@@ -114,7 +117,9 @@ export abstract class PontinhoRoom extends Room<{ state: PontinhoState; client: 
     }
     if (this.state.players.size >= this.state.seats) {
       this.startMatch();
+      return;
     }
+    this.startCountdownWhenEnoughSeated();
   }
 
   async onDispose() {
@@ -161,6 +166,9 @@ export abstract class PontinhoRoom extends Room<{ state: PontinhoState; client: 
   async onLeave(client: Client, code?: number) {
     if (!this.game) {
       this.removePlayer(client.sessionId);
+      if (this.state.players.size < MIN_PLAYERS) {
+        this.stopCountdown();
+      }
       return;
     }
     if (this.game.phase === "ended") {
@@ -298,7 +306,22 @@ export abstract class PontinhoRoom extends Room<{ state: PontinhoState; client: 
     }
   }
 
+  private startCountdownWhenEnoughSeated() {
+    if (this.withBots || this.state.players.size < MIN_PLAYERS || this.state.countdownDuration > 0) {
+      return;
+    }
+    this.state.countdownNumber++;
+    this.state.countdownDuration = COUNTDOWN_MS;
+    this.countdownTimer = this.clock.setTimeout(() => this.startMatch(), COUNTDOWN_MS);
+  }
+
+  private stopCountdown() {
+    this.countdownTimer?.clear();
+    this.state.countdownDuration = 0;
+  }
+
   private startMatch() {
+    this.stopCountdown();
     this.lock();
     this.openChipsMatch();
     this.showRound(startMatch(this.state.order.toArray()));

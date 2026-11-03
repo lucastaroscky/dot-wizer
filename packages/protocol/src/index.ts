@@ -48,6 +48,8 @@ export const PontinhoState = schema({
   discardIsFree: t.boolean().default(false),
   turnNumber: t.uint32().default(0),
   turnDuration: t.uint32().default(0),
+  countdownNumber: t.uint32().default(0),
+  countdownDuration: t.uint32().default(0),
   returnNumber: t.uint32().default(0),
   returnDuration: t.uint32().default(0),
   lastDiscarder: t.string().default(""),
@@ -76,7 +78,7 @@ const seatsSchema = z.number().int().min(MIN_PLAYERS).max(ONLINE_MAX_PLAYERS);
 
 export const createOptionsSchema = z.discriminatedUnion("bots", [
   z.object({ bots: z.literal(true), seats: seatsSchema, table: tableSchema.optional() }),
-  z.object({ bots: z.literal(false), seats: seatsSchema, table: tableSchema }),
+  z.object({ bots: z.literal(false), table: tableSchema }),
 ]);
 
 export const discardMessageSchema = cardIdSchema;

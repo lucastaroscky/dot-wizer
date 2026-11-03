@@ -113,11 +113,14 @@ export function setupServer() {
   }
 
   async function startMatchWith(names: string[], table = 1) {
-    const options = { table, seats: names.length, bots: false };
+    const options = { table, bots: false };
     const room = await createRoom(options);
     const clients = [];
     for (const name of names) {
       clients.push(await connect(room, name, options));
+    }
+    if (names.length < 4) {
+      advance(room, 10_000);
     }
     await room.waitForNextPatch();
     const current = required(clients.find((client) => client.sessionId === room.state.currentTurn));
