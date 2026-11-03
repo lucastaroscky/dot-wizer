@@ -59,7 +59,7 @@ Rede, timeout e resposta ilegível deixam o resultado incerto: a API pode ter cr
 `PontinhoRoom.abortMatch`:
 
 1. Registra log `error` com `Partida de fichas abortada` e `{ sala, chamada, status, codigo, tentativa }`. Se o erro não veio da API, o objeto leva `{ sala, causa }`.
-2. Se a partida já terminou no motor (`phase === "ended"`), para aqui.
+2. Se a partida já foi abortada antes (outra falha do mesmo tipo), para aqui. Terminar no motor não impede: a falha da última rodada também aborta (ver [rodada](rodada.md), "Última rodada da partida").
 3. Senão, `stopMatch`: para os timers, abandona a partida no motor e pede à API o encerramento sem vencedor e sem bônus (ver [encerramento](encerramento.md)). Como a partida nunca abriu, não há `matchId` e essa chamada nem sai. Depois esquece a partida e as cadeiras guardadas na presence.
 4. Desconecta todos com o código 4410 (`CLOSE_CODES.matchAborted`).
 

@@ -65,6 +65,7 @@ export abstract class PontinhoRoom extends Room<{ state: PontinhoState; client: 
   private chips?: ChipsMatch;
   private breakElapsed = false;
   private registering = false;
+  private aborted = false;
   private userIds = new Map<string, string>();
   private reservations = new Map<string, Reservation>();
 
@@ -337,9 +338,10 @@ export abstract class PontinhoRoom extends Room<{ state: PontinhoState; client: 
 
   private abortMatch(error: unknown) {
     this.logFailure("Partida de fichas abortada", error);
-    if (this.game?.phase === "ended") {
+    if (this.aborted) {
       return;
     }
+    this.aborted = true;
     this.stopMatch();
     this.disconnect(CLOSE_CODES.matchAborted);
   }

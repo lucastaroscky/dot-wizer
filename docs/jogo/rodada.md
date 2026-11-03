@@ -24,7 +24,7 @@ A API responde 200 com `matchId`, `lastRound` e, por jogador, `startBalance`, `r
 
 ## Erros
 
-Todos os erros desta chamada têm o mesmo tratamento: abortar a partida, o que aqui inclui pedir à API o encerramento sem vencedor e sem bônus (ver [início](inicio.md), "Tratamento comum"). Uma exceção, na última rodada, vem logo abaixo da tabela.
+Todos os erros desta chamada têm o mesmo tratamento: abortar a partida, o que aqui inclui pedir à API o encerramento sem vencedor e sem bônus (ver [início](inicio.md), "Tratamento comum"). Vale também quando a rodada que falha é a última da partida (ver "Última rodada da partida" abaixo).
 
 ### Respostas da API
 
@@ -53,9 +53,11 @@ Em todos os casos o log é `error`, `Partida de fichas abortada`, com `{ sala, c
 
 ### Última rodada da partida
 
-Quando a rodada que falha é a que acabou a partida, o motor já está em `phase === "ended"`. Nesse caso `abortMatch` só registra o log e não desconecta ninguém. O encerramento já está na fila e roda mesmo assim, com o vencedor e o bônus que o motor decidiu (ver [encerramento](encerramento.md)). Hoje isso significa que a última rodada pode ficar sem cobrança e o vencedor receber o bônus, quando o bônus se aplica.
+Quando a rodada que falha é a que acabou a partida, o motor já está em `phase === "ended"` e o encerramento com vencedor já está na fila. A falha da rodada tem o mesmo efeito que numa rodada do meio: a partida acaba sem vencedor e sem bônus, mesmo que o motor tivesse apontado um vencedor, e a sala fecha com 4410. Valem as rodadas já pagas; a última não é cobrada. (Regras.md, «Fim da partida»)
 
-Este comportamento não tem teste nem regra escrita que o cubra. Regras.md, «Fim da partida», diz que a partida que cai por falha nossa acaba sem vencedor e sem bônus. Está em aberto com o Lucas qual dos dois vale quando só a última rodada falha.
+Como funciona: depois de uma rodada que falhou, o pedido de encerramento que estava na fila sai como `{ winnerId: null, awardWinBonus: false }` (`ChipsMatch.finish`), e `abortMatch` desconecta todos mesmo com a partida já encerrada no motor.
+
+O outro caso é diferente e fica como está, por decisão do Lucas: se a última rodada foi registrada e é o encerramento com vencedor que não chega à API, a sala não fecha e só registra o log. A partida é fechada depois como presa, sem vencedor e sem bônus (ver [encerramento](encerramento.md), "Partida que não fecha").
 
 ## Regra
 
@@ -70,7 +72,7 @@ Regras.md e Revisao.md ficam no Obsidian, em `dotwize/`, fora do repositório.
 
 ## Testes
 
-- `apps/game/test/chips.test.ts`: "registers the round with the winner and what each loser held, and mirrors what was paid and received", "charges the players who passed 100 in the round that ended the match, and finishes the match after that round is registered", "deals the next round only after the previous one is registered, and numbers the rounds", "deals the next round 8 seconds after the round is registered when the registration was quick", "mirrors the deficit of a player who could not pay everything", "ends the match without a winner and disconnects everybody when a round cannot be registered" e "logs which call failed, with the room, the status, the code and the attempt, when it ends the match".
+- `apps/game/test/chips.test.ts`: "registers the round with the winner and what each loser held, and mirrors what was paid and received", "charges the players who passed 100 in the round that ended the match, and finishes the match after that round is registered", "deals the next round only after the previous one is registered, and numbers the rounds", "deals the next round 8 seconds after the round is registered when the registration was quick", "mirrors the deficit of a player who could not pay everything", "ends the match without a winner and disconnects everybody when a round cannot be registered", "ends without a winner and without the bonus, and closes the room, when the round that ended the match cannot be registered" e "logs which call failed, with the room, the status, the code and the attempt, when it ends the match".
 - `apps/game/test/httpGameApi.test.ts`: "registers a round on the match path without repeating the match id in the body", "retries a round that failed on the server or on the network, up to 3 attempts", "gives up after 3 failed attempts", "raises the status of a refusal and does not retry a client error" e "sends a request id for correlation, a different one per call and the same one across the retries of a call".
 - `apps/api/src/modules/internal/internal.routes.spec.ts`, grupo "register round": fichas da rodada, rodada repetida sem cobrar de novo, duas iguais ao mesmo tempo, déficit, muitas rodadas sem saldo negativo, rodada pulada ou depois do fim, jogador fora da partida e corpo inválido, e saldo que não fica negativo quando fichas saem da carteira.
-- Sem teste: o log de cada código da API na rodada, e a falha da última rodada descrita acima.
+- Sem teste: o log de cada código da API na rodada.

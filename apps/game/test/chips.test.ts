@@ -177,6 +177,48 @@ describe("PontinhoRoom chips", () => {
     assert.deepStrictEqual(api.finishedMatches, [{ matchId: "match-1", winnerId: null, awardWinBonus: false }]);
   });
 
+  async function lastRoundOfAMatchWonByPoints() {
+    const match = await startMatchWith(["Lucas", "Ana", "Bruno"]);
+    const { room, current, others } = match;
+    const [first, second] = others;
+    editGame(room, (game) =>
+      withPoints(withPoints(withHand(withHand(withHand(game, current.sessionId, ["K-spades-1"]), first.sessionId, ["Q-hearts-1"]), second.sessionId, ["Q-spades-1"]), first.sessionId, 95), second.sessionId, 95),
+    );
+    editGame(room, (game) => ({ ...game, hasDrawn: true }));
+    return match;
+  }
+
+  it("ends without a winner and without the bonus, and closes the room, when the round that ended the match cannot be registered", async () => {
+    const { room, current } = await lastRoundOfAMatchWonByPoints();
+    const closed = new Promise((resolve) => current.onLeave(resolve));
+    api.failNext("registerRound");
+
+    current.send("discard", "K-spades-1");
+    await room.waitForMessage("discard");
+
+    assert.strictEqual(await closed, 4410);
+    assert.strictEqual(room.state.phase, "ended");
+    assert.deepStrictEqual(api.finishedMatches, [{ matchId: "match-1", winnerId: null, awardWinBonus: false }]);
+  });
+
+  it("keeps the room open and only logs when the finish with a winner cannot reach the API", async () => {
+    const { room, current } = await lastRoundOfAMatchWonByPoints();
+    api.failNext("finishMatch");
+    const logs = captureLogs();
+
+    try {
+      current.send("discard", "K-spades-1");
+      await room.waitForMessage("discard");
+      await flush();
+    } finally {
+      logs.restore();
+    }
+
+    assert.strictEqual(room.clients.length, 3);
+    assert.deepStrictEqual(api.finishedMatches, [{ matchId: "match-1", winnerId: api.userIdOf(playerOf(room, current.sessionId).name), awardWinBonus: true }]);
+    assert.ok(logs.calls.some((call) => call.level === "error" && call.args[0] === "Falha ao encerrar a partida de fichas"));
+  });
+
   it("logs which call failed, with the room, the status, the code and the attempt, when it ends the match", async () => {
     const { room, current } = await startMatchWith(["Lucas", "Ana", "Bruno"]);
     api.failNext("registerRound", 1, "serviceTokenInvalid");

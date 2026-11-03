@@ -20,6 +20,7 @@ export class ChipsMatch {
   private queue: Promise<unknown> = Promise.resolve();
   private matchId = "";
   private roundNumber = 0;
+  private roundFailed = false;
   private finishing?: Promise<void>;
 
   constructor({ api, roomId, table, seats }: ChipsMatchInput) {
@@ -48,21 +49,27 @@ export class ChipsMatch {
   settleRound({ winnerId, losers }: RoundResult): Promise<ChipsFinance[]> {
     const roundNumber = ++this.roundNumber;
     return this.enqueue(async () => {
-      const response = await this.api.registerRound({
-        matchId: this.matchId,
-        roundNumber,
-        winnerId: this.userIdOf(winnerId),
-        losers: losers.map(({ playerId, handPoints }) => ({ userId: this.userIdOf(playerId), handPoints })),
-      });
-      return response.players.map(({ userId, result, deficit, balance }) => ({ playerId: this.playerIdOf(userId), result, deficit, balance }));
+      try {
+        const response = await this.api.registerRound({
+          matchId: this.matchId,
+          roundNumber,
+          winnerId: this.userIdOf(winnerId),
+          losers: losers.map(({ playerId, handPoints }) => ({ userId: this.userIdOf(playerId), handPoints })),
+        });
+        return response.players.map(({ userId, result, deficit, balance }) => ({ playerId: this.playerIdOf(userId), result, deficit, balance }));
+      } catch (error) {
+        this.roundFailed = true;
+        throw error;
+      }
     });
   }
 
-  finish({ winnerId, awardWinBonus }: MatchResult): Promise<void> {
+  finish(result: MatchResult): Promise<void> {
     this.finishing ??= this.enqueue(async () => {
       if (!this.matchId) {
         return;
       }
+      const { winnerId, awardWinBonus } = this.roundFailed ? NO_WINNER : result;
       await this.api.finishMatch({ matchId: this.matchId, winnerId: winnerId === null ? null : this.userIdOf(winnerId), awardWinBonus });
     });
     return this.finishing;
