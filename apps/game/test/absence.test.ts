@@ -176,6 +176,42 @@ describe("PontinhoRoom players who drop or leave", () => {
     assert.deepStrictEqual(api.finishedMatches, [{ matchId: "match-1", winnerId: null, awardWinBonus: false }]);
   });
 
+  it("plays the whole turn, laying down melds and going out, when no person is left connected, so the round can end", async () => {
+    const { room, clients, current } = await startMatchWith(["Lucas", "Ana", "Bruno"]);
+    for (const client of clients) {
+      await client.leave();
+    }
+    await flush();
+    editGame(room, (game) => ({
+      ...withPlayers(game, {
+        [current.sessionId]: { hand: ["7-hearts-1", "7-clubs-1", "7-spades-1"] },
+        ...Object.fromEntries(game.players.filter((player) => player.id !== current.sessionId).map((player) => [player.id, { hand: ["2-clubs-1"] }])),
+      }),
+      currentTurn: current.sessionId,
+      hasDrawn: true,
+    }));
+
+    advance(room, 3_000);
+    await flush();
+
+    assert.strictEqual(room.state.phase, "ended");
+    assert.strictEqual(api.registeredRounds.length, 1);
+    assert.strictEqual(api.registeredRounds[0].winnerId, api.userIdOf(playerOf(room, current.sessionId).name));
+    assert.deepStrictEqual(api.finishedMatches, [{ matchId: "match-1", winnerId: null, awardWinBonus: false }]);
+  });
+
+  it("plays the whole turn too when every person is only reconnecting", async () => {
+    const { room, clients, current } = await startMatchWith(["Lucas", "Ana", "Bruno"]);
+    for (const client of clients) {
+      await drop(client);
+    }
+    editGame(room, (game) => ({ ...withHand(game, current.sessionId, ["7-hearts-1", "7-clubs-1", "7-spades-1", "2-clubs-1"]), currentTurn: current.sessionId, hasDrawn: true }));
+
+    advance(room, 3_000);
+
+    assert.strictEqual(room.state.melds.length, 1);
+  });
+
   it("does not end the match in the middle of the round when the last person is only reconnecting", async () => {
     const { room, clients } = await startMatchWith(["Lucas", "Ana", "Bruno"]);
     await clients[0].leave();

@@ -499,8 +499,13 @@ export abstract class PontinhoRoom extends Room<{ state: PontinhoState; client: 
 
   private playForCurrentPlayer() {
     const playerId = this.game?.currentTurn ?? "";
-    const action: Action = this.state.players.get(playerId)?.bot ? { type: "playAutomatically" } : { type: "playMovementOnly" };
+    const fullPlay = this.state.players.get(playerId)?.bot || !this.somePersonIsConnected();
+    const action: Action = fullPlay ? { type: "playAutomatically" } : { type: "playMovementOnly" };
     this.apply(playerId, action);
+  }
+
+  private somePersonIsConnected() {
+    return [...this.state.players.values()].some((player) => !player.bot && !player.eliminated && player.connection === "connected");
   }
 
   private announce(announcement: Announcement | "", playerId = "") {
