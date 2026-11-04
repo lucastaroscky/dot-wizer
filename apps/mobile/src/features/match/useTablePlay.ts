@@ -5,7 +5,7 @@ import { addToMeld, canGoOutWithDiscard, cardById, replaceJoker } from "@pontinh
 import match from "@/messages/match.json";
 import { contains, measureRect, type TableAreas } from "./areas";
 import { sendAction, useServerMessage } from "./messaging";
-import type { GameState } from "./state";
+import { isSittingOut, type GameState } from "./state";
 
 const DOUBLE_TAP_MS = 350;
 
@@ -28,7 +28,8 @@ export function useTablePlay(room: Room<PontinhoState>, state: GameState, areas:
   const noticeText = notice.turnNumber === state.turnNumber ? notice.text : "";
   const me = state.players[room.sessionId];
   const isMyTurn = state.currentTurn === room.sessionId;
-  const canGoOut = canGoOutWithDiscard(state, room.sessionId) && !me?.bluffed;
+  const inPlay = me?.eliminated !== true && !isSittingOut(me);
+  const canGoOut = canGoOutWithDiscard(state, room.sessionId) && !me?.bluffed && inPlay;
 
   function showNotice(text: string) {
     setNotice({ text, turnNumber: state.turnNumber });
@@ -83,6 +84,9 @@ export function useTablePlay(room: Room<PontinhoState>, state: GameState, areas:
   }
 
   function tapToGoOut() {
+    if (!inPlay) {
+      return;
+    }
     const now = Date.now();
     const isDoubleTap = now - lastTableTap.current < DOUBLE_TAP_MS;
     lastTableTap.current = now;
