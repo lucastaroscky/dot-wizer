@@ -30,6 +30,7 @@ export function Table({ room, state, onExit }: Props) {
   const { flights, land } = useFlights(room, areas);
 
   const me = state.players[room.sessionId];
+  const myHand = me?.hand ?? [];
   const seat = state.order.indexOf(room.sessionId);
   const opponents = [...state.order.slice(seat + 1), ...state.order.slice(0, seat)];
   const playingWithBots = Object.values(state.players).some((player) => player.bot);
@@ -108,21 +109,25 @@ export function Table({ room, state, onExit }: Props) {
           name={me?.name ?? ""}
           photoUrl={me?.photoUrl}
           points={me?.points}
+          eliminated={me?.eliminated}
           sittingOut={isSittingOut(me)}
           isTurn={state.currentTurn === room.sessionId}
           turn={turn}
+          wide
         />
-        <View style={styles.handPointsBox}>
-          <Text style={styles.handPoints}>{handPoints((me?.hand ?? []).map((card) => cardById(card.id)))}</Text>
-          <View style={styles.handPointsHint}>
-            <Icon name="eye" size={12} color={colors.feltText} />
-            <Text style={styles.handPointsHintText}>{match.handPointsHint}</Text>
+        {myHand.length > 0 && (
+          <View style={styles.handPointsBox}>
+            <Text style={styles.handPoints}>{handPoints(myHand.map((card) => cardById(card.id)))}</Text>
+            <View style={styles.handPointsHint}>
+              <Icon name="eye" size={12} color={colors.feltText} />
+              <Text style={styles.handPointsHintText}>{match.handPointsHint}</Text>
+            </View>
           </View>
-        </View>
+        )}
       </View>
 
       <Measured onMeasure={(rect) => (areas.current.hand = rect)}>
-        <Hand cards={me?.hand ?? []} selectedIds={play.selectedIds} onToggle={play.toggle} onDropOutside={play.dropOutside} />
+        <Hand cards={myHand} selectedIds={play.selectedIds} onToggle={play.toggle} onDropOutside={play.dropOutside} />
       </Measured>
 
       <FlightLayer flights={flights} onLanded={land} />
