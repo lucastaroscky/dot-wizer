@@ -11,14 +11,14 @@ const TONES: Record<Tone, { icon: IconName; text: string; box: object }> = {
   success: { icon: "check", text: colors.successText, box: { backgroundColor: colors.successSurface, borderColor: colors.successLine } },
 };
 
-type Props = { text: string; tone: Tone; icon?: IconName; children?: ReactNode };
+type Props = { text: string; tone: Tone; children?: ReactNode };
 
-export function Notice({ text, tone, icon, children }: Props) {
+export function Notice({ text, tone, children }: Props) {
   const look = TONES[tone];
   return (
     <View accessibilityRole={tone === "danger" ? "alert" : undefined} style={[styles.box, look.box]}>
       <View style={styles.row}>
-        <Icon name={icon ?? look.icon} size={18} color={look.text} />
+        <Icon name={look.icon} size={18} color={look.text} />
         <Text style={[styles.text, { color: look.text }]}>{text}</Text>
       </View>
       {children}
