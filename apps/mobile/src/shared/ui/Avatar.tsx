@@ -18,6 +18,6 @@ export function Avatar({ name, size, photoUrl }: Props) {
 }
 
 const styles = StyleSheet.create({
-  circle: { backgroundColor: colors.felt, borderWidth: 2, borderColor: colors.woodDark, alignItems: "center", justifyContent: "center" },
-  initial: { color: colors.cream, fontWeight: "600" },
+  circle: { backgroundColor: colors.option, borderWidth: 1, borderColor: colors.lineStrong, alignItems: "center", justifyContent: "center" },
+  initial: { color: colors.text, fontWeight: "600" },
 });
