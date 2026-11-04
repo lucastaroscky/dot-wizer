@@ -1,6 +1,8 @@
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import type { ChipTable } from "@pontinho/rules";
 import { formatChips } from "@/shared/format/numbers";
+import { Icon } from "@/shared/ui/Icon";
+import { Option, optionTextColor } from "@/shared/ui/Option";
 import { colors } from "@/shared/theme/colors";
 import lobby from "@/messages/lobby.json";
 
@@ -11,17 +13,19 @@ export function TablePicker({ tables, balance, selectedId, onSelect }: Props) {
     <View style={styles.grid}>
       {tables.map((table) => {
         const locked = balance < table.minimumBalance;
+        const selected = table.id === selectedId;
+        const title = lobby.pointValue.replace("{value}", formatChips(table.pointValue));
         return (
-          <Pressable
-            key={table.id}
-            disabled={locked}
-            onPress={() => onSelect(table.id)}
-            style={[styles.table, table.id === selectedId && styles.selected, locked && styles.locked]}
-          >
-            <Text style={styles.name}>{lobby.tableName.replace("{id}", String(table.id))}</Text>
-            <Text style={styles.detail}>{lobby.minimumBalance.replace("{value}", formatChips(table.minimumBalance))}</Text>
-            <Text style={styles.detail}>{lobby.pointValue.replace("{value}", formatChips(table.pointValue))}</Text>
-          </Pressable>
+          <Option key={table.id} selected={selected} disabled={locked} onPress={() => onSelect(table.id)} label={title} style={styles.table}>
+            <View style={styles.titleRow}>
+              <Text style={[styles.title, { color: optionTextColor(selected) }]}>{title}</Text>
+              {locked && <Icon name="lock" size={13} color={colors.optionText} />}
+            </View>
+            <View>
+              <Text style={[styles.detail, selected && styles.detailSelected]}>{lobby.tableName.replace("{id}", String(table.id))}</Text>
+              <Text style={[styles.detail, selected && styles.detailSelected]}>{lobby.minimumBalance.replace("{value}", formatChips(table.minimumBalance))}</Text>
+            </View>
+          </Option>
         );
       })}
     </View>
@@ -29,18 +33,10 @@ export function TablePicker({ tables, balance, selectedId, onSelect }: Props) {
 }
 
 const styles = StyleSheet.create({
-  grid: { flexDirection: "row", flexWrap: "wrap", justifyContent: "center", gap: 8, maxWidth: 340, marginBottom: 8 },
-  table: {
-    width: 104,
-    alignItems: "center",
-    paddingVertical: 6,
-    borderRadius: 10,
-    backgroundImage: colors.woodGradient,
-    borderWidth: 3,
-    borderColor: colors.woodDark,
-  },
-  selected: { borderColor: colors.highlight },
-  locked: { opacity: 0.4 },
-  name: { color: colors.woodText, fontSize: 16, fontWeight: "700" },
-  detail: { color: colors.woodText, fontSize: 12 },
+  grid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  table: { width: "31.5%", height: 70, paddingVertical: 8, paddingHorizontal: 10, alignItems: "stretch", justifyContent: "space-between" },
+  titleRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  title: { fontSize: 12.5, fontWeight: "600" },
+  detail: { color: colors.optionMuted, fontSize: 11, fontVariant: ["tabular-nums"] },
+  detailSelected: { color: colors.optionText },
 });

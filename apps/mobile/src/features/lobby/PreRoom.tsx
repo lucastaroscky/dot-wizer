@@ -1,21 +1,27 @@
 import { useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import { MAX_PLAYERS, MIN_PLAYERS, type CreateOptions } from "@pontinho/protocol";
 import { CHIP_TABLES } from "@pontinho/rules";
 import { Card, CARD_STYLES, CardStyleContext, type CardStyleName } from "@/shared/cards/Card";
-import { WoodButton } from "@/shared/ui/WoodButton";
+import { Button } from "@/shared/ui/Button";
+import { ErrorLine, Notice } from "@/shared/ui/Notice";
+import { Option, optionTextColor } from "@/shared/ui/Option";
 import { colors } from "@/shared/theme/colors";
 import lobby from "@/messages/lobby.json";
 import { TablePicker } from "./TablePicker";
 
 const SEAT_OPTIONS = Array.from({ length: MAX_PLAYERS - MIN_PLAYERS + 1 }, (_, index) => MIN_PLAYERS + index);
+const BOT_OPTIONS = [
+  { value: true, label: lobby.yes },
+  { value: false, label: lobby.no },
+];
 const SAMPLE_CARD = { id: "K-hearts-1", rank: "K", suit: "hearts" };
 
 export type LobbyChoice = CreateOptions & { cardStyle: CardStyleName };
 
-type Props = { balance: number; connecting: boolean; onConfirm: (choice: LobbyChoice) => void; onBack: () => void };
+type Props = { balance: number; connecting: boolean; error: string; onConfirm: (choice: LobbyChoice) => void };
 
-export function PreRoom({ balance, connecting, onConfirm, onBack }: Props) {
+export function PreRoom({ balance, connecting, error, onConfirm }: Props) {
   const [seats, setSeats] = useState(MIN_PLAYERS);
   const [bots, setBots] = useState(false);
   const [chosenTableId, setChosenTableId] = useState<number>();
@@ -37,82 +43,75 @@ export function PreRoom({ balance, connecting, onConfirm, onBack }: Props) {
   }
 
   return (
-    <View style={styles.content}>
-      <Text style={styles.label}>{lobby.bots}</Text>
+    <>
       <View style={styles.row}>
-        <Pressable onPress={() => setBots(true)} style={[styles.wideChip, bots && styles.chipSelected]}>
-          <Text style={styles.chipText}>{lobby.yes}</Text>
-        </Pressable>
-        <Pressable onPress={() => setBots(false)} style={[styles.wideChip, !bots && styles.chipSelected]}>
-          <Text style={styles.chipText}>{lobby.no}</Text>
-        </Pressable>
+        {bots && (
+          <View style={styles.group}>
+            <Text style={styles.label}>{lobby.seats}</Text>
+            <View style={styles.options}>
+              {SEAT_OPTIONS.map((option) => (
+                <Option key={option} selected={option === seats} onPress={() => setSeats(option)} label={String(option)} style={styles.seat}>
+                  <Text style={[styles.seatText, { color: optionTextColor(option === seats) }]}>{option}</Text>
+                </Option>
+              ))}
+            </View>
+          </View>
+        )}
+        <View style={styles.group}>
+          <Text style={styles.label}>{lobby.bots}</Text>
+          <View style={styles.options}>
+            {BOT_OPTIONS.map(({ value, label }) => (
+              <Option key={label} selected={value === bots} onPress={() => setBots(value)} label={label} style={styles.bot}>
+                <Text style={[styles.optionText, { color: optionTextColor(value === bots) }]}>{label}</Text>
+              </Option>
+            ))}
+          </View>
+        </View>
+      </View>
+
+      <View style={styles.group}>
+        <Text style={styles.label}>{lobby.cards}</Text>
+        <View style={styles.options}>
+          {CARD_STYLES.map((key) => (
+            <Option key={key} selected={key === cardStyle} onPress={() => setCardStyle(key)} label={lobby.cardStyles[key]} style={styles.deck}>
+              <CardStyleContext value={key}>
+                <Card card={SAMPLE_CARD} width={24} />
+              </CardStyleContext>
+              <Text style={[styles.deckName, { color: optionTextColor(key === cardStyle) }]} numberOfLines={1}>
+                {lobby.cardStyles[key]}
+              </Text>
+            </Option>
+          ))}
+        </View>
       </View>
 
       {bots ? (
-        <>
-          <Text style={styles.hint}>{lobby.trainingHint}</Text>
-          <Text style={styles.label}>{lobby.seats}</Text>
-          <View style={styles.row}>
-            {SEAT_OPTIONS.map((option) => (
-              <Pressable key={option} onPress={() => setSeats(option)} style={[styles.chip, option === seats && styles.chipSelected]}>
-                <Text style={styles.chipText}>{option}</Text>
-              </Pressable>
-            ))}
-          </View>
-        </>
+        <Notice text={lobby.trainingHint} tone="neutral" />
       ) : (
-        <>
+        <View style={styles.group}>
           <Text style={styles.label}>{lobby.tables}</Text>
           <TablePicker tables={CHIP_TABLES} balance={balance} selectedId={selectedTable?.id} onSelect={setChosenTableId} />
-        </>
+        </View>
       )}
 
-      <Text style={styles.label}>{lobby.cards}</Text>
-      <View style={styles.row}>
-        {CARD_STYLES.map((key) => (
-          <Pressable key={key} onPress={() => setCardStyle(key)} style={[styles.styleOption, key === cardStyle && styles.styleSelected]}>
-            <CardStyleContext value={key}>
-              <Card card={SAMPLE_CARD} width={56} />
-            </CardStyleContext>
-            <Text style={styles.styleName}>{lobby.cardStyles[key]}</Text>
-          </Pressable>
-        ))}
+      <View style={styles.footer}>
+        <ErrorLine text={error} />
+        <Button title={connecting ? lobby.connecting : lobby.confirm} onPress={confirm} disabled={!canConfirm} loading={connecting} />
       </View>
-
-      <WoodButton title={connecting ? lobby.connecting : lobby.confirm} onPress={confirm} disabled={!canConfirm || connecting} large />
-      <WoodButton title={lobby.back} onPress={onBack} />
-    </View>
+    </>
   );
 }
 
 const styles = StyleSheet.create({
-  content: { alignItems: "center", gap: 14 },
-  label: { color: colors.woodText, fontSize: 16, fontWeight: "600" },
-  hint: { color: colors.woodText, fontSize: 14, marginBottom: 8 },
-  row: { flexDirection: "row", gap: 12, marginBottom: 8 },
-  chip: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundImage: colors.woodGradient,
-    borderWidth: 3,
-    borderColor: colors.woodDark,
-  },
-  wideChip: {
-    width: 80,
-    height: 48,
-    borderRadius: 24,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundImage: colors.woodGradient,
-    borderWidth: 3,
-    borderColor: colors.woodDark,
-  },
-  chipSelected: { borderColor: colors.highlight, transform: [{ scale: 1.1 }] },
-  chipText: { color: colors.woodText, fontSize: 20, fontWeight: "700" },
-  styleOption: { alignItems: "center", gap: 6, padding: 6, borderRadius: 10, borderWidth: 3, borderColor: "transparent" },
-  styleSelected: { borderColor: colors.highlight, backgroundColor: "rgba(0, 0, 0, 0.06)" },
-  styleName: { color: colors.woodText, fontSize: 14, fontWeight: "600" },
+  row: { flexDirection: "row", gap: 22 },
+  group: { gap: 6 },
+  label: { color: colors.muted, fontSize: 13, fontWeight: "600" },
+  options: { flexDirection: "row", gap: 8 },
+  seat: { width: 52 },
+  seatText: { fontSize: 17, fontWeight: "600" },
+  bot: { width: 64 },
+  optionText: { fontSize: 15, fontWeight: "600" },
+  deck: { flex: 1, height: 48, paddingHorizontal: 8, flexDirection: "row", justifyContent: "flex-start", gap: 6 },
+  deckName: { flexShrink: 1, fontSize: 12, fontWeight: "600" },
+  footer: { marginTop: "auto", gap: 10 },
 });
