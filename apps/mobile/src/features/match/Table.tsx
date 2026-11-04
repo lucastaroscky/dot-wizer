@@ -68,7 +68,7 @@ export function Table({ room, state, onExit }: Props) {
       </View>
 
       {announcement !== "" && (
-        <Animated.View entering={FadeInDown.duration(250)} exiting={FadeOut.duration(200)} style={styles.banner}>
+        <Animated.View entering={FadeInDown.duration(250)} exiting={FadeOut.duration(200)} pointerEvents="none" style={styles.banner}>
           <Text style={styles.bannerText}>{announcement}</Text>
         </Animated.View>
       )}
@@ -141,7 +141,7 @@ const styles = StyleSheet.create({
   tableTitle: { marginLeft: "auto", color: colors.feltText, fontSize: 13, fontFamily: fonts.semibold, fontVariant: ["tabular-nums"] },
   opponents: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between", gap: 8 },
   opponent: { alignItems: "center", gap: 4 },
-  banner: { alignSelf: "center", marginTop: 12, paddingVertical: 10, paddingHorizontal: 18, borderRadius: 22, borderWidth: 1, borderColor: colors.action, backgroundColor: "rgba(5, 7, 6, 0.75)" },
+  banner: { position: "absolute", top: 200, alignSelf: "center", zIndex: 30, maxWidth: "90%", paddingVertical: 10, paddingHorizontal: 18, borderRadius: 22, borderWidth: 1, borderColor: colors.action, backgroundColor: "rgba(5, 7, 6, 0.75)" },
   bannerText: { color: colors.text, fontSize: 17, fontFamily: fonts.display, textAlign: "center" },
   middle: { flex: 1, flexDirection: "row", paddingTop: 16 },
   felt: { flex: 1 },
