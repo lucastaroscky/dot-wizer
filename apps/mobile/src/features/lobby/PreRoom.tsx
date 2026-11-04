@@ -76,11 +76,9 @@ export function PreRoom({ balance, connecting, error, onConfirm }: Props) {
           {CARD_STYLES.map((key) => (
             <Option key={key} selected={key === cardStyle} onPress={() => setCardStyle(key)} label={lobby.cardStyles[key]} style={styles.deck}>
               <CardStyleContext value={key}>
-                <Card card={SAMPLE_CARD} width={24} />
+                <Card card={SAMPLE_CARD} width={32} />
               </CardStyleContext>
-              <Text style={[styles.deckName, { color: optionTextColor(key === cardStyle) }]} numberOfLines={1}>
-                {lobby.cardStyles[key]}
-              </Text>
+              <Text style={[styles.deckName, { color: optionTextColor(key === cardStyle) }]}>{lobby.cardStyles[key]}</Text>
             </Option>
           ))}
         </View>
@@ -112,7 +110,7 @@ const styles = StyleSheet.create({
   seatText: { fontSize: 17, fontFamily: fonts.display },
   bot: { width: 64 },
   optionText: { fontSize: 15, fontFamily: fonts.semibold },
-  deck: { flex: 1, height: 48, paddingHorizontal: 8, flexDirection: "row", justifyContent: "flex-start", gap: 6 },
-  deckName: { flexShrink: 1, fontSize: 12, fontFamily: fonts.semibold },
+  deck: { flex: 1, paddingVertical: 8, gap: 6 },
+  deckName: { fontSize: 12, fontFamily: fonts.semibold },
   footer: { marginTop: "auto", gap: 10 },
 });
