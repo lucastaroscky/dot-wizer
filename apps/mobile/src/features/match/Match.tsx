@@ -34,9 +34,9 @@ function MatchRoom({ room, matchAborted, onExit }: Props) {
   if (state.phase === "playing") {
     return <Table room={room} state={state} onExit={onExit} />;
   }
-  return <WaitingRoom state={state} />;
+  return <WaitingRoom state={state} onExit={onExit} />;
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.felt, backgroundImage: colors.feltGradient, userSelect: "none" },
+  screen: { flex: 1, backgroundColor: colors.feltNight, backgroundImage: colors.feltRoom, userSelect: "none" },
 });
