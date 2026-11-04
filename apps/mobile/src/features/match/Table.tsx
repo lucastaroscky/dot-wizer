@@ -6,6 +6,7 @@ import type { Room } from "@colyseus/sdk";
 import type { PontinhoState } from "@pontinho/protocol";
 import { cardById, handPoints } from "@pontinho/rules";
 import { colors } from "@/shared/theme/colors";
+import { fonts } from "@/shared/theme/fonts";
 import { Icon } from "@/shared/ui/Icon";
 import match from "@/messages/match.json";
 import type { TableAreas } from "./areas";
@@ -111,7 +112,13 @@ export function Table({ room, state, onExit }: Props) {
           isTurn={state.currentTurn === room.sessionId}
           turn={turn}
         />
-        <Text style={styles.handPoints}>{handPoints((me?.hand ?? []).map((card) => cardById(card.id)))}</Text>
+        <View style={styles.handPointsBox}>
+          <Text style={styles.handPoints}>{handPoints((me?.hand ?? []).map((card) => cardById(card.id)))}</Text>
+          <View style={styles.handPointsHint}>
+            <Icon name="eye" size={12} color={colors.feltText} />
+            <Text style={styles.handPointsHintText}>{match.handPointsHint}</Text>
+          </View>
+        </View>
       </View>
 
       <Measured onMeasure={(rect) => (areas.current.hand = rect)}>
@@ -126,17 +133,20 @@ export function Table({ room, state, onExit }: Props) {
 const styles = StyleSheet.create({
   table: { flex: 1, paddingHorizontal: 12, paddingTop: 8, paddingBottom: 4 },
   topBar: { height: 40, paddingHorizontal: 4, marginBottom: 14, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  tableTitle: { marginLeft: "auto", color: colors.feltText, fontSize: 13, fontWeight: "600", fontVariant: ["tabular-nums"] },
+  tableTitle: { marginLeft: "auto", color: colors.feltText, fontSize: 13, fontFamily: fonts.semibold, fontVariant: ["tabular-nums"] },
   opponents: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between", gap: 8 },
   opponent: { alignItems: "center", gap: 4 },
   banner: { alignSelf: "center", marginTop: 12, paddingVertical: 10, paddingHorizontal: 18, borderRadius: 22, borderWidth: 1, borderColor: colors.action, backgroundColor: "rgba(5, 7, 6, 0.75)" },
-  bannerText: { color: colors.text, fontSize: 17, fontWeight: "600", textAlign: "center" },
+  bannerText: { color: colors.text, fontSize: 17, fontFamily: fonts.display, textAlign: "center" },
   middle: { flex: 1, flexDirection: "row", paddingTop: 16 },
   felt: { flex: 1 },
   feltArea: { flex: 1, paddingTop: 70 },
-  status: { color: colors.feltSoft, fontSize: 13.5, lineHeight: 19, textAlign: "center", marginVertical: 8, marginHorizontal: 12 },
+  status: { color: colors.feltSoft, fontSize: 13.5, fontFamily: fonts.regular, lineHeight: 19, textAlign: "center", marginVertical: 8, marginHorizontal: 12 },
   notice: { marginVertical: 4, marginHorizontal: 8, paddingVertical: 9, paddingHorizontal: 12, borderRadius: 14, backgroundColor: colors.text, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 },
-  noticeText: { flexShrink: 1, color: colors.onAction, fontSize: 13.5, fontWeight: "600", lineHeight: 18, textAlign: "center" },
+  noticeText: { flexShrink: 1, color: colors.onAction, fontSize: 13.5, fontFamily: fonts.semibold, lineHeight: 18, textAlign: "center" },
   me: { flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", paddingHorizontal: 4 },
-  handPoints: { color: colors.onSelected, fontSize: 24, fontWeight: "600", fontVariant: ["tabular-nums"] },
+  handPointsBox: { alignItems: "flex-end", gap: 3 },
+  handPointsHint: { flexDirection: "row", alignItems: "center", gap: 4 },
+  handPointsHintText: { color: colors.feltText, fontSize: 11, fontFamily: fonts.regular },
+  handPoints: { color: colors.onSelected, fontSize: 24, fontFamily: fonts.display, fontVariant: ["tabular-nums"] },
 });

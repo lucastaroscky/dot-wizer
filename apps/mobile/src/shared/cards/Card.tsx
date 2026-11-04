@@ -22,9 +22,8 @@ export function Card({ card, width, selected = false }: Props) {
   const size = { width, height: width * CARD_RATIO, borderRadius: width * 0.06 };
 
   return (
-    <View style={[styles.card, size]}>
+    <View style={[styles.card, size, selected && styles.selected]}>
       <Image source={images[key]} draggable={false} style={StyleSheet.absoluteFill} />
-      {selected && <View style={[styles.selected, { borderRadius: size.borderRadius }]} />}
     </View>
   );
 }
@@ -41,5 +40,5 @@ export function CardBack({ width }: { width: number }) {
 
 const styles = StyleSheet.create({
   card: { overflow: "hidden", boxShadow: "0 1px 3px rgba(0, 0, 0, 0.4)" },
-  selected: { ...StyleSheet.absoluteFill, backgroundColor: colors.selectTint, borderWidth: 2, borderColor: colors.highlight },
+  selected: { boxShadow: `0 0 0 2px ${colors.onSelected}, 0 0 0 4.5px ${colors.selected}, 0 10px 22px rgba(0, 0, 0, 0.55)` },
 });

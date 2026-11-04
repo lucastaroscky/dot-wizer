@@ -6,6 +6,7 @@ import { Notice } from "@/shared/ui/Notice";
 import { Screen } from "@/shared/ui/Screen";
 import { TextField } from "@/shared/ui/TextField";
 import { colors } from "@/shared/theme/colors";
+import { fonts } from "@/shared/theme/fonts";
 import profile from "@/messages/profile.json";
 import { BIRTH_DATE_INPUT_LENGTH } from "./birthDate";
 import { useProfileSetup } from "./useProfileSetup";
@@ -16,6 +17,9 @@ export function ProfileSetupScreen() {
 
   return (
     <Screen>
+      <Text accessibilityRole="header" style={styles.title}>
+        {profile.title}
+      </Text>
       <Pressable onPress={setup.pickPhoto} accessibilityRole="button" style={styles.photo}>
         <Avatar name={setup.name} size={88} photoUrl={setup.photoUri} />
         <Text style={styles.photoText}>{photoTitle}</Text>
@@ -41,7 +45,8 @@ export function ProfileSetupScreen() {
 }
 
 const styles = StyleSheet.create({
+  title: { marginTop: 12, color: colors.text, fontSize: 24, fontFamily: fonts.display },
   photo: { alignSelf: "center", alignItems: "center", gap: 8, paddingVertical: 12 },
-  photoText: { color: colors.textSoft, fontSize: 15, fontWeight: "600" },
+  photoText: { color: colors.textSoft, fontSize: 15, fontFamily: fonts.semibold },
   footer: { marginTop: "auto", gap: 14 },
 });

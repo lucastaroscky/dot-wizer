@@ -2,6 +2,7 @@ import { StyleSheet, Text, View } from "react-native";
 import { formatChips } from "@/shared/format/numbers";
 import { Icon } from "@/shared/ui/Icon";
 import { colors } from "@/shared/theme/colors";
+import { fonts } from "@/shared/theme/fonts";
 import wallet from "@/messages/wallet.json";
 
 const UNKNOWN_BALANCE = "—";
@@ -21,6 +22,6 @@ export function BalanceCard({ balance }: { balance?: number }) {
 const styles = StyleSheet.create({
   card: { alignItems: "flex-end", gap: 2 },
   row: { flexDirection: "row", alignItems: "center", gap: 6 },
-  value: { color: colors.text, fontSize: 19, fontWeight: "600", fontVariant: ["tabular-nums"] },
-  label: { color: colors.muted, fontSize: 11, fontWeight: "600" },
+  value: { color: colors.text, fontSize: 19, fontFamily: fonts.display, fontVariant: ["tabular-nums"] },
+  label: { color: colors.muted, fontSize: 11, fontFamily: fonts.semibold },
 });

@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { colors } from "@/shared/theme/colors";
+import { fonts } from "@/shared/theme/fonts";
 import { Icon, type IconName } from "./Icon";
 
 type Tone = "neutral" | "danger" | "success";
@@ -41,5 +42,5 @@ export function ErrorLine({ text }: { text: string }) {
 const styles = StyleSheet.create({
   box: { paddingVertical: 12, paddingHorizontal: 14, borderRadius: 14, borderWidth: 1, gap: 10 },
   row: { flexDirection: "row", alignItems: "flex-start", gap: 10 },
-  text: { flex: 1, fontSize: 14, lineHeight: 20 },
+  text: { flex: 1, fontSize: 14, fontFamily: fonts.regular, lineHeight: 20 },
 });

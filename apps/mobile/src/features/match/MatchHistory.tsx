@@ -4,6 +4,7 @@ import { formatChips } from "@/shared/format/numbers";
 import { Avatar } from "@/shared/ui/Avatar";
 import { Notice } from "@/shared/ui/Notice";
 import { colors } from "@/shared/theme/colors";
+import { fonts } from "@/shared/theme/fonts";
 import match from "@/messages/match.json";
 import { ChipsAmount } from "./ChipsAmount";
 import { useMatchHistory } from "./useMatchHistory";
@@ -90,17 +91,17 @@ export function MatchHistory({ matchId, userId, polling }: Props) {
 const styles = StyleSheet.create({
   history: { gap: 8 },
   loading: { padding: 18, borderRadius: 20, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.surface, flexDirection: "row", alignItems: "center", gap: 10 },
-  loadingText: { color: colors.muted, fontSize: 15 },
+  loadingText: { color: colors.muted, fontSize: 15, fontFamily: fonts.regular },
   mine: { padding: 16, gap: 14, borderRadius: 22, borderWidth: 1, borderColor: colors.lineStrong, backgroundColor: colors.surface },
   row: { flexDirection: "row", alignItems: "center", gap: 10 },
-  mineName: { flex: 1, color: colors.text, fontSize: 15, fontWeight: "600" },
+  mineName: { flex: 1, color: colors.text, fontSize: 15, fontFamily: fonts.semibold },
   end: { alignItems: "flex-end" },
-  label: { color: colors.muted, fontSize: 11 },
-  mineResult: { color: colors.text, fontSize: 22, fontWeight: "600", fontVariant: ["tabular-nums"] },
+  label: { color: colors.muted, fontSize: 11, fontFamily: fonts.regular },
+  mineResult: { color: colors.text, fontSize: 22, fontFamily: fonts.display, fontVariant: ["tabular-nums"] },
   stats: { flexDirection: "row", flexWrap: "wrap", rowGap: 10 },
   stat: { width: "33.3%", gap: 2 },
-  statValue: { color: colors.text, fontSize: 14, fontWeight: "600", fontVariant: ["tabular-nums"] },
+  statValue: { color: colors.text, fontSize: 14, fontFamily: fonts.semibold, fontVariant: ["tabular-nums"] },
   other: { minHeight: 58, paddingVertical: 8, paddingHorizontal: 14, borderRadius: 18, borderWidth: 1, borderColor: "#1F2623", backgroundColor: colors.plate },
-  otherName: { flex: 1, color: colors.text, fontSize: 14, fontWeight: "600" },
-  otherResult: { color: colors.text, fontSize: 15, fontWeight: "700", fontVariant: ["tabular-nums"] },
+  otherName: { flex: 1, color: colors.text, fontSize: 14, fontFamily: fonts.semibold },
+  otherResult: { color: colors.text, fontSize: 15, fontFamily: fonts.bold, fontVariant: ["tabular-nums"] },
 });

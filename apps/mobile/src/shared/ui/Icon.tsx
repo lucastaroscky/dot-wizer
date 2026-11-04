@@ -16,6 +16,7 @@ const ICONS = {
   check: { ios: "checkmark", material: "check" },
   lock: { ios: "lock", material: "lock" },
   trophy: { ios: "trophy", material: "emoji_events" },
+  eye: { ios: "eye", material: "visibility" },
 } satisfies Record<string, { ios: SFSymbol; material: AndroidSymbol }>;
 
 export type IconName = keyof typeof ICONS;

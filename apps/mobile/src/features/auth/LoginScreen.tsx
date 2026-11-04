@@ -7,6 +7,7 @@ import { ErrorLine, Notice } from "@/shared/ui/Notice";
 import { Screen } from "@/shared/ui/Screen";
 import { TextField } from "@/shared/ui/TextField";
 import { colors } from "@/shared/theme/colors";
+import { fonts } from "@/shared/theme/fonts";
 import auth from "@/messages/auth.json";
 import { CodeField } from "./CodeField";
 import type { GoogleLogin } from "./GoogleLogin";
@@ -83,5 +84,5 @@ export function LoginScreen() {
 
 const styles = StyleSheet.create({
   hero: { flex: 1, minHeight: 260, alignItems: "center", justifyContent: "center", gap: 22 },
-  hint: { color: colors.textSoft, fontSize: 15, lineHeight: 22 },
+  hint: { color: colors.textSoft, fontSize: 15, fontFamily: fonts.regular, lineHeight: 22 },
 });

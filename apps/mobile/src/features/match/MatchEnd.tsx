@@ -4,6 +4,7 @@ import { Icon } from "@/shared/ui/Icon";
 import { Notice } from "@/shared/ui/Notice";
 import { Screen } from "@/shared/ui/Screen";
 import { colors } from "@/shared/theme/colors";
+import { fonts } from "@/shared/theme/fonts";
 import match from "@/messages/match.json";
 import { MatchHistory } from "./MatchHistory";
 
@@ -36,7 +37,7 @@ export function MatchEnd({ matchId, userId, aborted, title, onExit }: Props) {
 const styles = StyleSheet.create({
   winner: { flexDirection: "row", alignItems: "center", gap: 12, paddingTop: 8 },
   trophy: { width: 48, height: 48, borderRadius: 16, backgroundColor: colors.action, alignItems: "center", justifyContent: "center" },
-  title: { flex: 1, color: colors.text, fontSize: 21, lineHeight: 26, fontWeight: "600" },
-  subtitle: { color: colors.textSoft, fontSize: 15, fontWeight: "600" },
+  title: { flex: 1, color: colors.text, fontSize: 21, lineHeight: 26, fontFamily: fonts.display },
+  subtitle: { color: colors.textSoft, fontSize: 15, fontFamily: fonts.display },
   footer: { marginTop: "auto" },
 });

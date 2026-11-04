@@ -31,6 +31,5 @@ export const colors = {
   successSurface: "#17210C",
   successLine: "#3F5A1E",
   successText: "#DDF5A8",
-  highlight: "#F2C94C",
-  selectTint: "rgba(255, 230, 0, 0.35)",
+  brandDot: "#FF5A4E",
 };

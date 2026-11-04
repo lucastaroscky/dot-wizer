@@ -7,6 +7,7 @@ import { Button } from "@/shared/ui/Button";
 import { ErrorLine, Notice } from "@/shared/ui/Notice";
 import { Option, optionTextColor } from "@/shared/ui/Option";
 import { colors } from "@/shared/theme/colors";
+import { fonts } from "@/shared/theme/fonts";
 import lobby from "@/messages/lobby.json";
 import { TablePicker } from "./TablePicker";
 
@@ -105,13 +106,13 @@ export function PreRoom({ balance, connecting, error, onConfirm }: Props) {
 const styles = StyleSheet.create({
   row: { flexDirection: "row", gap: 22 },
   group: { gap: 6 },
-  label: { color: colors.muted, fontSize: 13, fontWeight: "600" },
+  label: { color: colors.muted, fontSize: 13, fontFamily: fonts.semibold },
   options: { flexDirection: "row", gap: 8 },
   seat: { width: 52 },
-  seatText: { fontSize: 17, fontWeight: "600" },
+  seatText: { fontSize: 17, fontFamily: fonts.display },
   bot: { width: 64 },
-  optionText: { fontSize: 15, fontWeight: "600" },
+  optionText: { fontSize: 15, fontFamily: fonts.semibold },
   deck: { flex: 1, height: 48, paddingHorizontal: 8, flexDirection: "row", justifyContent: "flex-start", gap: 6 },
-  deckName: { flexShrink: 1, fontSize: 12, fontWeight: "600" },
+  deckName: { flexShrink: 1, fontSize: 12, fontFamily: fonts.semibold },
   footer: { marginTop: "auto", gap: 10 },
 });

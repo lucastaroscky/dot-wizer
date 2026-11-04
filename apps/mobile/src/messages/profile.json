@@ -10,5 +10,5 @@
   "invalidPhotoType": "Use uma foto JPEG, PNG ou WebP.",
   "photoUploadFailed": "Não foi possível enviar a foto.",
   "loadFailed": "Não foi possível carregar o seu perfil.",
-  "retry": "Tentar de novo"
+  "title": "Cadastro"
 }

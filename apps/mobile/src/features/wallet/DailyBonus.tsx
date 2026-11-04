@@ -2,6 +2,7 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-nati
 import { DAILY_BONUS } from "@pontinho/rules";
 import { Icon } from "@/shared/ui/Icon";
 import { colors } from "@/shared/theme/colors";
+import { fonts } from "@/shared/theme/fonts";
 import wallet from "@/messages/wallet.json";
 
 type Props = { available?: boolean; pending: boolean; onClaim: () => void };
@@ -34,6 +35,6 @@ const styles = StyleSheet.create({
   claimed: { borderWidth: 1, borderStyle: "dashed", borderColor: colors.line },
   pressed: { opacity: 0.85 },
   disabled: { opacity: 0.5 },
-  text: { flex: 1, color: colors.text, fontSize: 15, fontWeight: "600" },
-  claimedText: { flex: 1, color: colors.muted, fontSize: 14 },
+  text: { flex: 1, color: colors.text, fontSize: 15, fontFamily: fonts.semibold },
+  claimedText: { flex: 1, color: colors.muted, fontSize: 14, fontFamily: fonts.regular },
 });

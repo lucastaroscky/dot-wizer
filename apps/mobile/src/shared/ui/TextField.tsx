@@ -1,5 +1,6 @@
 import { StyleSheet, Text, TextInput, View, type TextInputProps } from "react-native";
 import { colors } from "@/shared/theme/colors";
+import { fonts } from "@/shared/theme/fonts";
 import { ErrorLine } from "./Notice";
 
 type Props = TextInputProps & { label: string; error?: string };
@@ -21,7 +22,7 @@ export function TextField({ label, error = "", style, ...inputProps }: Props) {
 
 const styles = StyleSheet.create({
   field: { alignSelf: "stretch", gap: 8 },
-  label: { color: colors.textSoft, fontSize: 14, fontWeight: "600" },
+  label: { color: colors.textSoft, fontSize: 14, fontFamily: fonts.semibold },
   input: {
     height: 54,
     paddingHorizontal: 16,
@@ -31,7 +32,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     color: colors.text,
     fontSize: 16,
-    fontWeight: "500",
+    fontFamily: fonts.medium,
   },
   inputError: { borderColor: colors.errorLine },
 });

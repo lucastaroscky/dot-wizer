@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { StyleSheet, Text, TextInput, View } from "react-native";
 import { colors } from "@/shared/theme/colors";
+import { fonts } from "@/shared/theme/fonts";
 import auth from "@/messages/auth.json";
 import { CODE_LENGTH } from "./useEmailLogin";
 
@@ -52,9 +53,9 @@ export function CodeField({ value, onChange, onSubmit, invalid }: Props) {
 
 const styles = StyleSheet.create({
   field: { gap: 8 },
-  label: { color: colors.textSoft, fontSize: 14, fontWeight: "600" },
+  label: { color: colors.textSoft, fontSize: 14, fontFamily: fonts.semibold },
   boxes: { flexDirection: "row", gap: 8 },
   box: { flex: 1, height: 58, borderRadius: 12, borderWidth: 1.5, backgroundColor: colors.surface, alignItems: "center", justifyContent: "center" },
-  digit: { color: colors.text, fontSize: 22, fontWeight: "600" },
+  digit: { color: colors.text, fontSize: 22, fontFamily: fonts.display },
   input: { ...StyleSheet.absoluteFill, color: "transparent", opacity: 0.02, fontSize: 1 },
 });

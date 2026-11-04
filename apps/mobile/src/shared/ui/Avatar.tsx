@@ -1,6 +1,7 @@
 import { StyleSheet, Text, View } from "react-native";
 import { Image } from "expo-image";
 import { colors } from "@/shared/theme/colors";
+import { fonts } from "@/shared/theme/fonts";
 
 type Props = { name: string; size: number; photoUrl?: string | null };
 
@@ -19,5 +20,5 @@ export function Avatar({ name, size, photoUrl }: Props) {
 
 const styles = StyleSheet.create({
   circle: { backgroundColor: colors.option, borderWidth: 1, borderColor: colors.lineStrong, alignItems: "center", justifyContent: "center" },
-  initial: { color: colors.text, fontWeight: "600" },
+  initial: { color: colors.text, fontFamily: fonts.display },
 });

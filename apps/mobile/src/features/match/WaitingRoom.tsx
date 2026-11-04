@@ -3,6 +3,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Avatar } from "@/shared/ui/Avatar";
 import { Button } from "@/shared/ui/Button";
 import { colors } from "@/shared/theme/colors";
+import { fonts } from "@/shared/theme/fonts";
 import match from "@/messages/match.json";
 import { isOffline, tableTitle, type GameState } from "./state";
 import { TurnTimer } from "./TurnTimer";
@@ -54,14 +55,14 @@ export function WaitingRoom({ state, onExit }: Props) {
 const styles = StyleSheet.create({
   container: { flex: 1, width: "100%", maxWidth: 480, alignSelf: "center", paddingHorizontal: 20, paddingBottom: 28 },
   center: { flex: 1, alignItems: "center", justifyContent: "center", gap: 28 },
-  table: { color: colors.feltText, fontSize: 13, fontWeight: "600" },
+  table: { color: colors.feltText, fontSize: 13, fontFamily: fonts.semibold },
   status: { flexDirection: "row", alignItems: "center", gap: 10 },
-  statusText: { color: colors.text, fontSize: 18, fontWeight: "600" },
+  statusText: { color: colors.text, fontSize: 18, fontFamily: fonts.semibold },
   countdown: { width: 220 },
   seats: { alignSelf: "stretch", flexDirection: "row", flexWrap: "wrap", gap: 10 },
   seat: { width: "48.5%", height: 60, paddingHorizontal: 12, borderRadius: 14, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.plate, flexDirection: "row", alignItems: "center", gap: 10 },
   freeSeat: { borderStyle: "dashed", borderColor: colors.lineStrong, backgroundColor: "transparent" },
   seatText: { flex: 1 },
-  name: { color: colors.text, fontSize: 14, fontWeight: "600" },
-  offline: { color: colors.errorText, fontSize: 11, fontWeight: "600" },
+  name: { color: colors.text, fontSize: 14, fontFamily: fonts.semibold },
+  offline: { color: colors.errorText, fontSize: 11, fontFamily: fonts.semibold },
 });

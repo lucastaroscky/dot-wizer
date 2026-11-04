@@ -7,5 +7,6 @@
   "buying": "Comprando…",
   "testNotice": "Teste: nada é cobrado",
   "back": "Voltar",
-  "purchased": "Compra feita: {quantity} fichas."
+  "purchased": "Compra feita: {quantity} fichas.",
+  "maximumReached": "Máximo por compra"
 }

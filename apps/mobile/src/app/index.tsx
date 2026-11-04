@@ -13,8 +13,9 @@ import { Logo } from "@/shared/ui/Logo";
 import { Notice } from "@/shared/ui/Notice";
 import { Screen } from "@/shared/ui/Screen";
 import { colors } from "@/shared/theme/colors";
+import { fonts } from "@/shared/theme/fonts";
 import home from "@/messages/home.json";
-import profile from "@/messages/profile.json";
+import errors from "@/messages/errors.json";
 
 export default function Home() {
   const { room, error: matchError } = useMatch();
@@ -36,7 +37,7 @@ export default function Home() {
       {wallet.error !== "" && (
         <Notice text={wallet.error} tone="danger">
           <View style={styles.retry}>
-            <Button title={profile.retry} onPress={wallet.retry} variant="secondary" />
+            <Button title={errors.retry} onPress={wallet.retry} variant="secondary" />
           </View>
         </Notice>
       )}
@@ -73,10 +74,10 @@ const styles = StyleSheet.create({
   play: { height: 260, padding: 22, borderRadius: 24, overflow: "hidden", backgroundColor: colors.feltNight, backgroundImage: colors.feltCard, justifyContent: "flex-end" },
   playCards: { position: "absolute", right: 36, top: 30 },
   playRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  playTitle: { color: colors.text, fontSize: 28, fontWeight: "600" },
+  playTitle: { color: colors.text, fontSize: 28, fontFamily: fonts.display },
   playArrow: { width: 52, height: 52, borderRadius: 26, backgroundColor: colors.action, alignItems: "center", justifyContent: "center" },
   store: { height: 68, paddingHorizontal: 16, borderRadius: 20, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.surface, flexDirection: "row", alignItems: "center", gap: 14 },
-  storeText: { flex: 1, color: colors.text, fontSize: 16, fontWeight: "600" },
+  storeText: { flex: 1, color: colors.text, fontSize: 16, fontFamily: fonts.semibold },
   signOut: { marginTop: "auto", alignSelf: "center", height: 44, paddingHorizontal: 18, flexDirection: "row", alignItems: "center", gap: 8 },
-  signOutText: { color: colors.muted, fontSize: 15, fontWeight: "600" },
+  signOutText: { color: colors.muted, fontSize: 15, fontFamily: fonts.semibold },
 });

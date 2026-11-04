@@ -4,6 +4,7 @@ import { formatChips } from "@/shared/format/numbers";
 import { Icon } from "@/shared/ui/Icon";
 import { Option, optionTextColor } from "@/shared/ui/Option";
 import { colors } from "@/shared/theme/colors";
+import { fonts } from "@/shared/theme/fonts";
 import lobby from "@/messages/lobby.json";
 
 type Props = { tables: ChipTable[]; balance: number; selectedId?: number; onSelect: (tableId: number) => void };
@@ -36,7 +37,7 @@ const styles = StyleSheet.create({
   grid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   table: { width: "31.5%", height: 70, paddingVertical: 8, paddingHorizontal: 10, alignItems: "stretch", justifyContent: "space-between" },
   titleRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  title: { fontSize: 12.5, fontWeight: "600" },
-  detail: { color: colors.optionMuted, fontSize: 11, fontVariant: ["tabular-nums"] },
+  title: { fontSize: 12.5, fontFamily: fonts.display },
+  detail: { color: colors.optionMuted, fontSize: 11, fontFamily: fonts.regular, fontVariant: ["tabular-nums"] },
   detailSelected: { color: colors.optionText },
 });

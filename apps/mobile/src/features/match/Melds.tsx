@@ -13,11 +13,18 @@ type Props = {
   onMeldView: (index: number, view: HostInstance | null) => void;
 };
 
+const SET_SUIT_ORDER = ["spades", "hearts", "clubs", "diamonds"];
+
+function suitRank(card: CardView) {
+  const rank = SET_SUIT_ORDER.indexOf(card.suit);
+  return rank === -1 ? SET_SUIT_ORDER.length : rank;
+}
+
 function inDisplayOrder(meld: Props["melds"][number]) {
-  if (meld.kind !== "run") {
-    return meld.cards;
+  if (meld.kind === "run") {
+    return [...meld.cards].reverse();
   }
-  return [...meld.cards].reverse();
+  return [...meld.cards].sort((a, b) => suitRank(a) - suitRank(b));
 }
 
 export function Melds({ melds, highlightIndex, onMeldPress, onMeldView }: Props) {

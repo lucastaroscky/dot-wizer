@@ -2,6 +2,7 @@ import { StyleSheet, Text, View } from "react-native";
 import { Button } from "@/shared/ui/Button";
 import { ErrorLine } from "@/shared/ui/Notice";
 import { colors } from "@/shared/theme/colors";
+import { fonts } from "@/shared/theme/fonts";
 import lobby from "@/messages/lobby.json";
 
 type Props = { canResume: boolean; connecting: boolean; error: string; onResume: () => void; onBack: () => void };
@@ -33,6 +34,6 @@ const styles = StyleSheet.create({
   table: { width: 220, height: 150, borderRadius: 28, backgroundColor: colors.feltNight, backgroundImage: colors.feltCard, boxShadow: "0 0 0 1px #1F3A2A" },
   card: { position: "absolute", width: 44, height: 62, borderRadius: 6, backgroundColor: "#16211B", borderWidth: 1, borderColor: colors.lineStrong },
   light: { position: "absolute", right: 14, top: 14, width: 12, height: 12, borderRadius: 6, backgroundColor: colors.action },
-  title: { maxWidth: 300, color: colors.text, fontSize: 22, lineHeight: 28, fontWeight: "600", textAlign: "center" },
-  detail: { color: colors.muted, fontSize: 16, textAlign: "center" },
+  title: { maxWidth: 300, color: colors.text, fontSize: 22, lineHeight: 28, fontFamily: fonts.display, textAlign: "center" },
+  detail: { color: colors.muted, fontSize: 16, fontFamily: fonts.regular, textAlign: "center" },
 });

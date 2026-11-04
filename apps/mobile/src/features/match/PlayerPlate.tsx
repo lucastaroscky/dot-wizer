@@ -4,6 +4,7 @@ import Animated, { useAnimatedStyle, useSharedValue, withSpring } from "react-na
 import { Avatar } from "@/shared/ui/Avatar";
 import { Icon } from "@/shared/ui/Icon";
 import { colors } from "@/shared/theme/colors";
+import { fonts } from "@/shared/theme/fonts";
 import match from "@/messages/match.json";
 import { TurnTimer, type TurnClock } from "./TurnTimer";
 
@@ -73,8 +74,8 @@ const styles = StyleSheet.create({
   ring: { borderRadius: 16, borderWidth: 2, borderColor: "transparent" },
   ringTurn: { borderColor: colors.action },
   text: { flex: 1, gap: 2 },
-  name: { color: colors.text, fontSize: 13, fontWeight: "600" },
-  info: { color: colors.muted, fontSize: 11 },
+  name: { color: colors.text, fontSize: 13, fontFamily: fonts.semibold },
+  info: { color: colors.muted, fontSize: 11, fontFamily: fonts.regular },
   offline: { alignSelf: "flex-start", height: 17, paddingHorizontal: 5, borderRadius: 9, borderWidth: 1, borderColor: colors.lineStrong, flexDirection: "row", alignItems: "center", gap: 3 },
-  offlineText: { color: colors.textSoft, fontSize: 10, fontWeight: "600" },
+  offlineText: { color: colors.textSoft, fontSize: 10, fontFamily: fonts.semibold },
 });

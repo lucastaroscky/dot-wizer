@@ -1,5 +1,6 @@
 import { ActivityIndicator, Pressable, StyleSheet, Text } from "react-native";
 import { colors } from "@/shared/theme/colors";
+import { fonts } from "@/shared/theme/fonts";
 
 type Variant = "primary" | "secondary" | "plain";
 
@@ -30,6 +31,6 @@ const styles = StyleSheet.create({
   pressed: { opacity: 0.85 },
   disabled: { opacity: 0.45 },
   loading: { opacity: 0.75 },
-  text: { color: colors.text, fontSize: 16, fontWeight: "600" },
-  primaryText: { color: colors.onAction, fontWeight: "700" },
+  text: { color: colors.text, fontSize: 16, fontFamily: fonts.semibold },
+  primaryText: { color: colors.onAction, fontFamily: fonts.bold },
 });
