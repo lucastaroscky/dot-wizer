@@ -4,8 +4,10 @@ import { useQuote } from "@/features/store/useQuote";
 import { BalanceCard } from "@/features/wallet/BalanceCard";
 import { useWallet } from "@/features/wallet/useWallet";
 import { goBackOrHome } from "@/shared/navigation/goBackOrHome";
-import { MenuScreen } from "@/shared/ui/MenuScreen";
-import { WoodButton } from "@/shared/ui/WoodButton";
+import { Button } from "@/shared/ui/Button";
+import { Notice } from "@/shared/ui/Notice";
+import { Screen } from "@/shared/ui/Screen";
+import { ScreenHeader } from "@/shared/ui/ScreenHeader";
 import home from "@/messages/home.json";
 import store from "@/messages/store.json";
 
@@ -13,12 +15,16 @@ export default function Store() {
   const { balance } = useWallet();
   const quote = useQuote();
   const purchase = usePurchase();
+  const error = quote.error || purchase.error;
 
   return (
-    <MenuScreen title={home.title} error={quote.error || purchase.error}>
-      <BalanceCard balance={balance} />
+    <Screen>
+      <ScreenHeader title={home.store} backLabel={store.back} onBack={goBackOrHome}>
+        <BalanceCard balance={balance} />
+      </ScreenHeader>
+      {error !== "" && <Notice text={error} tone="danger" />}
       <ChipStore quote={quote} purchase={purchase} />
-      <WoodButton title={store.back} onPress={goBackOrHome} />
-    </MenuScreen>
+      <Button title={store.back} onPress={goBackOrHome} variant="secondary" />
+    </Screen>
   );
 }
