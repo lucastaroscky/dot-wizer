@@ -140,6 +140,10 @@ export abstract class PontinhoRoom extends Room<{ state: PontinhoState; client: 
     if (this.isEliminated(playerId)) {
       return;
     }
+    if (this.withBots) {
+      this.leaveForGood(playerId);
+      return;
+    }
     this.setConnection(playerId, "reconnecting");
     this.restartTurnOf(playerId);
     const reservation = this.reserveSeat(client);

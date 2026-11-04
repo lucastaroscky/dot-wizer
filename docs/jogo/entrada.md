@@ -27,6 +27,8 @@ A API responde 200 com `userId`, `name`, `photoUrl`, `profileComplete`, `balance
 
 Se passou, o jogador entra com `{ id: userId, name, photoUrl ("" se não houver), table }`, e `table` é `0` no treino. No `onJoin`, a mesa do jogador precisa ser a da sala (senão `invalidOptions`), e o plugin de sessão única recusa a segunda cadeira da mesma conta (`alreadyInRoom`).
 
+No treino com robôs a queda de conexão conta como saída: a sala não reserva a cadeira e o plugin solta a sessão na hora, então a mesma conta pode entrar em outra sala logo em seguida. Nas partidas com fichas a cadeira continua reservada depois da queda (ver "Partida aberta").
+
 ## Erros
 
 ### Respostas da API
@@ -99,6 +101,7 @@ Regras.md, Plano.md e Arquitetura.md ficam no Obsidian, em `dotwize/`, fora do r
 ## Testes
 
 - `apps/game/test/login.test.ts`: perfil, saldo, treino, opções inválidas, `apiUnavailable`, `accountDisabled`, a tabela de códigos da API com nível de log (`serviceTokenInvalid`, `networkError`, `timeout`, `internalError`, `tooManyRequests`, `validationFailed`, `tableNotFound`), mesa diferente da sala e `alreadyInRoom`.
+- `apps/game/test/absence.test.ts`: "counts a dropped connection in a practice match as leaving: no seat is kept and the same account can enter another room at once" e "still keeps the seat of a dropped player in a match with chips".
 - `apps/game/test/openMatch.test.ts`: partida aberta com chave, de outro aparelho, no treino, sem chave, partida presa fechada e partida presa que não fecha.
 - `apps/game/test/httpGameApi.test.ts`: segredo de serviço no cabeçalho, `x-request-id`, leitura do código, rede, timeout, `invalidResponse`, e "does not retry opening a match nor asking about a player".
 - `apps/game/test/verifyApiAtBoot.test.ts`: segredo recusado derruba o processo; rede, timeout e 5xx só avisam.

@@ -10,7 +10,7 @@ async function drop(client: Room) {
 }
 
 describe("PontinhoRoom players who drop or leave", () => {
-  const { api, connect, createRoom, reconnect, startMatchWith } = setupServer();
+  const { api, connect, connectWith, createRoom, reconnect, startMatchWith } = setupServer();
 
   function engineOf(room: Awaited<ReturnType<typeof startMatchWith>>["room"], sessionId: string) {
     return required(required(room["game"]).players.find((player) => player.id === sessionId));
@@ -300,6 +300,32 @@ describe("PontinhoRoom players who drop or leave", () => {
     advance(room, 8_000);
     assert.strictEqual(room.state.phase, "playing");
     assert.strictEqual(playerOf(room, passer.sessionId).cardCount, 0);
+  });
+
+  it("counts a dropped connection in a practice match as leaving: no seat is kept and the same account can enter another room at once", async () => {
+    const options = { seats: 3, bots: true };
+    const room = await createRoom(options);
+    const token = api.addAccount("Lucas");
+    const human = await connectWith(room, token, options);
+    await room.waitForNextPatch();
+
+    await drop(human);
+    const other = await createRoom(options);
+    const again = await connectWith(other, token, options);
+
+    assert.strictEqual(playerOf(room, human.sessionId).connection, "left");
+    assert.strictEqual(room.state.phase, "playing");
+    assert.strictEqual(playerOf(other, again.sessionId).name, "Lucas");
+  });
+
+  it("still keeps the seat of a dropped player in a match with chips", async () => {
+    const { room, others } = await startMatchWith(["Lucas", "Ana", "Bruno"]);
+    const token = `token-${playerOf(room, others[0].sessionId).name}`;
+    await drop(others[0]);
+
+    const another = await createRoom({ table: 1, bots: false });
+
+    await assert.rejects(connectWith(another, token, { table: 1, bots: false }), (error) => (error as Error).message === "alreadyInRoom");
   });
 
   it("plays a practice round to the end and then ends it when the only person left", async () => {
