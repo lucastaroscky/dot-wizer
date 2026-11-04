@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import type { Room } from "@colyseus/sdk";
 import type { PontinhoState } from "@pontinho/protocol";
@@ -12,6 +13,21 @@ import { TurnTimer } from "./TurnTimer";
 
 type Props = { room: Room<PontinhoState>; state: GameState };
 
+const TICK_MS = 250;
+
+function SecondsLeft({ duration }: { duration: number }) {
+  const [endsAt] = useState(() => Date.now() + duration);
+  const [now, setNow] = useState(endsAt - duration);
+
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), TICK_MS);
+    return () => clearInterval(timer);
+  }, []);
+
+  const seconds = Math.max(Math.ceil((endsAt - now) / 1000), 0);
+  return <Text style={styles.seconds}>{match.returnPrompt.secondsLeft.replace("{seconds}", String(seconds))}</Text>;
+}
+
 export function ReturnPrompt({ room, state }: Props) {
   return (
     <View style={styles.prompt}>
@@ -25,7 +41,12 @@ export function ReturnPrompt({ room, state }: Props) {
           <Button title={match.returnPrompt.leave} onPress={() => sendAction(room, "chooseReturn", { back: false })} variant="secondary" />
         </View>
       </View>
-      <TurnTimer duration={state.returnDuration} turnNumber={state.returnNumber} />
+      <View style={styles.timer}>
+        <View style={styles.bar}>
+          <TurnTimer duration={state.returnDuration} turnNumber={state.returnNumber} />
+        </View>
+        <SecondsLeft key={state.returnNumber} duration={state.returnDuration} />
+      </View>
     </View>
   );
 }
@@ -36,4 +57,7 @@ const styles = StyleSheet.create({
   detail: { marginTop: -4, color: colors.muted, fontSize: 14, fontFamily: fonts.regular },
   actions: { flexDirection: "row", gap: 10 },
   action: { flex: 1 },
+  timer: { flexDirection: "row", alignItems: "center", gap: 10 },
+  bar: { flex: 1 },
+  seconds: { color: colors.muted, fontSize: 12, fontFamily: fonts.regular, fontVariant: ["tabular-nums"] },
 });

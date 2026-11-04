@@ -44,7 +44,7 @@
     "invalidLayOff": "Essas cartas não encaixam nesse jogo",
     "discardNeedsMeld": "Só pode pegar o descarte para usar num jogo",
     "discardWithOneCard": "Com uma carta na mão não pode pegar o descarte",
-    "notYourTurnToGoOut": "Só dá para bater fora da vez logo depois de um descarte ou depois que o jogador da vez comprar do monte",
+    "notYourTurnToGoOut": "Só dá para bater fora da vez depois que o jogador da vez comprar do monte",
     "alreadyBluffed": "Você blefou e não pode mais bater na vez dos outros nesta rodada",
     "jokerCannotBeDiscarded": "O coringa não pode ser descartado. Use-o num jogo da mesa",
     "cardFitsTable": "Essa carta encaixa num jogo da mesa. Jogue-a na mesa",
@@ -64,7 +64,8 @@
     "title": "Você passou de 100 pontos",
     "back": "Voltar",
     "leave": "Sair da disputa",
-    "returnsWith": "Volta com {points} pontos"
+    "returnsWith": "Volta com {points} pontos",
+    "secondsLeft": "{seconds} s"
   },
   "history": {
     "title": "Resumo das fichas",
