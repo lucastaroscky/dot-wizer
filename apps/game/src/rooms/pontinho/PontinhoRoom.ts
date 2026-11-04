@@ -431,10 +431,10 @@ export abstract class PontinhoRoom extends Room<{ state: PontinhoState; client: 
     this.state.returnDuration = RETURN_MS;
     this.returnTimer?.clear();
     this.returnTimer = this.clock.setTimeout(() => this.returnUndecided(), RETURN_MS);
-    playerIds.filter((id) => this.answersByItself(id)).forEach((id) => this.apply(id, { type: "chooseReturn", back: true }));
+    playerIds.filter((id) => this.playsByItself(id)).forEach((id) => this.apply(id, { type: "chooseReturn", back: true }));
   }
 
-  private answersByItself(playerId: string) {
+  private playsByItself(playerId: string) {
     const player = this.state.players.get(playerId);
     return player?.bot || player?.connection !== "connected";
   }
@@ -490,8 +490,18 @@ export abstract class PontinhoRoom extends Room<{ state: PontinhoState; client: 
 
   private startTurnTimer() {
     this.turnTimer?.clear();
-    const player = this.state.players.get(this.state.currentTurn);
-    const delay = player?.bot || player?.connection !== "connected" ? AUTOMATIC_TURN_MS : TURN_MS;
+    const playerId = this.state.currentTurn;
+    if (!this.playsByItself(playerId)) {
+      this.scheduleTurnPlay(TURN_MS);
+      return;
+    }
+    this.apply(playerId, { type: "draw" });
+    if (this.game?.phase === "playing") {
+      this.scheduleTurnPlay(AUTOMATIC_TURN_MS);
+    }
+  }
+
+  private scheduleTurnPlay(delay: number) {
     this.state.turnNumber++;
     this.state.turnDuration = delay;
     this.turnTimer = this.clock.setTimeout(() => this.playForCurrentPlayer(), delay);
@@ -499,6 +509,13 @@ export abstract class PontinhoRoom extends Room<{ state: PontinhoState; client: 
 
   private playForCurrentPlayer() {
     const playerId = this.game?.currentTurn ?? "";
+    if (!this.game?.hasDrawn) {
+      this.apply(playerId, { type: "draw" });
+      if (this.game?.phase === "playing") {
+        this.scheduleTurnPlay(AUTOMATIC_TURN_MS);
+      }
+      return;
+    }
     const fullPlay = this.state.players.get(playerId)?.bot || !this.somePersonIsConnected();
     const action: Action = fullPlay ? { type: "playAutomatically" } : { type: "playMovementOnly" };
     this.apply(playerId, action);

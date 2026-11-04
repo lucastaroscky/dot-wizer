@@ -1,5 +1,6 @@
 import assert from "assert";
 import type { Room } from "@colyseus/sdk";
+import { cardById } from "@pontinho/rules";
 import { advance, editGame, eventually, flush, playerOf, readyToGoOut, required, roomStillExists, setupServer, withHand, withPlayers } from "./support/harness.js";
 
 async function drop(client: Room) {
@@ -100,6 +101,39 @@ describe("PontinhoRoom players who drop or leave", () => {
     assert.strictEqual(room.state.melds.length, 0);
     assert.strictEqual(playerOf(room, current.sessionId).cardCount, 3);
     assert.notStrictEqual(room.state.currentTurn, current.sessionId);
+  });
+
+  it("opens the window to go out with the previous discard during the 3 seconds of an offline person's turn", async () => {
+    const { room, clients, current } = await startMatchWith(["Lucas", "Ana", "Bruno"]);
+    const nextId = room.state.order[(room.state.order.indexOf(current.sessionId) + 1) % 3];
+    const next = required(clients.find((client) => client.sessionId === nextId));
+    const outsider = required(clients.find((client) => client !== current && client !== next));
+    await drop(next);
+    editGame(room, (game) => ({ ...withPlayers(game, { [current.sessionId]: { hand: ["7-spades-2", "2-clubs-1"] }, [outsider.sessionId]: { hand: ["7-hearts-1", "7-clubs-1"] } }), hasDrawn: true }));
+
+    current.send("discard", "7-spades-2");
+    await room.waitForMessage("discard");
+    assert.strictEqual(room.state.currentTurn, next.sessionId);
+    assert.strictEqual(playerOf(room, next.sessionId).cardCount, 10);
+    outsider.send("goOut");
+    await room.waitForMessage("goOut");
+
+    assert.strictEqual(room.state.phase, "roundOver");
+    assert.strictEqual(room.state.wentOut, outsider.sessionId);
+  });
+
+  it("opens the same window when a person runs out of time: the draw comes first, the rest 3 seconds later", async () => {
+    const { room, clients, current } = await startMatchWith(["Lucas", "Ana", "Bruno"]);
+    const lastDiscarder = room.state.order[(room.state.order.indexOf(current.sessionId) + 2) % 3];
+    const outsider = required(clients.find((client) => client !== current && client.sessionId !== lastDiscarder));
+    editGame(room, (game) => ({ ...withPlayers(game, { [outsider.sessionId]: { hand: ["7-hearts-1", "7-clubs-1"] } }), discard: [cardById("7-spades-2")], lastDiscarder }));
+
+    advance(room, 30_000);
+    outsider.send("goOut");
+    await room.waitForMessage("goOut");
+
+    assert.strictEqual(room.state.phase, "roundOver");
+    assert.strictEqual(room.state.wentOut, outsider.sessionId);
   });
 
   it("keeps a player who left in the round in progress and sits him out of the next one", async () => {

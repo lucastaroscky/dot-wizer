@@ -134,13 +134,42 @@ describe("PontinhoRoom", () => {
     assert.strictEqual(room.state.phase, "playing");
   });
 
-  it("plays for a player who does nothing for 30 seconds", async () => {
+  it("plays for a player who does nothing for 30 seconds: draws at once, then finishes the turn 3 seconds later", async () => {
     const { room, current } = await startMatchWith(["Lucas", "Ana", "Bruno"]);
 
-    room.clock.currentTime -= 30_000;
-    room.clock.tick();
+    advance(room, 30_000);
+    assert.strictEqual(room.state.currentTurn, current.sessionId);
+    assert.strictEqual(playerOf(room, current.sessionId).cardCount, 10);
+    assert.strictEqual(room.state.turnDuration, 3_000);
 
+    advance(room, 3_000);
     assert.notStrictEqual(room.state.currentTurn, current.sessionId);
+  });
+
+  it("lets another person go out with the previous discard while a robot waits its 3 seconds", async () => {
+    const options = { seats: 3, bots: true };
+    const room = await createRoom(options);
+    const human = await connect(room, "Lucas", options);
+    await room.waitForNextPatch();
+    editGame(room, (game) => ({
+      ...withHand(game, human.sessionId, ["7-hearts-1", "7-clubs-1"]),
+      discard: [cardById("7-spades-2")],
+      currentTurn: "bot-1",
+      lastDiscarder: "bot-2",
+      hasDrawn: false,
+      discardIsFree: false,
+    }));
+
+    const cardsBefore = playerOf(room, "bot-1").cardCount;
+
+    room["startTurnTimer"]();
+    assert.strictEqual(playerOf(room, "bot-1").cardCount, cardsBefore + 1);
+    assert.strictEqual(room.state.discardIsFree, true);
+    human.send("goOut");
+    await room.waitForMessage("goOut");
+
+    assert.strictEqual(room.state.phase, "roundOver");
+    assert.strictEqual(room.state.wentOut, human.sessionId);
   });
 
   it("only discards for a person who ran out of the 30 seconds, without laying down melds", async () => {
