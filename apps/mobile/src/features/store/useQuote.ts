@@ -44,6 +44,7 @@ export function useQuote() {
     decrease,
     increase,
     error: query.error?.message ?? "",
+    retry: () => query.refetch(),
   };
 }
 

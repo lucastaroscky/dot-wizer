@@ -1,7 +1,7 @@
-import type { ReactNode } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { colors } from "@/shared/theme/colors";
 import { fonts } from "@/shared/theme/fonts";
+import errors from "@/messages/errors.json";
 import { Icon, type IconName } from "./Icon";
 
 type Tone = "neutral" | "danger" | "success";
@@ -12,9 +12,9 @@ const TONES: Record<Tone, { icon: IconName; text: string; box: object }> = {
   success: { icon: "check", text: colors.successText, box: { backgroundColor: colors.successSurface, borderColor: colors.successLine } },
 };
 
-type Props = { text: string; tone: Tone; children?: ReactNode };
+type Props = { text: string; tone: Tone; onRetry?: () => void };
 
-export function Notice({ text, tone, children }: Props) {
+export function Notice({ text, tone, onRetry }: Props) {
   const look = TONES[tone];
   return (
     <View accessibilityRole={tone === "danger" ? "alert" : undefined} style={[styles.box, look.box]}>
@@ -22,7 +22,11 @@ export function Notice({ text, tone, children }: Props) {
         <Icon name={look.icon} size={18} color={look.text} />
         <Text style={[styles.text, { color: look.text }]}>{text}</Text>
       </View>
-      {children}
+      {onRetry && (
+        <Pressable onPress={onRetry} accessibilityRole="button" style={({ pressed }) => [styles.retry, pressed && styles.pressed]}>
+          <Text style={styles.retryText}>{errors.retry}</Text>
+        </Pressable>
+      )}
     </View>
   );
 }
@@ -42,5 +46,8 @@ export function ErrorLine({ text }: { text: string }) {
 const styles = StyleSheet.create({
   box: { paddingVertical: 12, paddingHorizontal: 14, borderRadius: 14, borderWidth: 1, gap: 10 },
   row: { flexDirection: "row", alignItems: "flex-start", gap: 10 },
+  retry: { alignSelf: "flex-start", height: 40, paddingHorizontal: 14, borderRadius: 12, borderWidth: 1, borderColor: colors.retryLine, justifyContent: "center" },
+  pressed: { opacity: 0.85 },
+  retryText: { color: colors.retryText, fontSize: 14, fontFamily: fonts.semibold },
   text: { flex: 1, fontSize: 14, fontFamily: fonts.regular, lineHeight: 20 },
 });

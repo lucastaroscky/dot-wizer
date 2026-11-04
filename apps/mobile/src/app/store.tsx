@@ -15,14 +15,14 @@ export default function Store() {
   const { balance } = useWallet();
   const quote = useQuote();
   const purchase = usePurchase();
-  const error = quote.error || purchase.error;
 
   return (
     <Screen>
       <ScreenHeader title={home.store} backLabel={store.back} onBack={goBackOrHome}>
         <BalanceCard balance={balance} />
       </ScreenHeader>
-      {error !== "" && <Notice text={error} tone="danger" />}
+      {quote.error !== "" && <Notice text={quote.error} tone="danger" onRetry={quote.retry} />}
+      {purchase.error !== "" && <Notice text={purchase.error} tone="danger" />}
       <ChipStore quote={quote} purchase={purchase} />
       <Button title={store.back} onPress={goBackOrHome} variant="secondary" />
     </Screen>

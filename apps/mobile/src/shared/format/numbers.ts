@@ -8,7 +8,7 @@ export function formatChips(chips: number) {
 }
 
 export function formatSignedChips(chips: number) {
-  return signedChipsFormat.format(chips);
+  return signedChipsFormat.format(chips).replace("-", "−");
 }
 
 export function formatReais(cents: number) {

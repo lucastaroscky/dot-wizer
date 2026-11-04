@@ -28,6 +28,8 @@ export const colors = {
   dangerSurface: "#2A1515",
   dangerLine: "#5A2A2A",
   dangerText: "#FFC2C2",
+  retryLine: "#7A3A3A",
+  retryText: "#FFE1E1",
   successSurface: "#17210C",
   successLine: "#3F5A1E",
   successText: "#DDF5A8",

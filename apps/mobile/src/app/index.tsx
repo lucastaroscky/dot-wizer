@@ -6,7 +6,6 @@ import { BalanceCard } from "@/features/wallet/BalanceCard";
 import { DailyBonus } from "@/features/wallet/DailyBonus";
 import { useDailyBonus } from "@/features/wallet/useDailyBonus";
 import { useWallet } from "@/features/wallet/useWallet";
-import { Button } from "@/shared/ui/Button";
 import { CardTrio } from "@/shared/ui/CardTrio";
 import { Icon } from "@/shared/ui/Icon";
 import { Logo } from "@/shared/ui/Logo";
@@ -15,7 +14,6 @@ import { Screen } from "@/shared/ui/Screen";
 import { colors } from "@/shared/theme/colors";
 import { fonts } from "@/shared/theme/fonts";
 import home from "@/messages/home.json";
-import errors from "@/messages/errors.json";
 
 export default function Home() {
   const { room, error: matchError } = useMatch();
@@ -34,13 +32,7 @@ export default function Home() {
         <Logo size={22} />
         <BalanceCard balance={wallet.balance} />
       </View>
-      {wallet.error !== "" && (
-        <Notice text={wallet.error} tone="danger">
-          <View style={styles.retry}>
-            <Button title={errors.retry} onPress={wallet.retry} variant="secondary" />
-          </View>
-        </Notice>
-      )}
+      {wallet.error !== "" && <Notice text={wallet.error} tone="danger" onRetry={wallet.retry} />}
       {error !== "" && <Notice text={error} tone="danger" />}
       <DailyBonus available={wallet.dailyBonusAvailable} pending={dailyBonus.pending} onClaim={dailyBonus.claim} />
       <Pressable onPress={() => router.push("/lobby")} accessibilityRole="button" style={({ pressed }) => [styles.play, pressed && styles.pressed]}>
@@ -69,7 +61,6 @@ export default function Home() {
 
 const styles = StyleSheet.create({
   header: { height: 48, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  retry: { alignSelf: "flex-start" },
   pressed: { opacity: 0.85 },
   play: { height: 260, padding: 22, borderRadius: 24, overflow: "hidden", backgroundColor: colors.feltNight, backgroundImage: colors.feltCard, justifyContent: "flex-end" },
   playCards: { position: "absolute", right: 36, top: 30 },

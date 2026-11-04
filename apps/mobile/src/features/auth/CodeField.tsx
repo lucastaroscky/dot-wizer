@@ -57,5 +57,5 @@ const styles = StyleSheet.create({
   boxes: { flexDirection: "row", gap: 8 },
   box: { flex: 1, height: 58, borderRadius: 12, borderWidth: 1.5, backgroundColor: colors.surface, alignItems: "center", justifyContent: "center" },
   digit: { color: colors.text, fontSize: 22, fontFamily: fonts.display },
-  input: { ...StyleSheet.absoluteFill, color: "transparent", opacity: 0.02, fontSize: 1 },
+  input: { ...StyleSheet.absoluteFill, color: "transparent", opacity: 0.02, fontSize: 1, outlineWidth: 0 },
 });
