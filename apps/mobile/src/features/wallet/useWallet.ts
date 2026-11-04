@@ -10,5 +10,6 @@ export function useWallet() {
     balance: query.data?.balance,
     dailyBonusAvailable: query.data?.dailyBonusAvailable,
     error: query.error?.message ?? "",
+    retry: () => query.refetch(),
   };
 }

@@ -1,5 +1,6 @@
 import { StyleSheet, Text, View } from "react-native";
 import { formatChips } from "@/shared/format/numbers";
+import { Icon } from "@/shared/ui/Icon";
 import { colors } from "@/shared/theme/colors";
 import wallet from "@/messages/wallet.json";
 
@@ -8,23 +9,18 @@ const UNKNOWN_BALANCE = "—";
 export function BalanceCard({ balance }: { balance?: number }) {
   return (
     <View style={styles.card}>
+      <View style={styles.row}>
+        <Icon name="chip" size={18} color={colors.action} />
+        <Text style={styles.value}>{balance === undefined ? UNKNOWN_BALANCE : formatChips(balance)}</Text>
+      </View>
       <Text style={styles.label}>{wallet.balance}</Text>
-      <Text style={styles.value}>{balance === undefined ? UNKNOWN_BALANCE : formatChips(balance)}</Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  card: {
-    alignItems: "center",
-    backgroundColor: colors.felt,
-    backgroundImage: colors.feltGradient,
-    borderWidth: 4,
-    borderColor: colors.woodDark,
-    borderRadius: 14,
-    paddingVertical: 10,
-    paddingHorizontal: 28,
-  },
-  label: { color: colors.cream, fontSize: 14, fontWeight: "600" },
-  value: { color: colors.highlight, fontSize: 32, fontWeight: "700" },
+  card: { alignItems: "flex-end", gap: 2 },
+  row: { flexDirection: "row", alignItems: "center", gap: 6 },
+  value: { color: colors.text, fontSize: 19, fontWeight: "600", fontVariant: ["tabular-nums"] },
+  label: { color: colors.muted, fontSize: 11, fontWeight: "600" },
 });
