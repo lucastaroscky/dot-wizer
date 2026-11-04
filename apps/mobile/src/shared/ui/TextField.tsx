@@ -1,30 +1,37 @@
 import { StyleSheet, Text, TextInput, View, type TextInputProps } from "react-native";
 import { colors } from "@/shared/theme/colors";
+import { ErrorLine } from "./Notice";
 
 type Props = TextInputProps & { label: string; error?: string };
 
-export function TextField({ label, error, style, ...inputProps }: Props) {
+export function TextField({ label, error = "", style, ...inputProps }: Props) {
   return (
     <View style={styles.field}>
       <Text style={styles.label}>{label}</Text>
-      <TextInput {...inputProps} accessibilityLabel={label} placeholderTextColor={colors.placeholder} style={[styles.input, style]} />
-      {error && <Text style={styles.error}>{error}</Text>}
+      <TextInput
+        {...inputProps}
+        accessibilityLabel={label}
+        placeholderTextColor={colors.faint}
+        style={[styles.input, error !== "" && styles.inputError, style]}
+      />
+      <ErrorLine text={error} />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  field: { width: 280, gap: 6 },
-  label: { color: colors.woodText, fontSize: 16, fontWeight: "600" },
-  error: { color: colors.red, fontSize: 14 },
+  field: { alignSelf: "stretch", gap: 8 },
+  label: { color: colors.textSoft, fontSize: 14, fontWeight: "600" },
   input: {
-    backgroundColor: colors.cream,
-    borderWidth: 3,
-    borderColor: colors.woodDark,
-    borderRadius: 10,
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    color: colors.woodText,
-    fontSize: 18,
+    height: 54,
+    paddingHorizontal: 16,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: colors.surface,
+    color: colors.text,
+    fontSize: 16,
+    fontWeight: "500",
   },
+  inputError: { borderColor: colors.errorLine },
 });

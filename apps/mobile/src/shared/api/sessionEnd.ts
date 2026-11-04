@@ -2,9 +2,9 @@ import { useSyncExternalStore } from "react";
 import { supabase } from "@/shared/supabase/client";
 import errors from "@/messages/errors.json";
 
-type SessionEndReason = "expired" | "accountDisabled";
+export type SessionEndReason = "expired" | "accountDisabled";
 
-const REASON_TEXTS: Record<SessionEndReason, string> = {
+export const SESSION_END_TEXTS: Record<SessionEndReason, string> = {
   expired: errors.sessionExpired,
   accountDisabled: errors.accountDisabled,
 };
@@ -33,10 +33,6 @@ export function clearSessionEnd() {
   setReason(undefined);
 }
 
-export function useSessionEndText() {
-  const reason = useSyncExternalStore(subscribe, () => currentReason, () => undefined);
-  if (!reason) {
-    return "";
-  }
-  return REASON_TEXTS[reason];
+export function useSessionEndReason() {
+  return useSyncExternalStore(subscribe, () => currentReason, () => undefined);
 }

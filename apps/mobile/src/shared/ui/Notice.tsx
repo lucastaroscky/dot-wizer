@@ -1,0 +1,45 @@
+import type { ReactNode } from "react";
+import { StyleSheet, Text, View } from "react-native";
+import { colors } from "@/shared/theme/colors";
+import { Icon, type IconName } from "./Icon";
+
+type Tone = "neutral" | "danger" | "success";
+
+const TONES: Record<Tone, { icon: IconName; text: string; box: object }> = {
+  neutral: { icon: "info", text: colors.textSoft, box: { backgroundColor: colors.surface, borderColor: colors.line } },
+  danger: { icon: "alert", text: colors.dangerText, box: { backgroundColor: colors.dangerSurface, borderColor: colors.dangerLine } },
+  success: { icon: "check", text: colors.successText, box: { backgroundColor: colors.successSurface, borderColor: colors.successLine } },
+};
+
+type Props = { text: string; tone: Tone; icon?: IconName; children?: ReactNode };
+
+export function Notice({ text, tone, icon, children }: Props) {
+  const look = TONES[tone];
+  return (
+    <View accessibilityRole={tone === "danger" ? "alert" : "summary"} style={[styles.box, look.box]}>
+      <View style={styles.row}>
+        <Icon name={icon ?? look.icon} size={18} color={look.text} />
+        <Text style={[styles.text, { color: look.text }]}>{text}</Text>
+      </View>
+      {children}
+    </View>
+  );
+}
+
+export function ErrorLine({ text }: { text: string }) {
+  if (!text) {
+    return null;
+  }
+  return (
+    <View accessibilityRole="alert" style={styles.row}>
+      <Icon name="alert" size={17} color={colors.errorText} />
+      <Text style={[styles.text, { color: colors.errorText }]}>{text}</Text>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  box: { paddingVertical: 12, paddingHorizontal: 14, borderRadius: 14, borderWidth: 1, gap: 10 },
+  row: { flexDirection: "row", alignItems: "flex-start", gap: 10 },
+  text: { flex: 1, fontSize: 14, lineHeight: 20 },
+});
