@@ -16,7 +16,7 @@ type Props = { text: string; tone: Tone; icon?: IconName; children?: ReactNode }
 export function Notice({ text, tone, icon, children }: Props) {
   const look = TONES[tone];
   return (
-    <View accessibilityRole={tone === "danger" ? "alert" : "summary"} style={[styles.box, look.box]}>
+    <View accessibilityRole={tone === "danger" ? "alert" : undefined} style={[styles.box, look.box]}>
       <View style={styles.row}>
         <Icon name={icon ?? look.icon} size={18} color={look.text} />
         <Text style={[styles.text, { color: look.text }]}>{text}</Text>
