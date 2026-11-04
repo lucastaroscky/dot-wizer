@@ -15,6 +15,10 @@ function finalBalanceOf(player: MatchPlayerSummary) {
   return player.finalBalance === null ? NO_BALANCE : formatChips(player.finalBalance);
 }
 
+function paidAndReceived(player: MatchPlayerSummary) {
+  return `${match.history.paid} ${formatChips(player.paid)} · ${match.history.received.toLocaleLowerCase("pt-BR")} ${formatChips(player.received)}`;
+}
+
 function statsOf(player: MatchPlayerSummary) {
   return [
     { label: match.history.startBalance, value: formatChips(player.startBalance) },
@@ -73,9 +77,12 @@ export function MatchHistory({ matchId, userId, polling }: Props) {
       {others.map((player) => (
         <View key={player.userId} style={[styles.row, styles.other]}>
           <Avatar name={player.name ?? ""} size={30} />
-          <Text style={styles.otherName} numberOfLines={1}>
-            {player.name ?? ""}
-          </Text>
+          <View style={styles.otherText}>
+            <Text style={styles.otherName} numberOfLines={1}>
+              {player.name ?? ""}
+            </Text>
+            <Text style={styles.label}>{paidAndReceived(player)}</Text>
+          </View>
           <View style={styles.end}>
             <ChipsAmount value={player.result} style={styles.otherResult} />
             <Text style={styles.label}>
@@ -102,6 +109,7 @@ const styles = StyleSheet.create({
   stat: { width: "33.3%", gap: 2 },
   statValue: { color: colors.text, fontSize: 14, fontFamily: fonts.semibold, fontVariant: ["tabular-nums"] },
   other: { minHeight: 58, paddingVertical: 8, paddingHorizontal: 14, borderRadius: 18, borderWidth: 1, borderColor: "#1F2623", backgroundColor: colors.plate },
-  otherName: { flex: 1, color: colors.text, fontSize: 14, fontFamily: fonts.semibold },
+  otherText: { flex: 1, gap: 2 },
+  otherName: { color: colors.text, fontSize: 14, fontFamily: fonts.semibold },
   otherResult: { color: colors.text, fontSize: 15, fontFamily: fonts.bold, fontVariant: ["tabular-nums"] },
 });
