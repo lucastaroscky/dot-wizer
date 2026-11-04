@@ -1,7 +1,7 @@
 import { StyleSheet, Text, View } from "react-native";
 import type { Room } from "@colyseus/sdk";
 import type { PontinhoState } from "@pontinho/protocol";
-import { WoodButton } from "@/shared/ui/WoodButton";
+import { Button } from "@/shared/ui/Button";
 import { colors } from "@/shared/theme/colors";
 import match from "@/messages/match.json";
 import { sendAction } from "./messaging";
@@ -15,8 +15,12 @@ export function ReturnPrompt({ room, state }: Props) {
     <View style={styles.prompt}>
       <Text style={styles.title}>{match.returnPrompt.title}</Text>
       <View style={styles.actions}>
-        <WoodButton title={match.returnPrompt.back} onPress={() => sendAction(room, "chooseReturn", { back: true })} large />
-        <WoodButton title={match.returnPrompt.leave} onPress={() => sendAction(room, "chooseReturn", { back: false })} />
+        <View style={styles.action}>
+          <Button title={match.returnPrompt.back} onPress={() => sendAction(room, "chooseReturn", { back: true })} />
+        </View>
+        <View style={styles.action}>
+          <Button title={match.returnPrompt.leave} onPress={() => sendAction(room, "chooseReturn", { back: false })} variant="secondary" />
+        </View>
       </View>
       <TurnTimer duration={state.returnDuration} turnNumber={state.returnNumber} />
     </View>
@@ -24,7 +28,8 @@ export function ReturnPrompt({ room, state }: Props) {
 }
 
 const styles = StyleSheet.create({
-  prompt: { backgroundColor: "rgba(40, 14, 2, 0.18)", borderRadius: 12, padding: 14, gap: 10, alignItems: "center" },
-  title: { color: colors.woodText, fontSize: 18, fontWeight: "700", textAlign: "center" },
-  actions: { alignItems: "center", gap: 10 },
+  prompt: { paddingVertical: 18, paddingHorizontal: 16, gap: 12, borderRadius: 24, borderWidth: 1, borderColor: colors.action, backgroundColor: colors.surface },
+  title: { color: colors.text, fontSize: 18, fontWeight: "600" },
+  actions: { flexDirection: "row", gap: 10 },
+  action: { flex: 1 },
 });

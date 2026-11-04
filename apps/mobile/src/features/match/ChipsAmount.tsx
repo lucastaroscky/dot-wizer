@@ -9,6 +9,6 @@ export function ChipsAmount({ value, style }: Props) {
 }
 
 const styles = StyleSheet.create({
-  gain: { color: colors.felt },
-  loss: { color: colors.red },
+  gain: { color: colors.gain },
+  loss: { color: colors.loss },
 });

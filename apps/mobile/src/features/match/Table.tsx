@@ -126,7 +126,7 @@ export function Table({ room, state, onExit }: Props) {
 const styles = StyleSheet.create({
   table: { flex: 1, paddingHorizontal: 12, paddingTop: 8, paddingBottom: 4 },
   topBar: { height: 40, paddingHorizontal: 4, marginBottom: 14, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  tableTitle: { marginLeft: "auto", color: "#A9C9B5", fontSize: 13, fontWeight: "600", fontVariant: ["tabular-nums"] },
+  tableTitle: { marginLeft: "auto", color: colors.feltText, fontSize: 13, fontWeight: "600", fontVariant: ["tabular-nums"] },
   opponents: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between", gap: 8 },
   opponent: { alignItems: "center", gap: 4 },
   banner: { alignSelf: "center", marginTop: 12, paddingVertical: 10, paddingHorizontal: 18, borderRadius: 22, borderWidth: 1, borderColor: colors.action, backgroundColor: "rgba(5, 7, 6, 0.75)" },
@@ -134,7 +134,7 @@ const styles = StyleSheet.create({
   middle: { flex: 1, flexDirection: "row", paddingTop: 16 },
   felt: { flex: 1 },
   feltArea: { flex: 1, paddingTop: 70 },
-  status: { color: "#C3D6CA", fontSize: 13.5, lineHeight: 19, textAlign: "center", marginVertical: 8, marginHorizontal: 12 },
+  status: { color: colors.feltSoft, fontSize: 13.5, lineHeight: 19, textAlign: "center", marginVertical: 8, marginHorizontal: 12 },
   notice: { marginVertical: 4, marginHorizontal: 8, paddingVertical: 9, paddingHorizontal: 12, borderRadius: 14, backgroundColor: colors.text, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 },
   noticeText: { flexShrink: 1, color: colors.onAction, fontSize: 13.5, fontWeight: "600", lineHeight: 18, textAlign: "center" },
   me: { flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", paddingHorizontal: 4 },

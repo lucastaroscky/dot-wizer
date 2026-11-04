@@ -4,32 +4,33 @@ import type { Room } from "@colyseus/sdk";
 import { useRoomState } from "@colyseus/react";
 import type { PontinhoState } from "@pontinho/protocol";
 import { colors } from "@/shared/theme/colors";
-import { MatchAborted } from "./MatchAborted";
+import match from "@/messages/match.json";
+import { MatchEnd } from "./MatchEnd";
 import { useMatch } from "./MatchProvider";
 import { RoundSummary } from "./RoundSummary";
 import { Table } from "./Table";
 import { WaitingRoom } from "./WaitingRoom";
 
-export function Match() {
+export function Match({ userId }: { userId?: string }) {
   const { room, matchAborted, leave } = useMatch();
   usePreventRemove(room !== undefined, leave);
 
-  return <View style={styles.screen}>{room && <MatchRoom room={room} matchAborted={matchAborted} onExit={leave} />}</View>;
+  return <View style={styles.screen}>{room && <MatchRoom room={room} userId={userId} matchAborted={matchAborted} onExit={leave} />}</View>;
 }
 
-type Props = { room: Room<PontinhoState>; matchAborted: boolean; onExit: () => void };
+type Props = { room: Room<PontinhoState>; userId?: string; matchAborted: boolean; onExit: () => void };
 
-function MatchRoom({ room, matchAborted, onExit }: Props) {
+function MatchRoom({ room, userId, matchAborted, onExit }: Props) {
   const state = useRoomState(room);
 
   if (matchAborted) {
-    return <MatchAborted matchId={room.state.matchId} onExit={onExit} />;
+    return <MatchEnd matchId={room.state.matchId} userId={userId} aborted title={match.matchAborted} onExit={onExit} />;
   }
   if (!state?.order) {
     return null;
   }
   if (state.phase === "roundOver" || state.phase === "ended") {
-    return <RoundSummary room={room} state={state} onExit={onExit} />;
+    return <RoundSummary room={room} state={state} userId={userId} onExit={onExit} />;
   }
   if (state.phase === "playing") {
     return <Table room={room} state={state} onExit={onExit} />;

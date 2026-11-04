@@ -1,12 +1,18 @@
-import { StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 import type { MatchPlayerSummary } from "@pontinho/api-contract";
 import { formatChips } from "@/shared/format/numbers";
+import { Avatar } from "@/shared/ui/Avatar";
+import { Notice } from "@/shared/ui/Notice";
 import { colors } from "@/shared/theme/colors";
 import match from "@/messages/match.json";
 import { ChipsAmount } from "./ChipsAmount";
 import { useMatchHistory } from "./useMatchHistory";
 
 const NO_BALANCE = "—";
+
+function finalBalanceOf(player: MatchPlayerSummary) {
+  return player.finalBalance === null ? NO_BALANCE : formatChips(player.finalBalance);
+}
 
 function statsOf(player: MatchPlayerSummary) {
   return [
@@ -15,38 +21,65 @@ function statsOf(player: MatchPlayerSummary) {
     { label: match.history.received, value: formatChips(player.received) },
     { label: match.history.deficit, value: formatChips(player.deficit) },
     { label: match.history.winBonus, value: formatChips(player.winBonus) },
-    { label: match.history.finalBalance, value: player.finalBalance === null ? NO_BALANCE : formatChips(player.finalBalance) },
+    { label: match.history.finalBalance, value: finalBalanceOf(player) },
   ];
 }
 
-export function MatchHistory({ matchId, polling = true }: { matchId: string; polling?: boolean }) {
+type Props = { matchId: string; userId?: string; polling: boolean };
+
+export function MatchHistory({ matchId, userId, polling }: Props) {
   const { history, error } = useMatchHistory({ matchId, polling });
 
   if (error) {
-    return <Text style={styles.message}>{error}</Text>;
+    return <Notice text={error} tone="danger" />;
   }
   if (!history) {
-    return <Text style={styles.message}>{match.history.loading}</Text>;
+    return (
+      <View style={styles.loading}>
+        <ActivityIndicator size="small" color={colors.muted} />
+        <Text style={styles.loadingText}>{match.history.loading}</Text>
+      </View>
+    );
   }
+
+  const mine = history.players.find((player) => player.userId === userId);
+  const others = history.players.filter((player) => player !== mine);
+
   return (
     <View style={styles.history}>
-      <Text style={styles.title}>{match.history.title}</Text>
-      {history.players.map((player) => (
-        <View key={player.userId} style={styles.player}>
-          <View style={styles.header}>
-            <Text style={styles.name} numberOfLines={1}>
-              {player.name ?? ""}
+      {mine && (
+        <View style={styles.mine}>
+          <View style={styles.row}>
+            <Avatar name={mine.name ?? ""} size={34} />
+            <Text style={styles.mineName} numberOfLines={1}>
+              {mine.name ?? ""}
             </Text>
-            <Text style={styles.resultLabel}>{match.history.result}</Text>
-            <ChipsAmount value={player.result} style={styles.result} />
+            <View style={styles.end}>
+              <Text style={styles.label}>{match.history.result}</Text>
+              <ChipsAmount value={mine.result} style={styles.mineResult} />
+            </View>
           </View>
           <View style={styles.stats}>
-            {statsOf(player).map(({ label, value }) => (
+            {statsOf(mine).map(({ label, value }) => (
               <View key={label} style={styles.stat}>
-                <Text style={styles.statLabel}>{label}</Text>
+                <Text style={styles.label}>{label}</Text>
                 <Text style={styles.statValue}>{value}</Text>
               </View>
             ))}
+          </View>
+        </View>
+      )}
+      {others.map((player) => (
+        <View key={player.userId} style={[styles.row, styles.other]}>
+          <Avatar name={player.name ?? ""} size={30} />
+          <Text style={styles.otherName} numberOfLines={1}>
+            {player.name ?? ""}
+          </Text>
+          <View style={styles.end}>
+            <ChipsAmount value={player.result} style={styles.otherResult} />
+            <Text style={styles.label}>
+              {match.history.finalBalance} {finalBalanceOf(player)}
+            </Text>
           </View>
         </View>
       ))}
@@ -56,15 +89,18 @@ export function MatchHistory({ matchId, polling = true }: { matchId: string; pol
 
 const styles = StyleSheet.create({
   history: { gap: 8 },
-  message: { color: colors.woodText, fontSize: 14, textAlign: "center" },
-  title: { color: colors.woodText, fontSize: 18, fontWeight: "700", textAlign: "center" },
-  player: { backgroundColor: "rgba(40, 14, 2, 0.12)", borderRadius: 10, padding: 10, gap: 6 },
-  header: { flexDirection: "row", alignItems: "center", gap: 6 },
-  name: { flex: 1, color: colors.woodText, fontSize: 16, fontWeight: "700" },
-  resultLabel: { color: colors.woodText, fontSize: 13, opacity: 0.7 },
-  result: { fontSize: 18, fontWeight: "800" },
-  stats: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
-  stat: { minWidth: 76 },
-  statLabel: { color: colors.woodText, fontSize: 11, opacity: 0.7 },
-  statValue: { color: colors.woodText, fontSize: 14, fontWeight: "600" },
+  loading: { padding: 18, borderRadius: 20, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.surface, flexDirection: "row", alignItems: "center", gap: 10 },
+  loadingText: { color: colors.muted, fontSize: 15 },
+  mine: { padding: 16, gap: 14, borderRadius: 22, borderWidth: 1, borderColor: colors.lineStrong, backgroundColor: colors.surface },
+  row: { flexDirection: "row", alignItems: "center", gap: 10 },
+  mineName: { flex: 1, color: colors.text, fontSize: 15, fontWeight: "600" },
+  end: { alignItems: "flex-end" },
+  label: { color: colors.muted, fontSize: 11 },
+  mineResult: { color: colors.text, fontSize: 22, fontWeight: "600", fontVariant: ["tabular-nums"] },
+  stats: { flexDirection: "row", flexWrap: "wrap", rowGap: 10 },
+  stat: { width: "33.3%", gap: 2 },
+  statValue: { color: colors.text, fontSize: 14, fontWeight: "600", fontVariant: ["tabular-nums"] },
+  other: { minHeight: 58, paddingVertical: 8, paddingHorizontal: 14, borderRadius: 18, borderWidth: 1, borderColor: "#1F2623", backgroundColor: colors.plate },
+  otherName: { flex: 1, color: colors.text, fontSize: 14, fontWeight: "600" },
+  otherResult: { color: colors.text, fontSize: 15, fontWeight: "700", fontVariant: ["tabular-nums"] },
 });

@@ -1,18 +1,17 @@
-import { StyleSheet, Text, View } from "react-native";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import type { Room } from "@colyseus/sdk";
 import type { PontinhoState } from "@pontinho/protocol";
 import { Avatar } from "@/shared/ui/Avatar";
-import { WoodButton } from "@/shared/ui/WoodButton";
 import { colors } from "@/shared/theme/colors";
 import match from "@/messages/match.json";
 import { ChipsAmount } from "./ChipsAmount";
 import { ExitButton } from "./ExitButton";
-import { MatchHistory } from "./MatchHistory";
+import { MatchEnd } from "./MatchEnd";
 import { ReturnPrompt } from "./ReturnPrompt";
-import { SummaryBoard } from "./SummaryBoard";
-import { announcementText, hasChips, isSittingOut, needsExitConfirmation, type GameState } from "./state";
+import { announcementText, hasChips, isSittingOut, needsExitConfirmation, tableTitle, type GameState } from "./state";
 
-type Props = { room: Room<PontinhoState>; state: GameState; onExit: () => void };
+type Props = { room: Room<PontinhoState>; state: GameState; userId?: string; onExit: () => void };
 
 type Row = {
   sessionId: string;
@@ -51,70 +50,88 @@ function ranking(state: GameState) {
   }, []);
 }
 
-export function RoundSummary({ room, state, onExit }: Props) {
+export function RoundSummary({ room, state, userId, onExit }: Props) {
   const matchOver = state.phase === "ended";
   const playingWithBots = Object.values(state.players).some((player) => player.bot);
   const showChips = hasChips(state);
   const me = state.players[room.sessionId];
   const choosingReturn = me?.awaitingReturn === true;
 
+  if (matchOver && showChips) {
+    return <MatchEnd matchId={state.matchId} userId={userId} aborted={false} title={announcementText(state)} onExit={onExit} />;
+  }
+
   return (
-    <SummaryBoard title={announcementText(state)}>
-      <View style={styles.header}>
-        <Text style={[styles.headerText, styles.position]}>{match.summary.position}</Text>
-        <Text style={[styles.headerText, styles.name]}>{match.summary.player}</Text>
-        <Text style={[styles.headerText, styles.number]}>{match.summary.round}</Text>
-        <Text style={[styles.headerText, styles.number]}>{match.summary.total}</Text>
-        {showChips && <Text style={[styles.headerText, styles.number]}>{match.summary.chips}</Text>}
-      </View>
-      {ranking(state).map((row) => (
-        <View key={row.sessionId} style={[styles.row, row.sessionId === state.wentOut && styles.wentOutRow]}>
-          <Text style={[styles.cell, styles.position]}>{match.summary.place.replace("{position}", String(row.position))}</Text>
-          <View style={[styles.name, styles.player]}>
-            <Avatar name={row.name} size={28} photoUrl={row.photoUrl} />
-            <View>
-              <Text style={styles.cell} numberOfLines={1}>{row.name}</Text>
-              {row.sessionId === state.wentOut && <Text style={styles.badge}>{match.summary.wentOut}</Text>}
-              {row.eliminated && <Text style={styles.eliminated}>{match.summary.eliminated}</Text>}
-              {row.sittingOut && <Text style={styles.badge}>{match.sittingOut}</Text>}
-              {row.awaitingReturn && <Text style={styles.badge}>{match.summary.deciding}</Text>}
-            </View>
+    <SafeAreaView style={styles.container}>
+      <ScrollView contentContainerStyle={styles.content}>
+        <View style={styles.topBar}>
+          {(matchOver || playingWithBots || showChips) && (
+            <ExitButton title={showChips ? match.exit : match.back} confirm={!matchOver && showChips && needsExitConfirmation(me)} onExit={onExit} />
+          )}
+          <Text style={styles.tableTitle}>{tableTitle(state.table)}</Text>
+        </View>
+        <View style={styles.board}>
+          <Text accessibilityRole="header" style={styles.title}>
+            {announcementText(state)}
+          </Text>
+          <View style={styles.header}>
+            <Text style={[styles.headerText, styles.position]}>{match.summary.position}</Text>
+            <Text style={[styles.headerText, styles.name]}>{match.summary.player}</Text>
+            <Text style={[styles.headerText, styles.number]}>{match.summary.round}</Text>
+            <Text style={[styles.headerText, styles.number]}>{match.summary.total}</Text>
+            {showChips && <Text style={[styles.headerText, styles.chips]}>{match.summary.chips}</Text>}
           </View>
-          <Text style={[styles.cell, styles.number]}>+{row.roundPoints}</Text>
-          <Text style={[styles.cell, styles.number, styles.total]}>{row.points}</Text>
-          {showChips && <ChipsAmount value={row.roundChips} style={[styles.cell, styles.number]} />}
+          {ranking(state).map((row) => (
+            <View key={row.sessionId} style={[styles.row, row.sessionId === state.wentOut && styles.wentOutRow]}>
+              <Text style={[styles.place, styles.position]}>{match.summary.place.replace("{position}", String(row.position))}</Text>
+              <View style={[styles.name, styles.player]}>
+                <Avatar name={row.name} size={28} photoUrl={row.photoUrl} />
+                <View style={styles.name}>
+                  <Text style={styles.cell} numberOfLines={1}>
+                    {row.name}
+                  </Text>
+                  {row.sessionId === state.wentOut && <Text style={[styles.badge, styles.wentOut]}>{match.summary.wentOut}</Text>}
+                  {row.eliminated && <Text style={[styles.badge, styles.eliminated]}>{match.summary.eliminated}</Text>}
+                  {row.sittingOut && <Text style={styles.badge}>{match.sittingOut}</Text>}
+                  {row.awaitingReturn && <Text style={[styles.badge, styles.deciding]}>{match.summary.deciding}</Text>}
+                </View>
+              </View>
+              <Text style={[styles.cell, styles.number, styles.round]}>+{row.roundPoints}</Text>
+              <Text style={[styles.cell, styles.number, styles.total]}>{row.points}</Text>
+              {showChips && <ChipsAmount value={row.roundChips} style={[styles.cell, styles.chips]} />}
+            </View>
+          ))}
         </View>
-      ))}
-      {choosingReturn && <ReturnPrompt room={room} state={state} />}
-      {!matchOver && <Text style={styles.next}>{match.summary.nextRound}</Text>}
-      {matchOver && showChips && <MatchHistory matchId={state.matchId} />}
-      {(matchOver || playingWithBots) && (
-        <View style={styles.exit}>
-          <WoodButton title={match.back} onPress={onExit} />
-        </View>
-      )}
-      {!matchOver && showChips && (
-        <View style={styles.exit}>
-          <ExitButton title={match.exit} confirm={needsExitConfirmation(me)} onExit={onExit} />
-        </View>
-      )}
-    </SummaryBoard>
+        {choosingReturn && <ReturnPrompt room={room} state={state} />}
+        {!matchOver && <Text style={styles.next}>{match.summary.nextRound}</Text>}
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  header: { flexDirection: "row", alignItems: "center", paddingHorizontal: 10 },
-  headerText: { color: colors.woodText, fontSize: 13, fontWeight: "700", opacity: 0.7 },
-  row: { flexDirection: "row", alignItems: "center", paddingVertical: 8, paddingHorizontal: 10, borderRadius: 10, backgroundColor: "rgba(40, 14, 2, 0.12)" },
-  wentOutRow: { backgroundColor: "rgba(242, 201, 76, 0.55)", borderWidth: 2, borderColor: colors.highlight },
-  position: { width: 36 },
-  name: { flex: 1 },
+  container: { flex: 1 },
+  content: { flexGrow: 1, width: "100%", maxWidth: 520, alignSelf: "center", gap: 14, paddingHorizontal: 16, paddingTop: 8, paddingBottom: 28 },
+  topBar: { height: 40, flexDirection: "row", alignItems: "center" },
+  tableTitle: { marginLeft: "auto", color: colors.feltText, fontSize: 13, fontWeight: "600" },
+  board: { paddingTop: 20, paddingHorizontal: 14, paddingBottom: 16, gap: 6, borderRadius: 28, borderWidth: 1, borderColor: colors.line, backgroundColor: "rgba(10, 13, 12, 0.92)" },
+  title: { marginHorizontal: 4, marginBottom: 8, color: colors.text, fontSize: 21, lineHeight: 26, fontWeight: "600" },
+  header: { flexDirection: "row", alignItems: "center", paddingHorizontal: 8 },
+  headerText: { color: colors.optionMuted, fontSize: 11.5, fontWeight: "600" },
+  row: { minHeight: 54, paddingVertical: 6, paddingHorizontal: 8, flexDirection: "row", alignItems: "center", borderRadius: 14, borderWidth: 1, borderColor: "#1F2623", backgroundColor: colors.plate },
+  wentOutRow: { borderColor: colors.action, backgroundColor: colors.successSurface },
+  position: { width: 30 },
+  place: { color: colors.muted, fontSize: 12, fontWeight: "600" },
+  name: { flex: 1, minWidth: 0 },
   player: { flexDirection: "row", alignItems: "center", gap: 8 },
-  number: { width: 64, textAlign: "right" },
-  cell: { color: colors.woodText, fontSize: 16, fontWeight: "600" },
-  total: { fontWeight: "800" },
-  badge: { color: colors.woodDark, fontSize: 12, fontWeight: "800" },
-  eliminated: { color: colors.red, fontSize: 12, fontWeight: "700" },
-  next: { color: colors.woodText, fontSize: 14, textAlign: "center", marginTop: 8 },
-  exit: { alignItems: "center", marginTop: 8 },
+  number: { width: 50, textAlign: "right", fontVariant: ["tabular-nums"] },
+  chips: { width: 66, textAlign: "right", fontVariant: ["tabular-nums"] },
+  cell: { color: colors.text, fontSize: 14, fontWeight: "600" },
+  round: { color: colors.muted, fontWeight: "400" },
+  total: { fontWeight: "700" },
+  badge: { color: colors.muted, fontSize: 11, fontWeight: "600" },
+  wentOut: { color: colors.action },
+  eliminated: { color: colors.errorText },
+  deciding: { color: "#F2E6A6" },
+  next: { marginTop: "auto", color: colors.feltSoft, fontSize: 14, textAlign: "center" },
 });

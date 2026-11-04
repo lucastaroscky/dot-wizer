@@ -66,7 +66,7 @@ export function PlayerPlate({ name, photoUrl, points, eliminated = false, sittin
 }
 
 const styles = StyleSheet.create({
-  plate: { width: 112, padding: 8, gap: 7, borderRadius: 14, borderWidth: 1, borderColor: colors.line, backgroundColor: "#0E1512" },
+  plate: { width: 112, padding: 8, gap: 7, borderRadius: 14, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.plate },
   turn: { borderColor: colors.action },
   dimmed: { opacity: 0.45 },
   row: { flexDirection: "row", alignItems: "center", gap: 7 },
