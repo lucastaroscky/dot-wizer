@@ -18,7 +18,7 @@ export function useGoogleLogin(): GoogleLogin {
   const signIn = useMutation({ mutationFn: signInWithGoogle });
 
   return {
-    pending: signIn.isPending,
+    status: signIn.isPending ? "open" : "idle",
     error: signIn.isError ? auth.googleFailed : "",
     signIn: () => {
       clearSessionEnd();

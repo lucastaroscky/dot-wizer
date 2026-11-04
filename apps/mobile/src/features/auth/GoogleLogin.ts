@@ -1,1 +1,3 @@
-export type GoogleLogin = { pending: boolean; error: string; signIn: () => void };
+export type GoogleLoginStatus = "idle" | "open" | "checking";
+
+export type GoogleLogin = { status: GoogleLoginStatus; error: string; signIn: () => void };

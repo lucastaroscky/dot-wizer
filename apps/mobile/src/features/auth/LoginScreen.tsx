@@ -12,7 +12,7 @@ import { useGoogleLogin } from "./useGoogleLogin";
 
 type EmailLogin = ReturnType<typeof useEmailLogin>;
 
-function EmailStep({ login, google }: { login: EmailLogin; google?: GoogleLogin }) {
+function EmailStep({ login, google }: { login: EmailLogin; google: GoogleLogin }) {
   return (
     <View style={styles.form}>
       <TextField
@@ -27,7 +27,7 @@ function EmailStep({ login, google }: { login: EmailLogin; google?: GoogleLogin 
         onSubmitEditing={login.requestCode}
       />
       <WoodButton title={login.sending ? auth.sending : auth.sendCode} onPress={login.requestCode} disabled={!login.canRequestCode} large />
-      {google && <WoodButton title={auth.google} onPress={google.signIn} disabled={google.pending} />}
+      <WoodButton title={google.status === "checking" ? auth.checking : auth.google} onPress={google.signIn} disabled={google.status !== "idle"} />
     </View>
   );
 }
@@ -58,7 +58,7 @@ export function LoginScreen() {
   const sessionEndText = useSessionEndText();
 
   return (
-    <MenuScreen title={home.title} error={login.error || google?.error || sessionEndText}>
+    <MenuScreen title={home.title} error={login.error || google.error || sessionEndText}>
       {login.codeSent ? <CodeStep login={login} /> : <EmailStep login={login} google={google} />}
     </MenuScreen>
   );
