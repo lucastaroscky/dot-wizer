@@ -19,6 +19,7 @@ export type JoinRequest = CreateOptions & { cardStyle: CardStyleName };
 type MatchSession = {
   room?: Room<PontinhoState>;
   connecting: boolean;
+  reconnecting: boolean;
   error: string;
   matchAborted: boolean;
   openMatch: boolean;
@@ -37,6 +38,8 @@ type Entry = {
   onFailure?: (reason: unknown) => void;
 };
 
+const SEAT_HOLD_ATTEMPTS = 29;
+
 const client = new Client(SERVER_URL, { fetchFn: fetchWithTimeout });
 const MatchContext = createContext<MatchSession | undefined>(undefined);
 
@@ -53,13 +56,25 @@ export function MatchProvider({ children }: { children: ReactNode }) {
   const [cardStyle, setCardStyle] = useState<CardStyleName>("jumbo");
   const [error, setError] = useState("");
   const [connecting, setConnecting] = useState(false);
+  const [reconnecting, setReconnecting] = useState(false);
   const [openMatch, setOpenMatch] = useState<OpenMatch>();
   const [matchAborted, setMatchAborted] = useState(false);
   const joining = useRef(false);
 
   function watch(joined: Room<PontinhoState>, joinedCardStyle: CardStyleName) {
     keepSeatKey(joined, joinedCardStyle);
+    joined.reconnection.minUptime = 0;
+    joined.reconnection.maxRetries = SEAT_HOLD_ATTEMPTS;
+    joined.onDrop(() => setReconnecting(true));
+    joined.onReconnect(() => setReconnecting(false));
     joined.onLeave((code) => {
+      setReconnecting(false);
+      if (code === CloseCode.FAILED_TO_RECONNECT) {
+        forgetSeatKey();
+        setRoom(undefined);
+        setError(home.connectionClosed);
+        return;
+      }
       if (code === CloseCode.CONSENTED) {
         forgetSeatKey();
         return;
@@ -197,6 +212,7 @@ export function MatchProvider({ children }: { children: ReactNode }) {
       value={{
         room,
         connecting,
+        reconnecting,
         error,
         matchAborted,
         openMatch: openMatch !== undefined,

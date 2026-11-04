@@ -13,13 +13,13 @@ import { Table } from "./Table";
 import { WaitingRoom } from "./WaitingRoom";
 
 export function Match({ userId }: { userId?: string }) {
-  const { room, connecting, matchAborted, leave } = useMatch();
+  const { room, connecting, reconnecting, matchAborted, leave } = useMatch();
   usePreventRemove(room !== undefined, leave);
 
   return (
     <View style={styles.screen}>
       {room && <MatchRoom room={room} userId={userId} matchAborted={matchAborted} onExit={leave} />}
-      {room && connecting && (
+      {room && (reconnecting || connecting) && (
         <View style={styles.reconnecting}>
           <View accessibilityRole="alert" style={styles.reconnectingPill}>
             <ActivityIndicator size="small" color={colors.action} />
