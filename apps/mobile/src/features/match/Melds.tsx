@@ -60,6 +60,6 @@ function MeldColumn({ cards, highlighted, onPress, onView }: MeldColumnProps) {
 const styles = StyleSheet.create({
   melds: { flexDirection: "row", flexWrap: "wrap", justifyContent: "center", gap: 10 },
   meld: { alignItems: "center", padding: 2, borderRadius: 6, borderWidth: 2, borderColor: "transparent" },
-  highlight: { borderColor: colors.highlight },
+  highlight: { borderColor: colors.action },
   stacked: { marginTop: -(CARD_WIDTH * CARD_RATIO - VISIBLE_HEIGHT) },
 });

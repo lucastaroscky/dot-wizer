@@ -95,7 +95,7 @@ export function RoundSummary({ room, state, onExit }: Props) {
       )}
       {!matchOver && showChips && (
         <View style={styles.exit}>
-          <ExitButton confirm={needsExitConfirmation(me)} onExit={onExit} />
+          <ExitButton title={match.exit} confirm={needsExitConfirmation(me)} onExit={onExit} />
         </View>
       )}
     </SummaryBoard>

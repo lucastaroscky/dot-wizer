@@ -29,6 +29,6 @@ export function TurnTimer({ duration, turnNumber }: Props) {
 }
 
 const styles = StyleSheet.create({
-  track: { height: 6, width: "100%", backgroundColor: "rgba(0, 0, 0, 0.4)", borderRadius: 3, marginTop: 4, overflow: "hidden" },
-  bar: { height: 6, width: "100%", borderRadius: 3, backgroundColor: colors.action, transformOrigin: "left" },
+  track: { height: 2, width: "100%", backgroundColor: colors.line, borderRadius: 1, overflow: "hidden" },
+  bar: { height: 2, width: "100%", borderRadius: 1, backgroundColor: colors.action, transformOrigin: "left" },
 });

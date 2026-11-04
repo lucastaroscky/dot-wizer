@@ -1,22 +1,11 @@
 import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { CHIP_TABLES } from "@pontinho/rules";
-import { formatChips } from "@/shared/format/numbers";
 import { Avatar } from "@/shared/ui/Avatar";
 import { Button } from "@/shared/ui/Button";
 import { colors } from "@/shared/theme/colors";
-import lobby from "@/messages/lobby.json";
 import match from "@/messages/match.json";
-import { isOffline, type GameState } from "./state";
+import { isOffline, tableTitle, type GameState } from "./state";
 import { TurnTimer } from "./TurnTimer";
-
-function tableTitle(tableId: number) {
-  const table = CHIP_TABLES.find(({ id }) => id === tableId);
-  if (!table) {
-    return lobby.trainingHint;
-  }
-  return `${lobby.tableName.replace("{id}", String(table.id))} · ${lobby.pointValue.replace("{value}", formatChips(table.pointValue))}`;
-}
 
 type Props = { state: GameState; onExit: () => void };
 

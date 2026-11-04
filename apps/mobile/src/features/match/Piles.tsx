@@ -69,6 +69,6 @@ const styles = StyleSheet.create({
   stockLayer: { position: "absolute" },
   discard: { width: CARD_WIDTH, height: CARD_WIDTH * CARD_RATIO, marginTop: 4 },
   under: { position: "absolute", width: CARD_WIDTH, height: CARD_WIDTH * CARD_RATIO, borderRadius: CARD_WIDTH * 0.1, backgroundColor: "#F4F1EA", borderWidth: 1, borderColor: "#9A9A9A" },
-  empty: { width: CARD_WIDTH, height: CARD_WIDTH * CARD_RATIO, borderRadius: 5, borderWidth: 1, borderColor: colors.cream, borderStyle: "dashed" },
-  pulse: { ...StyleSheet.absoluteFill, borderRadius: CARD_WIDTH * 0.1, borderWidth: 3, borderColor: colors.highlight, margin: -4 },
+  empty: { width: CARD_WIDTH, height: CARD_WIDTH * CARD_RATIO, borderRadius: 5, borderWidth: 1, borderColor: "#3A6A4E", borderStyle: "dashed" },
+  pulse: { ...StyleSheet.absoluteFill, borderRadius: CARD_WIDTH * 0.1, borderWidth: 3, borderColor: colors.action, margin: -4 },
 });

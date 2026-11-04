@@ -6,7 +6,7 @@ import type { Room } from "@colyseus/sdk";
 import type { PontinhoState } from "@pontinho/protocol";
 import { cardById, handPoints } from "@pontinho/rules";
 import { colors } from "@/shared/theme/colors";
-import { WoodButton } from "@/shared/ui/WoodButton";
+import { Icon } from "@/shared/ui/Icon";
 import match from "@/messages/match.json";
 import type { TableAreas } from "./areas";
 import { CardFan } from "./CardFan";
@@ -17,7 +17,7 @@ import { Measured } from "./Measured";
 import { Melds } from "./Melds";
 import { Piles } from "./Piles";
 import { PlayerPlate } from "./PlayerPlate";
-import { announcementText, hasChips, isOffline, isSittingOut, needsExitConfirmation, type GameState } from "./state";
+import { announcementText, hasChips, isOffline, isSittingOut, needsExitConfirmation, tableTitle, type GameState } from "./state";
 import { useFlights } from "./useFlights";
 import { useTablePlay } from "./useTablePlay";
 
@@ -38,6 +38,12 @@ export function Table({ room, state, onExit }: Props) {
 
   return (
     <SafeAreaView style={styles.table}>
+      <View style={styles.topBar}>
+        {(playingWithBots || showChips) && (
+          <ExitButton title={showChips ? match.exit : match.back} confirm={showChips && needsExitConfirmation(me)} onExit={onExit} />
+        )}
+        <Text style={styles.tableTitle}>{tableTitle(state.table)}</Text>
+      </View>
       <View style={styles.opponents}>
         {opponents.map((sessionId) => {
           const player = state.players[sessionId];
@@ -48,7 +54,6 @@ export function Table({ room, state, onExit }: Props) {
                 name={player?.name ?? ""}
                 photoUrl={player?.photoUrl}
                 points={player?.points}
-                chips={showChips ? player?.chipsResult : undefined}
                 eliminated={player?.eliminated}
                 sittingOut={isSittingOut(player)}
                 offline={isOffline(player)}
@@ -88,54 +93,50 @@ export function Table({ room, state, onExit }: Props) {
         </Measured>
       </View>
 
-      <Text style={[styles.status, play.hasNotice && styles.notice]}>{play.status}</Text>
+      {play.hasNotice ? (
+        <View accessibilityRole="alert" style={styles.notice}>
+          <Icon name="alert" size={16} color={colors.onAction} />
+          <Text style={styles.noticeText}>{play.status}</Text>
+        </View>
+      ) : (
+        <Text style={styles.status}>{play.status}</Text>
+      )}
 
       <View style={styles.me}>
         <PlayerPlate
           name={me?.name ?? ""}
           photoUrl={me?.photoUrl}
           points={me?.points}
-          chips={showChips ? me?.chipsResult : undefined}
           sittingOut={isSittingOut(me)}
           isTurn={state.currentTurn === room.sessionId}
           turn={turn}
         />
+        <Text style={styles.handPoints}>{handPoints((me?.hand ?? []).map((card) => cardById(card.id)))}</Text>
       </View>
-
-      <Text style={styles.handPoints}>{handPoints((me?.hand ?? []).map((card) => cardById(card.id)))}</Text>
 
       <Measured onMeasure={(rect) => (areas.current.hand = rect)}>
         <Hand cards={me?.hand ?? []} selectedIds={play.selectedIds} onToggle={play.toggle} onDropOutside={play.dropOutside} />
       </Measured>
 
       <FlightLayer flights={flights} onLanded={land} />
-
-      {playingWithBots && (
-        <View style={styles.exit}>
-          <WoodButton title={match.back} onPress={onExit} />
-        </View>
-      )}
-      {showChips && (
-        <View style={styles.exit}>
-          <ExitButton confirm={needsExitConfirmation(me)} onExit={onExit} />
-        </View>
-      )}
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  table: { flex: 1, padding: 12 },
-  opponents: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-around", gap: 8 },
-  opponent: { alignItems: "center", gap: 2 },
-  banner: { alignSelf: "center", marginTop: 8, backgroundColor: "rgba(0, 0, 0, 0.45)", borderRadius: 8, paddingVertical: 6, paddingHorizontal: 14 },
-  bannerText: { color: colors.highlight, fontSize: 16, fontWeight: "600", textAlign: "center" },
+  table: { flex: 1, paddingHorizontal: 12, paddingTop: 8, paddingBottom: 4 },
+  topBar: { height: 40, paddingHorizontal: 4, marginBottom: 14, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  tableTitle: { marginLeft: "auto", color: "#A9C9B5", fontSize: 13, fontWeight: "600", fontVariant: ["tabular-nums"] },
+  opponents: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between", gap: 8 },
+  opponent: { alignItems: "center", gap: 4 },
+  banner: { alignSelf: "center", marginTop: 12, paddingVertical: 10, paddingHorizontal: 18, borderRadius: 22, borderWidth: 1, borderColor: colors.action, backgroundColor: "rgba(5, 7, 6, 0.75)" },
+  bannerText: { color: colors.text, fontSize: 17, fontWeight: "600", textAlign: "center" },
   middle: { flex: 1, flexDirection: "row", paddingTop: 16 },
   felt: { flex: 1 },
   feltArea: { flex: 1, paddingTop: 70 },
-  status: { color: colors.cream, fontSize: 14, textAlign: "center", marginVertical: 6 },
-  notice: { color: colors.highlight },
-  me: { flexDirection: "row", alignItems: "center" },
-  handPoints: { color: colors.cream, fontSize: 20, fontWeight: "800", textAlign: "center" },
-  exit: { position: "absolute", top: 12, left: 12 },
+  status: { color: "#C3D6CA", fontSize: 13.5, lineHeight: 19, textAlign: "center", marginVertical: 8, marginHorizontal: 12 },
+  notice: { marginVertical: 4, marginHorizontal: 8, paddingVertical: 9, paddingHorizontal: 12, borderRadius: 14, backgroundColor: colors.text, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 },
+  noticeText: { flexShrink: 1, color: colors.onAction, fontSize: 13.5, fontWeight: "600", lineHeight: 18, textAlign: "center" },
+  me: { flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", paddingHorizontal: 4 },
+  handPoints: { color: colors.onSelected, fontSize: 24, fontWeight: "600", fontVariant: ["tabular-nums"] },
 });

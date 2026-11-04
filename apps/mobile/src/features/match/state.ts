@@ -1,7 +1,9 @@
 import type { useRoomState } from "@colyseus/react";
 import { toAnnouncement, type PontinhoState } from "@pontinho/protocol";
-import { cardById } from "@pontinho/rules";
+import { CHIP_TABLES, cardById } from "@pontinho/rules";
+import { formatChips } from "@/shared/format/numbers";
 import type { CardView } from "@/shared/cards/Card";
+import lobby from "@/messages/lobby.json";
 import match from "@/messages/match.json";
 
 const TRAINING_TABLE = 0;
@@ -37,4 +39,12 @@ export function hasChips(state: { table: number }) {
 
 export function needsExitConfirmation(player?: { eliminated: boolean; sittingOut: boolean }) {
   return player?.eliminated !== true && !isSittingOut(player);
+}
+
+export function tableTitle(tableId: number) {
+  const table = CHIP_TABLES.find(({ id }) => id === tableId);
+  if (!table) {
+    return lobby.trainingHint;
+  }
+  return `${lobby.tableName.replace("{id}", String(table.id))} · ${lobby.pointValue.replace("{value}", formatChips(table.pointValue))}`;
 }
