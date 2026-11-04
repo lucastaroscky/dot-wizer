@@ -44,6 +44,7 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: 16,
     fontFamily: fonts.medium,
+    outlineStyle: "solid",
     outlineWidth: 0,
   },
   inputFocused: { borderColor: colors.action },
