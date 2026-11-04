@@ -322,6 +322,11 @@ function goOut(game: Game, player: GamePlayer, events: GameEvent[]) {
   return undefined;
 }
 
+export function returnPoints(players: readonly Pick<GamePlayer, "points" | "eliminated" | "awaitingReturn">[]) {
+  const staying = players.filter((candidate) => !candidate.eliminated && !candidate.awaitingReturn);
+  return Math.max(...staying.map((candidate) => candidate.points));
+}
+
 function chooseReturn(game: Game, player: GamePlayer, back: boolean, events: GameEvent[]) {
   if (game.phase !== "roundOver" || !player.awaitingReturn) {
     return "notAllowed";
@@ -333,8 +338,7 @@ function chooseReturn(game: Game, player: GamePlayer, back: boolean, events: Gam
     endMatchWhenNobodyIsLeftToPlay(game, events);
     return undefined;
   }
-  const staying = game.players.filter((candidate) => !candidate.eliminated && !candidate.awaitingReturn);
-  player.points = Math.max(...staying.map((candidate) => candidate.points));
+  player.points = returnPoints(game.players);
   player.awaitingReturn = false;
   events.push({ type: "returned", playerId: player.id, points: player.points });
   endMatchWhenNobodyIsLeftToPlay(game, events);
