@@ -2,7 +2,6 @@
   "birthDateLabel": "Data de nascimento",
   "birthDatePlaceholder": "DD/MM/AAAA",
   "invalidBirthDate": "Data inválida.",
-  "choosePhoto": "Escolher foto (opcional)",
   "changePhoto": "Trocar foto",
   "save": "Salvar",
   "saving": "Salvando…",
@@ -19,5 +18,19 @@
   "nicknameHint": "É o nome que aparece na mesa.",
   "confirmTitle": "Confira seus dados",
   "confirmWarning": "Depois de salvar, não dá para alterar.",
-  "fix": "Corrigir"
+  "fix": "Corrigir",
+  "editNickname": "Editar apelido",
+  "personalData": "Dados pessoais · não podem ser alterados",
+  "contact": "Contato",
+  "googleEmail": "Entrou com Google, o e-mail não muda",
+  "change": "Alterar",
+  "phoneLabel": "Celular",
+  "choosePhotoFromGallery": "Escolher da galeria",
+  "newEmailLabel": "Novo e-mail",
+  "emailChangeHint": "O e-mail só muda depois de confirmar o código.",
+  "confirmEmail": "Confirmar",
+  "deleteAccount": "Excluir conta",
+  "deleteTitle": "Excluir conta?",
+  "deleteMessage": "A conta é desativada e o extrato fica guardado.",
+  "cancel": "Cancelar"
 }

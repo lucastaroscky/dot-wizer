@@ -14,3 +14,7 @@ export function formatCpf(text: string) {
   }
   return `${groups}-${checkDigits}`;
 }
+
+export function maskCpf(cpf: string) {
+  return `${cpf.slice(0, 3)}.•••.•••-${cpf.slice(9)}`;
+}

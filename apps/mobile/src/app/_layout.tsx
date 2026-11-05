@@ -66,6 +66,7 @@ function Routes() {
         <Stack.Screen name="index" />
         <Stack.Screen name="lobby" />
         <Stack.Screen name="store" />
+        <Stack.Screen name="profile" />
         <Stack.Protected guard={room !== undefined}>
           <Stack.Screen name="match" options={{ gestureEnabled: false }} />
         </Stack.Protected>

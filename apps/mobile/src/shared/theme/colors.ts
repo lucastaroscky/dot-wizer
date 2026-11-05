@@ -4,6 +4,7 @@ export const colors = {
   surface: "#121715",
   option: "#1A201D",
   line: "#28302C",
+  divider: "#1F2623",
   lineStrong: "#3A4540",
   text: "#F1F4F2",
   textSoft: "#DDE3DF",
@@ -35,4 +36,5 @@ export const colors = {
   successText: "#DDF5A8",
   warningText: "#F2E6A6",
   brandDot: "#FF5A4E",
+  danger: "#C2353A",
 };

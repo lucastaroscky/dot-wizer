@@ -1,5 +1,6 @@
 import type { ApiErrorCode } from "@pontinho/api-contract";
 import errors from "./errors.json";
+import lobby from "./lobby.json";
 import wallet from "./wallet.json";
 
 export const API_ERROR_TEXTS = {
@@ -26,7 +27,7 @@ export const API_ERROR_TEXTS = {
   tableNotFound: errors.generic,
   playerNotFound: errors.generic,
   playerBelowMinimumBalance: errors.generic,
-  playerAlreadyInMatch: errors.generic,
+  playerAlreadyInMatch: lobby.openMatch,
   playerNotInMatch: errors.generic,
   matchAlreadyFinished: errors.generic,
   roundOutOfOrder: errors.generic,

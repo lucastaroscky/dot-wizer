@@ -1,6 +1,5 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Redirect, router } from "expo-router";
-import { useSignOut } from "@/features/auth/useSignOut";
 import { useMatch } from "@/features/match/MatchProvider";
 import { BalanceCard } from "@/features/wallet/BalanceCard";
 import { DailyBonus } from "@/features/wallet/DailyBonus";
@@ -14,13 +13,13 @@ import { Screen } from "@/shared/ui/Screen";
 import { colors } from "@/shared/theme/colors";
 import { fonts } from "@/shared/theme/fonts";
 import home from "@/messages/home.json";
+import lobby from "@/messages/lobby.json";
 
 export default function Menu() {
   const { room, error: matchError } = useMatch();
   const wallet = useWallet();
   const dailyBonus = useDailyBonus();
-  const signOut = useSignOut();
-  const error = matchError || dailyBonus.error || signOut.error;
+  const error = matchError || dailyBonus.error;
 
   if (room) {
     return <Redirect href="/match" />;
@@ -53,7 +52,7 @@ export default function Menu() {
         </View>
         <View style={styles.practiceText}>
           <Text style={styles.practiceTitle}>{home.play}</Text>
-          <Text style={styles.hint}>{home.practiceHint}</Text>
+          <Text style={styles.hint}>{lobby.trainingHint}</Text>
         </View>
         <Icon name="chevron" size={18} color={colors.faint} />
       </Pressable>
@@ -66,15 +65,16 @@ export default function Menu() {
           </View>
           <Icon name="chevron" size={18} color={colors.faint} />
         </Pressable>
+        <Pressable onPress={() => router.push("/profile")} accessibilityRole="button" style={({ pressed }) => [styles.listRow, styles.profileRow, pressed && styles.pressed]}>
+          <Icon name="person" size={22} color={colors.text} />
+          <Text style={[styles.listTitle, styles.listText]}>{home.profile}</Text>
+          <Icon name="chevron" size={18} color={colors.faint} />
+        </Pressable>
       </View>
       <View style={styles.soon}>
         <ComingSoon icon="book" title={home.howToPlay} />
         <ComingSoon icon="trophy" title={home.ranking} />
       </View>
-      <Pressable onPress={signOut.signOut} disabled={signOut.pending} accessibilityRole="button" style={styles.signOut}>
-        <Icon name="signOut" size={18} color={colors.muted} />
-        <Text style={styles.signOutText}>{home.signOut}</Text>
-      </Pressable>
     </Screen>
   );
 }
@@ -104,13 +104,12 @@ const styles = StyleSheet.create({
   practiceTitle: { color: colors.text, fontSize: 17, fontFamily: fonts.display },
   hint: { color: colors.muted, fontSize: 13, fontFamily: fonts.regular },
   list: { borderRadius: 20, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.surface },
-  listRow: { height: 66, paddingHorizontal: 16, flexDirection: "row", alignItems: "center", gap: 14 },
+  listRow: { height: 66, paddingHorizontal: 16, flexDirection: "row", alignItems: "center", gap: 14, borderBottomWidth: 1, borderBottomColor: colors.divider },
+  profileRow: { height: 58, borderBottomWidth: 0 },
   listText: { flex: 1, gap: 2 },
   listTitle: { color: colors.text, fontSize: 16, fontFamily: fonts.semibold },
   soon: { flexDirection: "row", gap: 12 },
   soonItem: { flex: 1, height: 48, paddingHorizontal: 14, borderRadius: 14, borderWidth: 1, borderStyle: "dashed", borderColor: colors.line, flexDirection: "row", alignItems: "center", gap: 8 },
   soonTitle: { flex: 1, color: colors.optionMuted, fontSize: 14, fontFamily: fonts.semibold },
   soonTag: { color: colors.optionMuted, fontSize: 11, fontFamily: fonts.regular },
-  signOut: { marginTop: "auto", alignSelf: "center", height: 44, paddingHorizontal: 18, flexDirection: "row", alignItems: "center", gap: 8 },
-  signOutText: { color: colors.muted, fontSize: 15, fontFamily: fonts.semibold },
 });

@@ -1,10 +1,11 @@
-import { Modal, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import { FULL_NAME_MAX_LENGTH, NICKNAME_MAX_LENGTH } from "@pontinho/api-contract";
 import { CPF_INPUT_LENGTH } from "@/shared/format/cpf";
 import { Button } from "@/shared/ui/Button";
 import { Icon } from "@/shared/ui/Icon";
 import { Notice } from "@/shared/ui/Notice";
 import { Screen } from "@/shared/ui/Screen";
+import { Sheet } from "@/shared/ui/Sheet";
 import { TextField } from "@/shared/ui/TextField";
 import { colors } from "@/shared/theme/colors";
 import { fonts } from "@/shared/theme/fonts";
@@ -53,24 +54,19 @@ export function ProfileSetupScreen() {
       <View style={styles.footer}>
         <Button title={profile.save} onPress={setup.review} disabled={!setup.canSave} />
       </View>
-      <Modal visible={setup.confirming} transparent animationType="slide" onRequestClose={setup.fix}>
-        <View style={styles.backdrop}>
-          <View accessibilityViewIsModal style={styles.sheet}>
-            <View style={styles.grabber} aria-hidden />
-            <Text accessibilityRole="header" style={styles.sheetTitle}>
-              {profile.confirmTitle}
-            </Text>
-            <View style={styles.summary}>
-              <SummaryLine label={profile.fullNameLabel} value={setup.fullName.trim()} />
-              <SummaryLine label={profile.cpfLabel} value={setup.cpfText} />
-              <SummaryLine label={profile.birthDateLabel} value={setup.birthDateText} />
-            </View>
-            <Text style={styles.warning}>{profile.confirmWarning}</Text>
-            <Button title={setup.saving ? profile.saving : profile.save} onPress={setup.submit} loading={setup.saving} />
-            <Button title={profile.fix} onPress={setup.fix} variant="secondary" disabled={setup.saving} />
-          </View>
+      <Sheet visible={setup.confirming} onClose={setup.fix}>
+        <Text accessibilityRole="header" style={styles.sheetTitle}>
+          {profile.confirmTitle}
+        </Text>
+        <View style={styles.summary}>
+          <SummaryLine label={profile.fullNameLabel} value={setup.fullName.trim()} />
+          <SummaryLine label={profile.cpfLabel} value={setup.cpfText} />
+          <SummaryLine label={profile.birthDateLabel} value={setup.birthDateText} />
         </View>
-      </Modal>
+        <Text style={styles.warning}>{profile.confirmWarning}</Text>
+        <Button title={setup.saving ? profile.saving : profile.save} onPress={setup.submit} loading={setup.saving} />
+        <Button title={profile.fix} onPress={setup.fix} variant="secondary" disabled={setup.saving} />
+      </Sheet>
     </Screen>
   );
 }
@@ -91,9 +87,6 @@ const styles = StyleSheet.create({
   field: { gap: 7 },
   hint: { color: colors.muted, fontSize: 12.5, fontFamily: fonts.medium },
   footer: { marginTop: "auto" },
-  backdrop: { flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(0, 0, 0, 0.62)" },
-  sheet: { gap: 14, paddingTop: 14, paddingHorizontal: 20, paddingBottom: 34, borderTopLeftRadius: 28, borderTopRightRadius: 28, borderTopWidth: 1, borderColor: colors.line, backgroundColor: colors.surface },
-  grabber: { alignSelf: "center", width: 40, height: 4, borderRadius: 2, backgroundColor: colors.lineStrong, marginBottom: 8 },
   sheetTitle: { color: colors.text, fontSize: 19, fontFamily: fonts.display },
   summary: { gap: 10 },
   summaryLine: { flexDirection: "row", justifyContent: "space-between", gap: 12 },

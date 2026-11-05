@@ -9,7 +9,7 @@ import { TextField } from "@/shared/ui/TextField";
 import { colors } from "@/shared/theme/colors";
 import { fonts } from "@/shared/theme/fonts";
 import auth from "@/messages/auth.json";
-import { CodeField } from "./CodeField";
+import { CodeField } from "@/shared/ui/CodeField";
 import type { GoogleLogin } from "./GoogleLogin";
 import { useEmailLogin } from "./useEmailLogin";
 import { useGoogleLogin } from "./useGoogleLogin";

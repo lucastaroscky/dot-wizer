@@ -8,6 +8,7 @@ import { fetchWithTimeout } from "./fetchWithTimeout";
 import { endSession } from "./sessionEnd";
 
 const TOO_MANY_REQUESTS_STATUS = 429;
+const NO_CONTENT_STATUS = 204;
 const errorCodeSchema = errorResponseSchema.pick({ code: true });
 
 type ApiErrorKind = "response" | "network" | "timeout";
@@ -27,7 +28,7 @@ export class ApiError extends Error {
   }
 }
 
-type RequestOptions = { method?: "GET" | "POST" | "PUT"; body?: unknown; headers?: Record<string, string> };
+type RequestOptions = { method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE"; body?: unknown; headers?: Record<string, string> };
 
 async function toApiError(response: Response) {
   const statusCode = response.status;
@@ -86,6 +87,9 @@ export async function request<Data>(path: string, { method = "GET", body, header
       await endSession(reason);
     }
     throw error;
+  }
+  if (response.status === NO_CONTENT_STATUS) {
+    return undefined as Data;
   }
   return (await response.json()) as Data;
 }
