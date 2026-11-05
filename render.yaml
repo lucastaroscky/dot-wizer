@@ -1,0 +1,48 @@
+envVarGroups:
+  - name: pontinho-shared
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: SERVICE_TOKEN
+        generateValue: true
+
+services:
+  - type: web
+    name: pontinho-api
+    runtime: node
+    plan: free
+    region: virginia
+    branch: main
+    autoDeployTrigger: checksPass
+    buildCommand: npm ci && npm run build --workspace @pontinho/api && npm run prisma:migrate:deploy --workspace @pontinho/api
+    startCommand: node apps/api/build/server.js
+    envVars:
+      - fromGroup: pontinho-shared
+      - key: NODE_ENV
+        value: staging
+      - key: DATABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: SUPABASE_URL
+        value: https://afxxnbapxslagtqpuiis.supabase.co
+      - key: CORS_ORIGINS
+        value: https://pontinho.vercel.app
+      - key: TRUST_PROXY
+        value: "true"
+      - key: PAYMENT_PROVIDER
+        value: test
+
+  - type: web
+    name: pontinho-game
+    runtime: node
+    plan: free
+    region: virginia
+    branch: main
+    autoDeployTrigger: checksPass
+    buildCommand: npm ci && npm run build --workspace @pontinho/game
+    startCommand: node apps/game/build/index.js
+    envVars:
+      - fromGroup: pontinho-shared
+      - key: API_URL
+        value: https://pontinho-api.onrender.com
