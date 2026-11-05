@@ -5,6 +5,9 @@ import { Client, CloseCode, ErrorCode, MatchMakeError, type Room } from "@colyse
 import { CLOSE_CODES, ROOM_NAME, type CreateOptions, type PontinhoState } from "@pontinho/protocol";
 import { getAccessToken } from "@/shared/api/client";
 import { fetchWithTimeout } from "@/shared/api/fetchWithTimeout";
+import { profileQueryOptions } from "@/shared/api/profile";
+import { queryClient } from "@/shared/api/queryClient";
+import { endSession } from "@/shared/api/sessionEnd";
 import { CardStyleContext, type CardStyleName } from "@/shared/cards/Card";
 import { DECK_IMAGES } from "@/shared/cards/deck";
 import { SERVER_URL } from "@/shared/config/env";
@@ -118,6 +121,14 @@ export function MatchProvider({ children }: { children: ReactNode }) {
     const failure = toJoinFailure(reason);
     if (failure.kind === "openMatch") {
       setOpenMatch({ reconnectionToken: failure.reconnectionToken });
+      return;
+    }
+    if (failure.kind === "sessionEnded") {
+      endSession(failure.reason);
+      return;
+    }
+    if (failure.kind === "profileIncomplete") {
+      queryClient.invalidateQueries({ queryKey: profileQueryOptions().queryKey });
       return;
     }
     setError(failure.text);

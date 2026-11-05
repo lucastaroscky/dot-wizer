@@ -1,9 +1,14 @@
 import { MatchMakeError } from "@colyseus/sdk";
 import { toJoinRefusal, toReconnectionToken } from "@pontinho/protocol";
+import type { SessionEndReason } from "@/shared/api/sessionEnd";
 import errors from "@/messages/errors.json";
 import home from "@/messages/home.json";
 
-type JoinFailure = { kind: "openMatch"; reconnectionToken?: string } | { kind: "refused"; text: string };
+type JoinFailure =
+  | { kind: "openMatch"; reconnectionToken?: string }
+  | { kind: "sessionEnded"; reason: SessionEndReason }
+  | { kind: "profileIncomplete" }
+  | { kind: "refused"; text: string };
 
 function isUnreachable(error: unknown) {
   if (error instanceof MatchMakeError) {
@@ -22,6 +27,15 @@ export function toJoinFailure(error: unknown): JoinFailure {
   const refusal = toJoinRefusal(error.message);
   if (refusal === "openMatch") {
     return { kind: "openMatch", reconnectionToken: toReconnectionToken(error.message) };
+  }
+  if (refusal === "invalidToken") {
+    return { kind: "sessionEnded", reason: "expired" };
+  }
+  if (refusal === "accountDisabled") {
+    return { kind: "sessionEnded", reason: "accountDisabled" };
+  }
+  if (refusal === "profileIncomplete") {
+    return { kind: "profileIncomplete" };
   }
   if (!refusal || refusal === "entryFailed") {
     return { kind: "refused", text: home.joinFailed };
