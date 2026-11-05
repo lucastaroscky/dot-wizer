@@ -1,4 +1,4 @@
-import { Fragment, useRef } from "react";
+import { Fragment, useRef, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Animated, { FadeInDown, FadeOut } from "react-native-reanimated";
@@ -27,6 +27,7 @@ type Props = { room: Room<PontinhoState>; state: GameState; onExit: () => void }
 
 export function Table({ room, state, onExit }: Props) {
   const areas = useRef<TableAreas>({ plates: {}, meldViews: [] });
+  const [feltHeight, setFeltHeight] = useState(0);
   const play = useTablePlay(room, state, areas);
   const { flights, land } = useFlights(room, areas);
 
@@ -93,10 +94,17 @@ export function Table({ room, state, onExit }: Props) {
             onDiscardView={(view) => (areas.current.discardView = view)}
             onStockMeasure={(rect) => (areas.current.stock = rect)}
           />
-          <Measured style={styles.felt} onMeasure={(rect) => (areas.current.table = rect)}>
+          <Measured
+            style={styles.felt}
+            onMeasure={(rect) => {
+              areas.current.table = rect;
+              setFeltHeight(rect.height - FELT_TOP_PADDING);
+            }}
+          >
             <Pressable style={styles.feltArea} onPress={play.pressTable}>
               <Melds
                 melds={state.melds}
+                height={feltHeight}
                 highlightIndex={play.jokerMeldIndex}
                 onMeldPress={play.pressMeld}
                 onMeldView={(index, view) => (areas.current.meldViews[index] = view)}
@@ -147,6 +155,7 @@ export function Table({ room, state, onExit }: Props) {
 }
 
 const NARROW_FAN_CARD_WIDTH = 14;
+const FELT_TOP_PADDING = 70;
 
 const styles = StyleSheet.create({
   table: { flex: 1, paddingHorizontal: 12, paddingTop: 8, paddingBottom: 4 },
@@ -160,7 +169,7 @@ const styles = StyleSheet.create({
   bannerText: { color: colors.text, fontSize: 17, fontFamily: fonts.display, textAlign: "center" },
   middle: { flex: 1, flexDirection: "row", paddingTop: 16 },
   felt: { flex: 1 },
-  feltArea: { flex: 1, paddingTop: 70 },
+  feltArea: { flex: 1, paddingTop: FELT_TOP_PADDING },
   status: { color: colors.feltSoft, fontSize: 13.5, fontFamily: fonts.regular, lineHeight: 19, textAlign: "center", marginVertical: 8, marginHorizontal: 12 },
   notice: { marginVertical: 4, marginHorizontal: 8, paddingVertical: 9, paddingHorizontal: 12, borderRadius: 14, backgroundColor: colors.text, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 },
   noticeText: { flexShrink: 1, color: colors.onAction, fontSize: 13.5, fontFamily: fonts.semibold, lineHeight: 18, textAlign: "center" },

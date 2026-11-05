@@ -8,6 +8,7 @@ const VISIBLE_HEIGHT = CARD_WIDTH * 0.68;
 
 type Props = {
   melds: readonly { kind: string; cards: readonly CardView[] }[];
+  height: number;
   highlightIndex?: number;
   onMeldPress: (index: number) => void;
   onMeldView: (index: number, view: HostInstance | null) => void;
@@ -27,13 +28,24 @@ function inDisplayOrder(meld: Props["melds"][number]) {
   return [...meld.cards].sort((a, b) => suitRank(a) - suitRank(b));
 }
 
-export function Melds({ melds, highlightIndex, onMeldPress, onMeldView }: Props) {
+const CARD_HEIGHT = CARD_WIDTH * CARD_RATIO;
+const COLUMN_FRAME = 8;
+
+function visibleHeightFor(cardCount: number, height: number) {
+  if (cardCount < 2 || height <= 0) {
+    return VISIBLE_HEIGHT;
+  }
+  return Math.min(VISIBLE_HEIGHT, (height - CARD_HEIGHT - COLUMN_FRAME) / (cardCount - 1));
+}
+
+export function Melds({ melds, height, highlightIndex, onMeldPress, onMeldView }: Props) {
   return (
     <View style={styles.melds}>
       {melds.map((meld, index) => (
         <MeldColumn
           key={index}
           cards={inDisplayOrder(meld)}
+          visibleHeight={visibleHeightFor(meld.cards.length, height)}
           highlighted={index === highlightIndex}
           onPress={() => onMeldPress(index)}
           onView={(view) => onMeldView(index, view)}
@@ -45,17 +57,18 @@ export function Melds({ melds, highlightIndex, onMeldPress, onMeldView }: Props)
 
 type MeldColumnProps = {
   cards: readonly CardView[];
+  visibleHeight: number;
   highlighted: boolean;
   onPress: () => void;
   onView: (view: HostInstance | null) => void;
 };
 
-function MeldColumn({ cards, highlighted, onPress, onView }: MeldColumnProps) {
+function MeldColumn({ cards, visibleHeight, highlighted, onPress, onView }: MeldColumnProps) {
   return (
     <Animated.View ref={onView} layout={LinearTransition.duration(250)} entering={FadeIn.duration(200)}>
       <Pressable onPress={onPress} style={[styles.meld, highlighted && styles.highlight]}>
         {cards.map((card, cardIndex) => (
-          <Animated.View key={card.id} layout={LinearTransition.duration(250)} style={cardIndex > 0 && styles.stacked}>
+          <Animated.View key={card.id} layout={LinearTransition.duration(250)} style={cardIndex > 0 && { marginTop: visibleHeight - CARD_HEIGHT }}>
             <Card card={card} width={CARD_WIDTH} />
           </Animated.View>
         ))}
@@ -68,5 +81,4 @@ const styles = StyleSheet.create({
   melds: { flexDirection: "row", flexWrap: "wrap", justifyContent: "center", gap: 10 },
   meld: { alignItems: "center", padding: 2, borderRadius: 6, borderWidth: 2, borderColor: "transparent" },
   highlight: { borderColor: colors.action },
-  stacked: { marginTop: -(CARD_WIDTH * CARD_RATIO - VISIBLE_HEIGHT) },
 });
