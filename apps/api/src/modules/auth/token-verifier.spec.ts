@@ -23,6 +23,22 @@ describe("TokenVerifier", () => {
     assert.deepStrictEqual(await verifier.verify({ token }), { userId, email: "ana@example.com" });
   });
 
+  it("accepts a token signed with the test login secret only when the secret is set", async () => {
+    const secret = "s".repeat(32);
+    const userId = randomUUID();
+    const token = await new SignJWT({ email: "qa1@pontinho.test" })
+      .setProtectedHeader({ alg: "HS256" })
+      .setSubject(userId)
+      .setIssuer(TEST_ISSUER)
+      .setAudience("authenticated")
+      .setExpirationTime("1h")
+      .sign(new TextEncoder().encode(secret));
+    const devVerifier = new TokenVerifier({ keySet: testKeySet, issuer: TEST_ISSUER, devLoginSecret: secret });
+
+    assert.deepStrictEqual(await devVerifier.verify({ token }), { userId, email: "qa1@pontinho.test" });
+    await assertRejected(token);
+  });
+
   it("rejects an expired token", async () => {
     await assertRejected(await signTestToken({ userId: randomUUID(), expiresIn: "-1h" }));
   });

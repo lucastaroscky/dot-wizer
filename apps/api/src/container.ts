@@ -45,7 +45,11 @@ interface BuildInput {
 
 function createAuth({ dependencies, repositories }: BuildInput): AuthService {
   const { env, keySet } = dependencies;
-  const tokenVerifier = new TokenVerifier({ keySet, issuer: supabaseIssuer({ supabaseUrl: env.SUPABASE_URL }) });
+  const tokenVerifier = new TokenVerifier({
+    keySet,
+    issuer: supabaseIssuer({ supabaseUrl: env.SUPABASE_URL }),
+    devLoginSecret: env.DEV_LOGIN_SECRET,
+  });
   return new AuthService({ tokenVerifier, usersRepository: repositories.users });
 }
 

@@ -40,6 +40,7 @@ const baseEnvSchema = z.object({
   PAYMENT_PROVIDER: z.enum(["test"]),
   CHIP_PRICE_CENTS: z.coerce.number().int().positive().default(100),
   MAX_CHIPS_PER_PURCHASE: z.coerce.number().int().positive().default(200_000),
+  DEV_LOGIN_SECRET: z.string().min(32).optional(),
 });
 
 interface PaymentProviderRuleInput {
@@ -54,10 +55,15 @@ function isPaymentProviderAllowed({ NODE_ENV, PAYMENT_PROVIDER }: PaymentProvide
   return PAYMENT_PROVIDER !== "test";
 }
 
-const envSchema = baseEnvSchema.refine(isPaymentProviderAllowed, {
-  path: ["PAYMENT_PROVIDER"],
-  message: "PAYMENT_PROVIDER test is not allowed in production",
-});
+const envSchema = baseEnvSchema
+  .refine(isPaymentProviderAllowed, {
+    path: ["PAYMENT_PROVIDER"],
+    message: "PAYMENT_PROVIDER test is not allowed in production",
+  })
+  .refine(({ NODE_ENV, DEV_LOGIN_SECRET }) => NODE_ENV !== "production" || DEV_LOGIN_SECRET === undefined, {
+    path: ["DEV_LOGIN_SECRET"],
+    message: "DEV_LOGIN_SECRET is not allowed in production",
+  });
 
 export type Env = z.infer<typeof envSchema>;
 

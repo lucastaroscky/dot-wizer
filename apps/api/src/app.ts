@@ -2,13 +2,14 @@ import Fastify from "fastify";
 import type { FastifyInstance } from "fastify";
 import { serializerCompiler, validatorCompiler } from "@fastify/type-provider-zod";
 import type { ZodTypeProvider } from "@fastify/type-provider-zod";
-import { createServices } from "./container.ts";
+import { createServices, supabaseIssuer } from "./container.ts";
 import type { AppDependencies, Services } from "./container.ts";
 import type { Env } from "./common/env/env.ts";
 import { registerErrorHandler } from "./common/errors/error-handler.ts";
 import { registerOpenApi } from "./common/openapi/openapi.ts";
 import { registerSecurity } from "./common/security/security.ts";
 import { createAuthenticateHook, decorateRequestWithAuth } from "./modules/auth/auth.hooks.ts";
+import { devLoginRoutes } from "./modules/auth/dev-login.routes.ts";
 import { createServiceTokenHook } from "./modules/auth/service-token.ts";
 import { internalRoutes } from "./modules/internal/internal.routes.ts";
 import { matchesRoutes } from "./modules/matches/matches.routes.ts";
@@ -41,6 +42,9 @@ function registerRoutes({ app, services, env }: RegisterRoutesInput): void {
     },
     { prefix: "/internal" },
   );
+  if (env.NODE_ENV === "development" && env.DEV_LOGIN_SECRET) {
+    typedApp.register(devLoginRoutes({ secret: env.DEV_LOGIN_SECRET, issuer: supabaseIssuer({ supabaseUrl: env.SUPABASE_URL }) }));
+  }
 }
 
 export async function buildApp(dependencies: AppDependencies): Promise<FastifyInstance> {

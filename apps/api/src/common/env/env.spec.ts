@@ -64,6 +64,19 @@ describe("loadEnv", () => {
     );
   });
 
+  it("refuses the test login secret in production", () => {
+    assert.throws(
+      () => loadEnv({ source: { ...validSource, NODE_ENV: "production", DEV_LOGIN_SECRET: "s".repeat(32) } }),
+      /DEV_LOGIN_SECRET/,
+    );
+  });
+
+  it("accepts the test login secret in development", () => {
+    const env = loadEnv({ source: { ...validSource, NODE_ENV: "development", DEV_LOGIN_SECRET: "s".repeat(32) } });
+
+    assert.strictEqual(env.DEV_LOGIN_SECRET, "s".repeat(32));
+  });
+
   it("accepts the test payment provider outside production", () => {
     for (const nodeEnv of ["development", "test"]) {
       const env = loadEnv({ source: { ...validSource, NODE_ENV: nodeEnv } });

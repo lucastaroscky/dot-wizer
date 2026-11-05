@@ -6,3 +6,4 @@ export * from "./wallet.ts";
 export * from "./store.ts";
 export * from "./matches.ts";
 export * from "./internal.ts";
+export * from "./dev-login.ts";
