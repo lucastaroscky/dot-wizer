@@ -137,5 +137,9 @@ export function setupServer() {
     return server.sdk.reconnect(reconnectionToken);
   }
 
-  return { api, connect, connectWith, createRoom, joinOrCreate, reconnect, startMatchWith };
+  function getTables(token?: string) {
+    return server.http.get("/tables", { headers: token ? { authorization: `Bearer ${token}` } : {} });
+  }
+
+  return { api, connect, connectWith, createRoom, getTables, joinOrCreate, reconnect, startMatchWith };
 }

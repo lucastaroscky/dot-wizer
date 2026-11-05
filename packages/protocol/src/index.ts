@@ -66,6 +66,11 @@ export const PontinhoState = schema({
 export type PontinhoState = SchemaType<typeof PontinhoState>;
 
 export const ROOM_NAME = "pontinho";
+export const TABLES_PATH = "/tables";
+
+export type SeatedPlayer = { nickname: string; photoUrl: string };
+export type TableListing = { table: number; players: SeatedPlayer[] };
+export type TablesResponse = { tables: TableListing[] };
 export { MIN_PLAYERS, ONLINE_MAX_PLAYERS as MAX_PLAYERS, TRAINING_MAX_PLAYERS } from "@pontinho/rules";
 export const PRACTICE_TABLE = 0;
 export const MAX_CARDS_PER_ACTION = 14;

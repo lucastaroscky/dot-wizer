@@ -105,6 +105,7 @@ export abstract class PontinhoRoom extends Room<{ state: PontinhoState; client: 
     }
     this.addPlayer(client.sessionId, auth.name, auth.photoUrl, false);
     this.userIds.set(client.sessionId, auth.id);
+    this.publishSeats();
 
     client.view = new StateView();
     const player = this.state.players.get(client.sessionId);
@@ -171,6 +172,7 @@ export abstract class PontinhoRoom extends Room<{ state: PontinhoState; client: 
   async onLeave(client: Client, code?: number) {
     if (!this.game) {
       this.removePlayer(client.sessionId);
+      this.publishSeats();
       if (this.state.players.size < MIN_PLAYERS) {
         this.stopCountdown();
       }
@@ -560,6 +562,14 @@ export abstract class PontinhoRoom extends Room<{ state: PontinhoState; client: 
     if (seat !== -1) {
       this.state.order.splice(seat, 1);
     }
+  }
+
+  private publishSeats() {
+    if (this.withBots) {
+      return;
+    }
+    const players = [...this.state.players.values()].map(({ name, photoUrl }) => ({ nickname: name, photoUrl }));
+    this.setMetadata({ ...this.metadata, players });
   }
 
   private addBots() {

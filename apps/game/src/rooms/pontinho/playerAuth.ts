@@ -53,7 +53,7 @@ function logEntryFailure(error: unknown) {
   log("Falha ao consultar o jogador na API:", describeFailure(error));
 }
 
-async function enter(gameApi: GameApi, accessToken: string, table: number | undefined) {
+export async function enter(gameApi: GameApi, accessToken: string, table: number | undefined) {
   try {
     return await gameApi.playerEntry({ accessToken, table });
   } catch (error) {
