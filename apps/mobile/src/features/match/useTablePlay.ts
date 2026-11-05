@@ -9,7 +9,7 @@ import { isSittingOut, wildOf, type GameState } from "./state";
 
 const DOUBLE_TAP_MS = 350;
 
-type JokerSwap = { cardId: string; meldIndex: number };
+type JokerSwap = { cardId: string; meldIndex: number; turnNumber: number };
 
 function isJokerSwap(state: GameState, meldIndex: number, cardId: string) {
   const meld = toMeld(state.melds[meldIndex]);
@@ -27,6 +27,7 @@ export function useTablePlay(room: Room<PontinhoState>, state: GameState, areas:
   useServerMessage(room, "invalid", (error) => showNotice(match.errors[error]));
 
   const noticeText = notice.turnNumber === state.turnNumber ? notice.text : "";
+  const activeJokerSwap = jokerSwap?.turnNumber === state.turnNumber ? jokerSwap : undefined;
   const me = state.players[room.sessionId];
   const isMyTurn = state.currentTurn === room.sessionId;
   const inPlay = me?.eliminated !== true && !isSittingOut(me);
@@ -61,7 +62,7 @@ export function useTablePlay(room: Room<PontinhoState>, state: GameState, areas:
       return;
     }
     if (cardIds.length === 1 && isJokerSwap(state, meldIndex, cardIds[0])) {
-      setJokerSwap({ cardId: cardIds[0], meldIndex });
+      setJokerSwap({ cardId: cardIds[0], meldIndex, turnNumber: state.turnNumber });
       setSelectedIds([]);
       showNotice("");
       return;
@@ -78,10 +79,10 @@ export function useTablePlay(room: Room<PontinhoState>, state: GameState, areas:
   }
 
   function placeJoker(meldIndex?: number) {
-    if (!jokerSwap) {
+    if (!activeJokerSwap) {
       return;
     }
-    play(() => sendAction(room, "layOff", { cardIds: [jokerSwap.cardId], meldIndex: jokerSwap.meldIndex, jokerTo: { meldIndex, cardIds: selectedIds } }));
+    play(() => sendAction(room, "layOff", { cardIds: [activeJokerSwap.cardId], meldIndex: activeJokerSwap.meldIndex, jokerTo: { meldIndex, cardIds: selectedIds } }));
   }
 
   function tapToGoOut() {
@@ -132,7 +133,7 @@ export function useTablePlay(room: Room<PontinhoState>, state: GameState, areas:
       tapToGoOut();
       return;
     }
-    if (jokerSwap) {
+    if (activeJokerSwap) {
       placeJoker();
       return;
     }
@@ -143,7 +144,7 @@ export function useTablePlay(room: Room<PontinhoState>, state: GameState, areas:
   }
 
   function pressMeld(meldIndex: number) {
-    if (jokerSwap) {
+    if (activeJokerSwap) {
       placeJoker(meldIndex);
       return;
     }
@@ -173,7 +174,7 @@ export function useTablePlay(room: Room<PontinhoState>, state: GameState, areas:
     if (noticeText) {
       return noticeText;
     }
-    if (jokerSwap) {
+    if (activeJokerSwap) {
       return match.status.placeJoker;
     }
     if (canGoOut) {
@@ -192,7 +193,7 @@ export function useTablePlay(room: Room<PontinhoState>, state: GameState, areas:
     selectedIds,
     hasNotice: noticeText !== "",
     status: status(),
-    jokerMeldIndex: jokerSwap?.meldIndex,
+    jokerMeldIndex: activeJokerSwap?.meldIndex,
     highlightDiscard: (isMyTurn && state.hasDrawn) || canGoOut,
     toggle,
     pressStock,
