@@ -21,6 +21,10 @@ export function requestPhotoUpload(body: PhotoUploadBody) {
   return request<PhotoUploadResponse>("/profile/photo-upload", { method: "POST", body });
 }
 
+export function registerPixKey() {
+  return request<ProfileResponse>("/profile/pix-key", { method: "PUT" });
+}
+
 export function deleteAccount() {
   return request<void>("/profile", { method: "DELETE" });
 }

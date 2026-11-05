@@ -18,6 +18,7 @@ export const API_ERROR_TEXTS = {
   profileNotFound: errors.generic,
   cpfAlreadyRegistered: errors.cpfAlreadyRegistered,
   registrationLocked: errors.generic,
+  registrationRequired: errors.generic,
   dailyBonusAlreadyClaimed: wallet.dailyBonusClaimed,
   insufficientBalance: errors.generic,
   quantityAboveMaximum: errors.quantityAboveMaximum,

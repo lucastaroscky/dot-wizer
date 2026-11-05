@@ -47,6 +47,12 @@ export function ChipStore({ quote, purchase }: Props) {
           {!quote.upToDate && quote.error === "" && <ActivityIndicator size="small" color={colors.muted} />}
         </View>
       </View>
+      <View style={styles.method}>
+        <Text style={styles.methodLabel}>{store.paymentMethod}</Text>
+        <View style={styles.pix}>
+          <Text style={styles.pixText}>{store.pix}</Text>
+        </View>
+      </View>
       <View style={styles.notice}>
         <Icon name="info" size={16} color={colors.textSoft} />
         <Text style={styles.noticeText}>{store.testNotice}</Text>
@@ -72,6 +78,10 @@ const styles = StyleSheet.create({
   quantity: { minWidth: 150, textAlign: "center", color: colors.text, fontSize: 36, fontFamily: fonts.display, fontVariant: ["tabular-nums"] },
   maximum: { marginTop: -8, color: colors.muted, fontSize: 13, fontFamily: fonts.regular },
   price: { color: colors.text, fontSize: 18, fontFamily: fonts.semibold },
+  method: { paddingHorizontal: 4, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  methodLabel: { color: colors.muted, fontSize: 13, fontFamily: fonts.semibold },
+  pix: { height: 36, paddingHorizontal: 14, borderRadius: 12, borderWidth: 1.5, borderColor: colors.onSelected, backgroundColor: colors.selected, justifyContent: "center" },
+  pixText: { color: colors.onSelected, fontSize: 14, fontFamily: fonts.bold },
   notice: { alignSelf: "center", height: 32, paddingHorizontal: 12, borderRadius: 16, borderWidth: 1, borderColor: colors.lineStrong, flexDirection: "row", alignItems: "center", gap: 8 },
   noticeText: { color: colors.textSoft, fontSize: 13, fontFamily: fonts.semibold },
   footer: { marginTop: "auto" },

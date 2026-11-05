@@ -57,7 +57,7 @@ export default function Menu() {
         <Icon name="chevron" size={18} color={colors.faint} />
       </Pressable>
       <View accessibilityRole="menu" style={styles.list}>
-        <Pressable onPress={() => router.push("/store")} accessibilityRole="button" style={({ pressed }) => [styles.listRow, pressed && styles.pressed]}>
+        <Pressable onPress={() => router.push("/payments")} accessibilityRole="button" style={({ pressed }) => [styles.listRow, pressed && styles.pressed]}>
           <Icon name="payments" size={22} color={colors.text} />
           <View style={styles.listText}>
             <Text style={styles.listTitle}>{home.payments}</Text>

@@ -3,7 +3,6 @@
   "play": "Jogar",
   "connectionClosed": "A conexão com a sala foi encerrada",
   "joinFailed": "Não foi possível entrar na sala",
-  "store": "Loja",
   "signOut": "Sair",
   "joinRefusals": {
     "alreadyInRoom": "Você já está em uma partida em outro aparelho.",

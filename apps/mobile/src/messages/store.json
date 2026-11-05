@@ -8,5 +8,16 @@
   "testNotice": "Teste: nada é cobrado",
   "back": "Voltar",
   "purchased": "Compra feita: {quantity} fichas.",
-  "maximumReached": "Máximo por compra"
+  "maximumReached": "Máximo por compra",
+  "buyChips": "Comprar fichas",
+  "pixOnly": "Só por Pix",
+  "paymentMethod": "Forma de pagamento",
+  "pix": "Pix",
+  "receivingAccount": "Conta para receber",
+  "receivingAccountMissing": "Cadastre a chave Pix do seu CPF",
+  "receivingAccountRegistered": "Chave Pix (CPF) {cpf}",
+  "pixKeyType": "Tipo de chave Pix",
+  "pixKey": "Chave Pix",
+  "withdrawNotice": "O saque vai só para a chave Pix do CPF do seu cadastro.",
+  "registerPixKey": "Cadastrar chave"
 }
