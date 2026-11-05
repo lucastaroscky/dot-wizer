@@ -10,6 +10,7 @@ import { colors } from "@/shared/theme/colors";
 import { fonts } from "@/shared/theme/fonts";
 import auth from "@/messages/auth.json";
 import { CodeField } from "./CodeField";
+import { DevLogin } from "./DevLogin";
 import type { GoogleLogin } from "./GoogleLogin";
 import { useEmailLogin } from "./useEmailLogin";
 import { useGoogleLogin } from "./useGoogleLogin";
@@ -78,6 +79,7 @@ export function LoginScreen() {
       </View>
       {sessionEnd && <Notice text={SESSION_END_TEXTS[sessionEnd]} tone={sessionEnd === "expired" ? "neutral" : "danger"} />}
       {login.codeSent ? <CodeStep login={login} /> : <EmailStep login={login} google={google} />}
+      {!login.codeSent && <DevLogin />}
     </Screen>
   );
 }

@@ -3,6 +3,7 @@ import { errorResponseSchema, type ApiErrorCode } from "@pontinho/api-contract";
 import { API_URL } from "@/shared/config/env";
 import { supabase } from "@/shared/supabase/client";
 import { API_ERROR_TEXTS } from "@/messages/apiErrors";
+import { currentDevLogin } from "./devLogin";
 import errors from "@/messages/errors.json";
 import { fetchWithTimeout } from "./fetchWithTimeout";
 import { endSession } from "./sessionEnd";
@@ -58,6 +59,10 @@ function toUnreachableError(reason: unknown) {
 }
 
 export async function getAccessToken() {
+  const devLogin = currentDevLogin();
+  if (devLogin) {
+    return devLogin.accessToken;
+  }
   const { data, error } = await supabase.auth.getSession();
   if (isAuthRetryableFetchError(error)) {
     throw new ApiError({ statusCode: 0, message: errors.unreachable, kind: "network" });

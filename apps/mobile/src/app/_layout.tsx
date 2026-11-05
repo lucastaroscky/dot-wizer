@@ -32,12 +32,12 @@ export default function RootLayout() {
 }
 
 function Routes() {
-  const { session } = useSession();
+  const { userId } = useSession();
   const { room } = useMatch();
-  const signedIn = Boolean(session);
+  const signedIn = Boolean(userId);
   const { profile, loading, failed, retry } = useProfile({ signedIn });
   const [fontsLoaded, fontsFailed] = useFonts({ Onest_400Regular, Onest_500Medium, Onest_600SemiBold, Onest_700Bold, Unbounded_600SemiBold });
-  const ready = session !== undefined && !loading && (fontsLoaded || fontsFailed !== null);
+  const ready = userId !== undefined && !loading && (fontsLoaded || fontsFailed !== null);
 
   useEffect(() => {
     if (ready) {
