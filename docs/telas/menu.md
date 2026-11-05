@@ -20,7 +20,7 @@ Código: `apps/mobile/src/app/index.tsx`, com `useWallet`, `useDailyBonus`, `Bal
 |---|---|
 | Jogar online | pré-sala (`/lobby`) |
 | Jogar | pré-sala (`/lobby`), até a parte 5 trazer o Ajuste da partida |
-| Pagamentos | loja (`/store`), até a parte 4 trazer a tela Pagamentos |
+| Pagamentos | [pagamentos](pagamentos.md) (`/payments`) |
 | Perfil | [perfil](perfil.md) (`/profile`), onde fica o Sair |
 
 Com uma sala aberta (`room` do `MatchProvider`), o menu manda direto para a mesa.
