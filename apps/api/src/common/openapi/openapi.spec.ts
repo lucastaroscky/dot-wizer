@@ -18,6 +18,8 @@ type Document = { paths: Record<string, Record<string, Operation>>; components?:
 const ROUTES = [
   "GET /profile",
   "POST /profile/registration",
+  "PATCH /profile",
+  "DELETE /profile",
   "POST /profile/photo-upload",
   "GET /wallet",
   "GET /wallet/entries",

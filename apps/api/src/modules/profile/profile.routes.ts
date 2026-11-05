@@ -4,7 +4,9 @@ import {
   photoUploadResponseSchema,
   profileResponseSchema,
   registrationBodySchema,
+  updateProfileBodySchema,
 } from "@pontinho/api-contract";
+import { z } from "zod";
 import { APP_SECURITY, appErrors, TAGS } from "../../common/openapi/route-docs.ts";
 import type { ProfileService } from "./profile.service.ts";
 
@@ -29,9 +31,30 @@ const registrationSchema = {
   },
 };
 
+const updateProfileSchema = {
+  summary: "Alterar apelido, celular ou foto",
+  description: "Muda só os campos enviados. Nome completo, CPF e data de nascimento não mudam aqui.",
+  tags: [TAGS.profile],
+  security: APP_SECURITY,
+  body: updateProfileBodySchema,
+  response: {
+    200: profileResponseSchema,
+    ...appErrors({ codes: ["validationFailed", "badRequest", "photoNotOwned"] }),
+  },
+};
+
+const deleteProfileSchema = {
+  summary: "Excluir a conta",
+  description:
+    "Desativa a conta e guarda a carteira e o extrato. O CPF continua preso à conta. Recusa quem está numa partida em andamento. Depois disso, o token da conta recebe `accountDisabled`.",
+  tags: [TAGS.profile],
+  security: APP_SECURITY,
+  response: { 204: z.null().describe("Conta desativada."), ...appErrors({ codes: ["playerAlreadyInMatch"] }) },
+};
+
 const photoUploadSchema = {
   summary: "Pedir a URL assinada para enviar a foto",
-  description: "Devolve o caminho e a URL assinada para enviar a foto ao armazenamento.",
+  description: "Depois do envio, mande o `path` em `photoPath` no `PATCH /profile`.",
   tags: [TAGS.profile],
   security: APP_SECURITY,
   body: photoUploadBodySchema,
@@ -44,6 +67,13 @@ export function profileRoutes({ service }: { service: ProfileService }): Fastify
     app.post("/profile/registration", { schema: registrationSchema }, (request) =>
       service.register({ userId: request.auth.userId, ...request.body }),
     );
+    app.patch("/profile", { schema: updateProfileSchema }, (request) =>
+      service.update({ userId: request.auth.userId, ...request.body }),
+    );
+    app.delete("/profile", { schema: deleteProfileSchema }, async (request, reply) => {
+      await service.deactivate({ userId: request.auth.userId });
+      return reply.status(204).send(null);
+    });
     app.post("/profile/photo-upload", { schema: photoUploadSchema }, (request) =>
       service.requestPhotoUpload({ userId: request.auth.userId, ...request.body }),
     );

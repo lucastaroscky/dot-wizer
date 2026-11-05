@@ -3,24 +3,30 @@ import { randomUUID } from "node:crypto";
 import { fake } from "../../../test/support/fake.ts";
 import type { UserRecord, UsersRepository } from "../users/repository/users.repository.ts";
 import type { AvatarStorage } from "./avatar-storage/avatar-storage.ts";
-import { ProfileService } from "./profile.service.ts";
+import type { UnitOfWork } from "../../common/database/database-client.ts";
+import { ProfileService, type ProfileTransaction } from "./profile.service.ts";
 
 const userId = randomUUID();
 const now = () => new Date("2026-11-02T12:00:00Z");
 const registration = { fullName: "Ana Souza Lima", cpf: "11144477735", birthDate: "1990-05-20", nickname: "Ana" };
 
 function userRecord(overrides: Partial<UserRecord> = {}): UserRecord {
-  return { id: userId, email: "ana@example.com", nickname: null, fullName: null, cpf: null, birthDate: null, photoPath: null, active: true, ...overrides };
+  return { id: userId, email: "ana@example.com", nickname: null, fullName: null, cpf: null, birthDate: null, phone: null, photoPath: null, active: true, ...overrides };
 }
 
 function buildService({ user = userRecord() } = {}) {
   const registrations: unknown[] = [];
+  const updates: unknown[] = [];
   const uploadPaths: string[] = [];
   const usersRepository = fake<UsersRepository>({
     findById: async () => user,
     register: async (input) => {
       registrations.push(input);
       return userRecord(input);
+    },
+    update: async ({ id, ...changes }) => {
+      updates.push({ id, ...changes });
+      return userRecord({ ...user, ...changes });
     },
   });
   const avatarStorage: AvatarStorage = {
@@ -30,7 +36,7 @@ function buildService({ user = userRecord() } = {}) {
     },
     publicUrl: ({ path }) => `https://storage.example.com/public/${path}`,
   };
-  return { service: new ProfileService({ usersRepository, avatarStorage, now }), registrations, uploadPaths };
+  return { service: new ProfileService({ usersRepository, avatarStorage, unitOfWork: fake<UnitOfWork<ProfileTransaction>>({}), now }), registrations, updates, uploadPaths };
 }
 
 describe("ProfileService", () => {
@@ -47,6 +53,7 @@ describe("ProfileService", () => {
         fullName: null,
         cpf: null,
         birthDate: null,
+        phone: null,
         photoUrl: null,
         complete: false,
       });
@@ -70,7 +77,7 @@ describe("ProfileService", () => {
 
     it("answers 404 when the user does not exist", async () => {
       const usersRepository = fake<UsersRepository>({ findById: async () => null });
-      const service = new ProfileService({ usersRepository, avatarStorage: fake<AvatarStorage>({}), now });
+      const service = new ProfileService({ usersRepository, avatarStorage: fake<AvatarStorage>({}), unitOfWork: fake<UnitOfWork<ProfileTransaction>>({}), now });
 
       await assert.rejects(service.get({ userId }), { statusCode: 404, code: "profileNotFound" });
     });
@@ -97,7 +104,7 @@ describe("ProfileService", () => {
     it("uses the Brasilia date, not the UTC date, to decide the age", async () => {
       const lateNightInBrasilia = () => new Date("2026-11-03T01:30:00Z");
       const usersRepository = fake<UsersRepository>({});
-      const service = new ProfileService({ usersRepository, avatarStorage: fake<AvatarStorage>({}), now: lateNightInBrasilia });
+      const service = new ProfileService({ usersRepository, avatarStorage: fake<AvatarStorage>({}), unitOfWork: fake<UnitOfWork<ProfileTransaction>>({}), now: lateNightInBrasilia });
 
       await assert.rejects(service.register({ userId, ...registration, birthDate: "2008-11-03" }), {
         statusCode: 422,
@@ -117,9 +124,46 @@ describe("ProfileService", () => {
 
     it("answers registrationLocked when the account already has a CPF", async () => {
       const usersRepository = fake<UsersRepository>({ register: async () => null });
-      const service = new ProfileService({ usersRepository, avatarStorage: fake<AvatarStorage>({}), now });
+      const service = new ProfileService({ usersRepository, avatarStorage: fake<AvatarStorage>({}), unitOfWork: fake<UnitOfWork<ProfileTransaction>>({}), now });
 
       await assert.rejects(service.register({ userId, ...registration }), { statusCode: 409, code: "registrationLocked" });
+    });
+  });
+
+  describe("update", () => {
+    it("changes the nickname and the phone", async () => {
+      const { service, updates } = buildService({ user: userRecord(registration) });
+
+      const profile = await service.update({ userId, nickname: "Aninha", phone: "51998765432" });
+
+      assert.deepStrictEqual(updates, [{ id: userId, nickname: "Aninha", phone: "51998765432", photoPath: undefined }]);
+      assert.strictEqual(profile.nickname, "Aninha");
+      assert.strictEqual(profile.phone, "51998765432");
+    });
+
+    it("saves a photo that was uploaded for this user", async () => {
+      const photoPath = `${userId}/${randomUUID()}.png`;
+      const { service, updates } = buildService();
+
+      await service.update({ userId, photoPath });
+
+      assert.deepStrictEqual(updates, [{ id: userId, nickname: undefined, phone: undefined, photoPath }]);
+    });
+
+    it("rejects a photo path that belongs to another user", async () => {
+      const { service, updates } = buildService();
+
+      await assert.rejects(service.update({ userId, photoPath: `${randomUUID()}/${randomUUID()}.png` }), {
+        statusCode: 422,
+        code: "photoNotOwned",
+      });
+      assert.deepStrictEqual(updates, []);
+    });
+
+    it("rejects a photo path that climbs out of the user folder", async () => {
+      const { service } = buildService();
+
+      await assert.rejects(service.update({ userId, photoPath: `${userId}/../${randomUUID()}/x.png` }), { statusCode: 422 });
     });
   });
 

@@ -10,6 +10,7 @@ import {
   quoteQuerySchema,
   registerRoundBodySchema,
   registrationBodySchema,
+  updateProfileBodySchema,
   isValidCpf,
   startMatchBodySchema,
   finishMatchBodySchema,
@@ -50,6 +51,19 @@ describe("api-contract", () => {
     assert.strictEqual(isValidCpf("11111111111"), false);
     assert.strictEqual(isValidCpf("1114447773"), false);
     assert.strictEqual(isValidCpf("111.444.777-35"), false);
+  });
+
+  it("accepts a cell phone with area code and the leading 9, in digits only", () => {
+    assert.strictEqual(updateProfileBodySchema.safeParse({ phone: "51998765432" }).success, true);
+    assert.strictEqual(updateProfileBodySchema.safeParse({ phone: "5198765432" }).success, false);
+    assert.strictEqual(updateProfileBodySchema.safeParse({ phone: "51898765432" }).success, false);
+    assert.strictEqual(updateProfileBodySchema.safeParse({ phone: "(51) 99876-5432" }).success, false);
+  });
+
+  it("changes only nickname, phone and photo in the profile", () => {
+    assert.deepStrictEqual(updateProfileBodySchema.parse({ nickname: "  Ana " }), { nickname: "Ana" });
+    assert.strictEqual(updateProfileBodySchema.safeParse({ fullName: "Outra" }).success, false);
+    assert.strictEqual(updateProfileBodySchema.safeParse({ nickname: "" }).success, false);
   });
 
   it("accepts only the 11 digits of a valid CPF in the registration", () => {

@@ -45,6 +45,9 @@ export class AuthService {
     if (!user.active) {
       throw new ApiError({ code: "accountDisabled" });
     }
-    return { userId: user.id, email: user.email };
+    if (user.email !== email) {
+      await this.usersRepository.updateEmail({ id: user.id, email });
+    }
+    return { userId: user.id, email };
   }
 }

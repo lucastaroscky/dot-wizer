@@ -1,6 +1,8 @@
 import assert from "node:assert";
+import { randomUUID } from "node:crypto";
 import { createTestApp } from "../../../test/support/test-app.ts";
 import type { TestApp } from "../../../test/support/test-app.ts";
+import { seedUser } from "../../../test/support/seed.ts";
 import { testPrisma } from "../../../test/support/test-database.ts";
 
 describe("profile routes", () => {
@@ -25,6 +27,7 @@ describe("profile routes", () => {
       fullName: null,
       cpf: null,
       birthDate: null,
+      phone: null,
       photoUrl: null,
       complete: false,
     });
@@ -191,7 +194,41 @@ describe("profile routes", () => {
     assert.strictEqual(longNickname.statusCode, 400);
   });
 
-  it("hands out an upload url inside the user folder", async () => {
+  function update(headers: { authorization: string }, payload: Record<string, unknown>) {
+    return testApp.app.inject({ method: "PATCH", url: "/profile", headers, payload });
+  }
+
+  it("changes the nickname and the phone without touching the registration", async () => {
+    const { headers } = await testApp.signIn();
+    await register(headers);
+
+    const nickname = await update(headers, { nickname: "  Aninha " });
+    const phone = await update(headers, { phone: "51998765432" });
+    const read = await testApp.app.inject({ method: "GET", url: "/profile", headers });
+
+    assert.strictEqual(nickname.statusCode, 200);
+    assert.strictEqual(phone.statusCode, 200);
+    assert.deepStrictEqual(phone.json(), read.json());
+    assert.strictEqual(read.json().nickname, "Aninha");
+    assert.strictEqual(read.json().phone, "51998765432");
+    assert.strictEqual(read.json().fullName, "Ana Souza Lima");
+    assert.strictEqual(read.json().cpf, "11144477735");
+  });
+
+  it("refuses to change the locked fields and a phone without the leading 9", async () => {
+    const { headers } = await testApp.signIn();
+    await register(headers);
+
+    const fullName = await update(headers, { fullName: "Outra Pessoa" });
+    const birthDate = await update(headers, { birthDate: "2000-01-01" });
+    const phone = await update(headers, { phone: "5198765432" });
+
+    assert.strictEqual(fullName.statusCode, 400);
+    assert.strictEqual(birthDate.statusCode, 400);
+    assert.strictEqual(phone.statusCode, 400);
+  });
+
+  it("hands out an upload url inside the user folder and later shows the photo url", async () => {
     const { userId, headers } = await testApp.signIn();
 
     const upload = await testApp.app.inject({
@@ -201,11 +238,60 @@ describe("profile routes", () => {
       payload: { contentType: "image/png" },
     });
     const { path, uploadUrl, token } = upload.json();
+    const saved = await update(headers, { photoPath: path });
 
     assert.strictEqual(upload.statusCode, 200);
     assert.match(path, new RegExp(`^${userId}/[0-9a-f-]{36}\\.png$`));
     assert.strictEqual(uploadUrl, `https://storage.example.com/upload/${path}`);
     assert.strictEqual(token, "upload-token");
+    assert.strictEqual(saved.json().photoUrl, `https://storage.example.com/public/${path}`);
+  });
+
+  it("refuses a photo that was uploaded to another user's folder", async () => {
+    const { headers } = await testApp.signIn();
+
+    const response = await update(headers, { photoPath: `${randomUUID()}/${randomUUID()}.png` });
+
+    assert.strictEqual(response.statusCode, 422);
+    assert.strictEqual(response.json().code, "photoNotOwned");
+  });
+
+  it("follows the e-mail of the token after it changes in Supabase", async () => {
+    const { userId, headers } = await testApp.signIn({ email: "ana@example.com" });
+    await testApp.app.inject({ method: "GET", url: "/profile", headers });
+    const changed = await testApp.signIn({ userId, email: "ana.nova@example.com" });
+
+    const read = await testApp.app.inject({ method: "GET", url: "/profile", headers: changed.headers });
+
+    assert.strictEqual(read.json().email, "ana.nova@example.com");
+  });
+
+  it("deactivates the account, keeps the wallet and refuses the next login", async () => {
+    const { userId, headers } = await testApp.signIn();
+    await register(headers);
+
+    const deleted = await testApp.app.inject({ method: "DELETE", url: "/profile", headers });
+    const next = await testApp.app.inject({ method: "GET", url: "/profile", headers });
+    const user = await testPrisma.user.findUniqueOrThrow({ where: { id: userId } });
+
+    assert.strictEqual(deleted.statusCode, 204);
+    assert.strictEqual(next.statusCode, 403);
+    assert.strictEqual(next.json().code, "accountDisabled");
+    assert.strictEqual(user.active, false);
+    assert.deepStrictEqual(user.deactivatedAt, testApp.clock.now);
+    assert.strictEqual(user.cpf, "11144477735");
+  });
+
+  it("refuses to delete an account that is in an open match", async () => {
+    const { userId, headers } = await testApp.signIn();
+    const playerIds = [await seedUser({ userId, balance: 5000 }), await seedUser({ balance: 5000 }), await seedUser({ balance: 5000 })];
+    await testApp.app.inject({ method: "POST", url: "/internal/matches", headers: testApp.serviceHeaders, payload: { table: 1, playerIds } });
+
+    const response = await testApp.app.inject({ method: "DELETE", url: "/profile", headers });
+
+    assert.strictEqual(response.statusCode, 409);
+    assert.strictEqual(response.json().code, "playerAlreadyInMatch");
+    assert.strictEqual((await testPrisma.user.findUniqueOrThrow({ where: { id: userId } })).active, true);
   });
 
   it("refuses to sign an upload for an unsupported content type", async () => {
@@ -226,6 +312,6 @@ describe("profile routes", () => {
 
     const response = await testApp.app.inject({ method: "GET", url: "/profile", headers });
 
-    assert.deepStrictEqual(Object.keys(response.json()).sort(), ["birthDate", "complete", "cpf", "email", "fullName", "id", "nickname", "photoUrl"]);
+    assert.deepStrictEqual(Object.keys(response.json()).sort(), ["birthDate", "complete", "cpf", "email", "fullName", "id", "nickname", "phone", "photoUrl"]);
   });
 });

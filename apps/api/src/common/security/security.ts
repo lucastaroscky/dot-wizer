@@ -14,7 +14,7 @@ interface RegisterSecurityInput {
 export async function registerSecurity({ app, env }: RegisterSecurityInput): Promise<void> {
   await app.register(cors, {
     origin: env.CORS_ORIGINS,
-    methods: ["GET", "POST", "PUT", "OPTIONS"],
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Authorization", "Content-Type", IDEMPOTENCY_KEY_HEADER],
   });
   await app.register(rateLimit, {

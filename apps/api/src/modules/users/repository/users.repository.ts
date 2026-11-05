@@ -9,6 +9,7 @@ const userSelect = {
   fullName: true,
   cpf: true,
   birthDate: true,
+  phone: true,
   photoPath: true,
   active: true,
 } satisfies Prisma.UserSelect;
@@ -22,6 +23,7 @@ export interface UserRecord {
   fullName: string | null;
   cpf: string | null;
   birthDate: string | null;
+  phone: string | null;
   photoPath: string | null;
   active: boolean;
 }
@@ -45,6 +47,23 @@ interface RegisterInput {
   cpf: string;
   birthDate: string;
   nickname: string;
+}
+
+interface UpdateInput {
+  id: string;
+  nickname?: string;
+  phone?: string;
+  photoPath?: string;
+}
+
+interface UpdateEmailInput {
+  id: string;
+  email: string;
+}
+
+interface DeactivateInput {
+  id: string;
+  deactivatedAt: Date;
 }
 
 interface LockByIdsInput {
@@ -91,6 +110,19 @@ export class UsersRepository {
       return null;
     }
     return this.findById({ id });
+  }
+
+  async update({ id, nickname, phone, photoPath }: UpdateInput): Promise<UserRecord> {
+    const row = await this.client.user.update({ where: { id }, data: { nickname, phone, photoPath }, select: userSelect });
+    return toRecord(row);
+  }
+
+  async updateEmail({ id, email }: UpdateEmailInput): Promise<void> {
+    await this.client.user.update({ where: { id }, data: { email } });
+  }
+
+  async deactivate({ id, deactivatedAt }: DeactivateInput): Promise<void> {
+    await this.client.user.update({ where: { id }, data: { active: false, deactivatedAt } });
   }
 
   async lockByIds({ ids }: LockByIdsInput): Promise<void> {

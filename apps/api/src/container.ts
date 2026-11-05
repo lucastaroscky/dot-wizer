@@ -88,6 +88,7 @@ export function createServices(dependencies: AppDependencies): Services {
   const profile = new ProfileService({
     usersRepository: repositories.users,
     avatarStorage: dependencies.avatarStorage,
+    unitOfWork,
     now,
   });
   const wallet = new WalletService({ walletRepository: repositories.wallet, now });

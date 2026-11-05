@@ -26,6 +26,11 @@ export const cpfSchema = z
 
 const nicknameSchema = z.string().trim().min(1).max(NICKNAME_MAX_LENGTH).describe("Apelido no jogo, de 1 a 20 caracteres. É o nome que aparece na mesa.");
 
+export const phoneSchema = z
+  .string()
+  .regex(/^\d{2}9\d{8}$/)
+  .describe("Celular com 11 dígitos, sem máscara: o DDD e o número com o 9 na frente.");
+
 export const profileResponseSchema = z.object({
   id: userIdSchema,
   email: z.string().describe("E-mail da conta, vindo do token do Supabase."),
@@ -33,6 +38,7 @@ export const profileResponseSchema = z.object({
   fullName: z.string().nullable().describe("Nome completo. Nulo até o cadastro, que trava o campo."),
   cpf: z.string().nullable().describe("CPF com os 11 dígitos. Só sai para a própria conta. Nulo até o cadastro, que trava o campo."),
   birthDate: isoDateSchema.nullable().describe("Data de nascimento. Nula até o cadastro, que trava o campo."),
+  phone: z.string().nullable().describe("Celular com 11 dígitos, ou nulo quando a conta não tem."),
   photoUrl: z.string().nullable().describe("URL pública da foto, ou nulo quando a conta não tem foto."),
   complete: z.boolean().describe("Verdadeiro quando a conta tem nome completo, CPF, data de nascimento e apelido."),
 });
@@ -46,13 +52,25 @@ export const registrationBodySchema = z.strictObject({
 });
 export type RegistrationBody = z.infer<typeof registrationBodySchema>;
 
+export const updateProfileBodySchema = z.strictObject({
+  nickname: nicknameSchema.optional(),
+  phone: phoneSchema.optional(),
+  photoPath: z
+    .string()
+    .min(1)
+    .max(200)
+    .optional()
+    .describe("Caminho devolvido por `POST /profile/photo-upload`, depois de enviar o arquivo."),
+});
+export type UpdateProfileBody = z.infer<typeof updateProfileBodySchema>;
+
 export const photoUploadBodySchema = z.strictObject({
   contentType: z.enum(AVATAR_CONTENT_TYPES).describe("Tipo do arquivo que será enviado."),
 });
 export type PhotoUploadBody = z.infer<typeof photoUploadBodySchema>;
 
 export const photoUploadResponseSchema = z.object({
-  path: z.string().describe("Caminho do arquivo no armazenamento; vai em `photoPath` ao salvar o perfil."),
+  path: z.string().describe("Caminho do arquivo no armazenamento; vai em `photoPath` no `PATCH /profile`."),
   uploadUrl: z.string().describe("URL assinada para enviar o arquivo."),
   token: z.string().describe("Token do envio (`uploadToSignedUrl` do Supabase)."),
 });

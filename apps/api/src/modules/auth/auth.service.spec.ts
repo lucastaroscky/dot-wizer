@@ -8,8 +8,9 @@ import type { TokenVerifier } from "./token-verifier.ts";
 
 const userId = randomUUID();
 
-function buildService({ active = true, verifyFails = false } = {}) {
+function buildService({ active = true, verifyFails = false, storedEmail = "" } = {}) {
   const upserts: { id: string; email: string }[] = [];
+  const emailUpdates: { id: string; email: string }[] = [];
   const tokenVerifier = fake<TokenVerifier>({
     verify: async ({ token }) => {
       if (verifyFails) {
@@ -21,10 +22,13 @@ function buildService({ active = true, verifyFails = false } = {}) {
   const usersRepository = fake<UsersRepository>({
     findOrCreate: async (input) => {
       upserts.push(input);
-      return { id: input.id, email: input.email, nickname: null, fullName: null, cpf: null, birthDate: null, photoPath: null, active };
+      return { id: input.id, email: storedEmail || input.email, nickname: null, fullName: null, cpf: null, birthDate: null, phone: null, photoPath: null, active };
+    },
+    updateEmail: async (input) => {
+      emailUpdates.push(input);
     },
   });
-  return { service: new AuthService({ tokenVerifier, usersRepository }), upserts };
+  return { service: new AuthService({ tokenVerifier, usersRepository }), upserts, emailUpdates };
 }
 
 describe("AuthService", () => {
@@ -35,6 +39,23 @@ describe("AuthService", () => {
 
     assert.deepStrictEqual(context, { userId, email: "ana@example.com" });
     assert.deepStrictEqual(upserts, [{ id: userId, email: "ana@example.com" }]);
+  });
+
+  it("keeps the e-mail of the account in step with the token after a change in Supabase", async () => {
+    const { service, emailUpdates } = buildService({ storedEmail: "old@example.com" });
+
+    const context = await service.authenticate({ authorization: "Bearer ana" });
+
+    assert.deepStrictEqual(context, { userId, email: "ana@example.com" });
+    assert.deepStrictEqual(emailUpdates, [{ id: userId, email: "ana@example.com" }]);
+  });
+
+  it("does not write the e-mail when it did not change", async () => {
+    const { service, emailUpdates } = buildService();
+
+    await service.authenticate({ authorization: "Bearer ana" });
+
+    assert.deepStrictEqual(emailUpdates, []);
   });
 
   it("accepts the Bearer scheme in any letter case", async () => {
