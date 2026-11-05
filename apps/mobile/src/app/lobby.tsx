@@ -25,7 +25,7 @@ export default function Lobby() {
 
   return (
     <Screen>
-      <ScreenHeader title={home.play} backLabel={lobby.back} onBack={goBack}>
+      <ScreenHeader title={home.playOnline} backLabel={lobby.back} onBack={goBack}>
         {!openMatch && <BalanceCard balance={balance} />}
       </ScreenHeader>
       {openMatch ? (

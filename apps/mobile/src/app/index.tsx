@@ -46,7 +46,7 @@ export default function Menu() {
           </View>
         </View>
       </Pressable>
-      <Pressable onPress={() => router.push("/lobby")} accessibilityRole="button" style={({ pressed }) => [styles.practice, pressed && styles.pressed]}>
+      <Pressable onPress={() => router.push("/training")} accessibilityRole="button" style={({ pressed }) => [styles.practice, pressed && styles.pressed]}>
         <View style={styles.practiceIcon}>
           <Icon name="bot" size={24} color={colors.text} />
         </View>

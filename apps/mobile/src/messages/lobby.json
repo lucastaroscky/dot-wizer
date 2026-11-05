@@ -4,10 +4,7 @@
   "tableName": "Mesa {id}",
   "minimumBalance": "Mín. {value}",
   "pointValue": "Ponto {value}",
-  "bots": "Jogar com robôs",
   "trainingHint": "Treino: sem fichas",
-  "yes": "Sim",
-  "no": "Não",
   "cards": "Cartas",
   "confirm": "OK",
   "connecting": "Conectando…",
@@ -20,5 +17,10 @@
     "zodiac": "Zodíaco",
     "cartoon": "Cartoon",
     "neon": "Neon"
-  }
+  },
+  "trainingTitle": "Ajuste da partida",
+  "joker": "Coringa",
+  "onlyBigJoker": "Só o coringão",
+  "withLifeJoker": "Também o coringa de vida",
+  "lifeJokerHint": "Uma carta virada no começo da rodada define os coringas dela."
 }

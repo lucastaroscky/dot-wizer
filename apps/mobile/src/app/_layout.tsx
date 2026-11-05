@@ -65,6 +65,7 @@ function Routes() {
       <Stack.Protected guard={signedIn && profileComplete}>
         <Stack.Screen name="index" />
         <Stack.Screen name="lobby" />
+        <Stack.Screen name="training" />
         <Stack.Screen name="store" />
         <Stack.Screen name="profile" />
         <Stack.Screen name="payments" />
