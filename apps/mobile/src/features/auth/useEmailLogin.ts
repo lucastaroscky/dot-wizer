@@ -1,11 +1,13 @@
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
+import { isAuthApiError, isAuthRetryableFetchError } from "@supabase/supabase-js";
 import { clearSessionEnd } from "@/shared/api/sessionEnd";
-import { authErrorText, type AuthTexts } from "@/shared/supabase/authErrors";
 import { supabase } from "@/shared/supabase/client";
-import { CODE_LENGTH } from "@/shared/ui/CodeField";
 import auth from "@/messages/auth.json";
 import errors from "@/messages/errors.json";
+
+export const CODE_LENGTH = 6;
+const NETWORK_FAILURE_STATUS = 0;
 
 async function sendEmailCode(email: string) {
   const { error } = await supabase.auth.signInWithOtp({ email });
@@ -19,6 +21,28 @@ async function verifyEmailCode({ email, code }: { email: string; code: string })
   if (error) {
     throw error;
   }
+}
+
+const AUTH_CODE_TEXTS: Record<string, string> = {
+  over_email_send_rate_limit: errors.tooManyRequests,
+  over_request_rate_limit: errors.tooManyRequests,
+  otp_expired: auth.invalidCode,
+  email_address_invalid: auth.sendFailed,
+};
+
+type AuthTexts = { fallback: string; serverFailure: string };
+
+function authErrorText(error: Error | null, { fallback, serverFailure }: AuthTexts) {
+  if (!error) {
+    return "";
+  }
+  if (isAuthRetryableFetchError(error)) {
+    return error.status === NETWORK_FAILURE_STATUS ? errors.unreachable : serverFailure;
+  }
+  if (!isAuthApiError(error) || !error.code) {
+    return fallback;
+  }
+  return AUTH_CODE_TEXTS[error.code] ?? fallback;
 }
 
 const SEND_TEXTS: AuthTexts = { fallback: auth.sendFailed, serverFailure: auth.sendFailed };

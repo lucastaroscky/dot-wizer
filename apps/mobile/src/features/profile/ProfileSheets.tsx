@@ -1,17 +1,13 @@
 import { useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
-import { NICKNAME_MAX_LENGTH } from "@pontinho/api-contract";
+import { NICKNAME_MAX_LENGTH, phoneSchema } from "@pontinho/api-contract";
 import { Button } from "@/shared/ui/Button";
-import { CodeField } from "@/shared/ui/CodeField";
 import { ErrorLine } from "@/shared/ui/Notice";
 import { TextField } from "@/shared/ui/TextField";
 import { colors } from "@/shared/theme/colors";
 import { fonts } from "@/shared/theme/fonts";
-import auth from "@/messages/auth.json";
 import lobby from "@/messages/lobby.json";
 import profile from "@/messages/profile.json";
-import { formatPhone, isValidPhone, PHONE_INPUT_LENGTH, phoneDigits } from "./phone";
-import type { useEmailChange } from "./useEmailChange";
 
 type SaveProps = { saving: boolean; error: string };
 
@@ -51,9 +47,8 @@ export function NicknameSheet({ current, saving, error, onSave }: SaveProps & { 
 }
 
 export function PhoneSheet({ current, saving, error, onSave }: SaveProps & { current: string; onSave: (phone: string) => void }) {
-  const [phoneText, setPhoneText] = useState(formatPhone(current));
-  const phone = phoneDigits(phoneText);
-  const canSave = isValidPhone(phone) && !saving;
+  const [phone, setPhone] = useState(current);
+  const canSave = phoneSchema.safeParse(phone).success && !saving;
 
   function save() {
     if (!canSave) {
@@ -66,48 +61,16 @@ export function PhoneSheet({ current, saving, error, onSave }: SaveProps & { cur
     <>
       <TextField
         label={profile.phoneLabel}
-        value={phoneText}
-        onChangeText={(text) => setPhoneText(formatPhone(text))}
-        keyboardType="phone-pad"
-        maxLength={PHONE_INPUT_LENGTH}
+        value={phone}
+        onChangeText={setPhone}
+        keyboardType="number-pad"
+        maxLength={11}
         autoComplete="tel"
         onSubmitEditing={save}
         autoFocus
       />
       <ErrorLine text={error} />
       <Button title={saving ? profile.saving : profile.save} onPress={save} disabled={!canSave} loading={saving} />
-    </>
-  );
-}
-
-export function EmailSheet({ change }: { change: ReturnType<typeof useEmailChange> }) {
-  if (change.codeSent) {
-    return (
-      <>
-        <Text style={styles.message}>{auth.codeSentTo.replace("{email}", change.email.trim())}</Text>
-        <CodeField value={change.code} onChange={change.setCode} onSubmit={change.confirmCode} invalid={change.error !== ""} />
-        <ErrorLine text={change.error} />
-        <Button title={change.checking ? auth.checking : profile.confirmEmail} onPress={change.confirmCode} disabled={!change.canConfirmCode} loading={change.checking} />
-        <Button title={auth.changeEmail} onPress={change.changeEmail} variant="plain" disabled={change.checking} />
-      </>
-    );
-  }
-  return (
-    <>
-      <TextField
-        label={profile.newEmailLabel}
-        value={change.email}
-        onChangeText={change.setEmail}
-        placeholder={auth.emailPlaceholder}
-        keyboardType="email-address"
-        autoCapitalize="none"
-        autoComplete="email"
-        onSubmitEditing={change.requestCode}
-        autoFocus
-      />
-      <Text style={styles.hint}>{profile.emailChangeHint}</Text>
-      <ErrorLine text={change.error} />
-      <Button title={change.sending ? auth.sending : auth.sendCode} onPress={change.requestCode} disabled={!change.canRequestCode} loading={change.sending} />
     </>
   );
 }

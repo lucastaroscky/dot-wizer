@@ -3,8 +3,7 @@ import { StyleSheet, Text, TextInput, View } from "react-native";
 import { colors } from "@/shared/theme/colors";
 import { fonts } from "@/shared/theme/fonts";
 import auth from "@/messages/auth.json";
-
-export const CODE_LENGTH = 6;
+import { CODE_LENGTH } from "./useEmailLogin";
 
 type Props = { value: string; onChange: (code: string) => void; onSubmit: () => void; invalid: boolean };
 

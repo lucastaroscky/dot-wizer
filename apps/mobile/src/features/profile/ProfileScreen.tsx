@@ -19,27 +19,24 @@ import lobby from "@/messages/lobby.json";
 import profileMessages from "@/messages/profile.json";
 import wallet from "@/messages/wallet.json";
 import { toBirthDateInput } from "./birthDate";
-import { formatPhone } from "./phone";
-import { DeleteSheet, EmailSheet, NicknameSheet, PhoneSheet, PhotoSheet } from "./ProfileSheets";
+import { DeleteSheet, NicknameSheet, PhoneSheet, PhotoSheet } from "./ProfileSheets";
 import { useDeleteAccount } from "./useDeleteAccount";
-import { useEmailChange } from "./useEmailChange";
 import { useProfileUpdate } from "./useProfileUpdate";
 
 const UNKNOWN = "—";
 
-type SheetName = "photo" | "nickname" | "phone" | "email" | "delete";
+type SheetName = "photo" | "nickname" | "phone" | "delete";
 
 type SignOut = { signOut: () => void; pending: boolean; error: string };
 
-type Props = { balance?: number; canChangeEmail: boolean; signOut: SignOut };
+type Props = { balance?: number; signOut: SignOut };
 
-export function ProfileScreen({ balance, canChangeEmail, signOut }: Props) {
+export function ProfileScreen({ balance, signOut }: Props) {
   const query = useQuery(profileQueryOptions());
   const profile = query.data;
   const [sheet, setSheet] = useState<SheetName>();
   const closeSheet = () => setSheet(undefined);
   const update = useProfileUpdate({ onSaved: closeSheet });
-  const emailChange = useEmailChange({ onChanged: closeSheet });
   const deletion = useDeleteAccount();
 
   function close() {
@@ -54,7 +51,6 @@ export function ProfileScreen({ balance, canChangeEmail, signOut }: Props) {
 
   function open(name: SheetName) {
     update.reset();
-    emailChange.reset();
     deletion.reset();
     setSheet(name);
   }
@@ -106,13 +102,8 @@ export function ProfileScreen({ balance, canChangeEmail, signOut }: Props) {
           </View>
           <View style={styles.box}>
             <Text style={[styles.boxTitle, styles.boxTitleRow]}>{profileMessages.contact}</Text>
-            <ContactLine
-              label={auth.emailLabel}
-              value={profile.email}
-              note={canChangeEmail ? "" : profileMessages.googleEmail}
-              onChange={canChangeEmail ? () => open("email") : undefined}
-            />
-            <ContactLine label={profileMessages.phoneLabel} value={profile.phone ? formatPhone(profile.phone) : UNKNOWN} onChange={() => open("phone")} last />
+            <ContactLine label={auth.emailLabel} value={profile.email} />
+            <ContactLine label={profileMessages.phoneLabel} value={profile.phone ?? UNKNOWN} onChange={() => open("phone")} last />
           </View>
         </>
       )}
@@ -129,7 +120,6 @@ export function ProfileScreen({ balance, canChangeEmail, signOut }: Props) {
         {sheet === "photo" && <PhotoSheet onPick={choosePhoto} onClose={close} />}
         {sheet === "nickname" && <NicknameSheet current={profile?.nickname ?? ""} saving={update.saving} error={update.error} onSave={(nickname) => update.save({ nickname })} />}
         {sheet === "phone" && <PhoneSheet current={profile?.phone ?? ""} saving={update.saving} error={update.error} onSave={(phone) => update.save({ phone })} />}
-        {sheet === "email" && <EmailSheet change={emailChange} />}
         {sheet === "delete" && <DeleteSheet deleting={deletion.pending} error={deletion.error} onDelete={deletion.remove} onCancel={close} />}
       </Sheet>
     </Screen>
@@ -145,9 +135,9 @@ function DataLine({ label, value, last = false }: { label: string; value: string
   );
 }
 
-type ContactLineProps = { label: string; value: string; note?: string; onChange?: () => void; last?: boolean };
+type ContactLineProps = { label: string; value: string; onChange?: () => void; last?: boolean };
 
-function ContactLine({ label, value, note = "", onChange, last = false }: ContactLineProps) {
+function ContactLine({ label, value, onChange, last = false }: ContactLineProps) {
   return (
     <View style={[styles.contactLine, !last && styles.divided]}>
       <View style={styles.flex}>
@@ -155,7 +145,6 @@ function ContactLine({ label, value, note = "", onChange, last = false }: Contac
         <Text style={styles.contactValue} numberOfLines={1}>
           {value}
         </Text>
-        {note !== "" && <Text style={styles.label}>{note}</Text>}
       </View>
       {onChange && (
         <Pressable onPress={onChange} accessibilityRole="button" accessibilityLabel={`${profileMessages.change} ${label}`} style={styles.changeButton}>
