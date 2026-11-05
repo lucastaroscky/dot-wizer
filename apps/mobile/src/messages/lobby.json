@@ -1,12 +1,10 @@
 {
   "seats": "Jogadores na mesa",
-  "tables": "Mesa",
   "tableName": "Mesa {id}",
   "minimumBalance": "Mín. {value}",
   "pointValue": "Ponto {value}",
   "trainingHint": "Treino: sem fichas",
   "cards": "Cartas",
-  "confirm": "OK",
   "connecting": "Conectando…",
   "openMatch": "Você tem uma partida em andamento",
   "openMatchElsewhere": "Ela está aberta em outro aparelho.",
@@ -22,5 +20,10 @@
   "joker": "Coringa",
   "onlyBigJoker": "Só o coringão",
   "withLifeJoker": "Também o coringa de vida",
-  "lifeJokerHint": "Uma carta virada no começo da rodada define os coringas dela."
+  "lifeJokerHint": "Uma carta virada no começo da rodada define os coringas dela.",
+  "tablesWithSeats": "Mesas · {seats} lugares",
+  "tapToSit": "Toque numa mesa para sentar",
+  "emptyTable": "vazia",
+  "seated": "{count} de {seats}",
+  "refresh": "Atualizar"
 }

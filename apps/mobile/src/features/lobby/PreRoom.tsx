@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
-import type { CreateOptions } from "@pontinho/protocol";
+import { MAX_PLAYERS, type CreateOptions } from "@pontinho/protocol";
 import { CHIP_TABLES } from "@pontinho/rules";
 import type { CardStyleName } from "@/shared/cards/Card";
 import { Button } from "@/shared/ui/Button";
@@ -9,7 +9,8 @@ import { colors } from "@/shared/theme/colors";
 import { fonts } from "@/shared/theme/fonts";
 import lobby from "@/messages/lobby.json";
 import { CardStylePicker } from "./CardStylePicker";
-import { TablePicker } from "./TablePicker";
+import { TableList } from "./TableList";
+import { useTables } from "./useTables";
 
 export type LobbyChoice = CreateOptions & { cardStyle: CardStyleName };
 
@@ -18,34 +19,33 @@ type Props = { balance: number; connecting: boolean; error: string; onConfirm: (
 export function PreRoom({ balance, connecting, error, onConfirm }: Props) {
   const [chosenTableId, setChosenTableId] = useState<number>();
   const [cardStyle, setCardStyle] = useState<CardStyleName>("jumbo");
+  const tables = useTables();
 
-  const unlockedTables = CHIP_TABLES.filter(({ minimumBalance }) => balance >= minimumBalance);
-  const selectedTable = unlockedTables.find(({ id }) => id === chosenTableId) ?? unlockedTables[0];
-
-  function confirm() {
-    if (!selectedTable) {
-      return;
-    }
-    onConfirm({ bots: false, table: selectedTable.id, cardStyle });
+  function sit(table: number) {
+    setChosenTableId(table);
+    onConfirm({ bots: false, table, cardStyle });
   }
 
   return (
     <>
       <CardStylePicker value={cardStyle} onChange={setCardStyle} />
       <View style={styles.group}>
-        <Text style={styles.label}>{lobby.tables}</Text>
-        <TablePicker tables={CHIP_TABLES} balance={balance} selectedId={selectedTable?.id} onSelect={setChosenTableId} />
+        <View style={styles.header}>
+          <Text style={styles.label}>{lobby.tablesWithSeats.replace("{seats}", String(MAX_PLAYERS))}</Text>
+          <Button title={lobby.refresh} onPress={tables.refresh} variant="plain" loading={tables.refreshing} />
+        </View>
+        <Text style={styles.hint}>{lobby.tapToSit}</Text>
+        <ErrorLine text={tables.error} />
+        <TableList tables={CHIP_TABLES} listings={tables.tables} balance={balance} seatingId={connecting ? chosenTableId : undefined} disabled={connecting} onSit={sit} />
       </View>
-      <View style={styles.footer}>
-        <ErrorLine text={error} />
-        <Button title={connecting ? lobby.connecting : lobby.confirm} onPress={confirm} disabled={selectedTable === undefined} loading={connecting} />
-      </View>
+      <ErrorLine text={error} />
     </>
   );
 }
 
 const styles = StyleSheet.create({
   group: { gap: 6 },
+  header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   label: { color: colors.muted, fontSize: 13, fontFamily: fonts.semibold },
-  footer: { marginTop: "auto", gap: 10 },
+  hint: { color: colors.muted, fontSize: 13, fontFamily: fonts.medium },
 });
