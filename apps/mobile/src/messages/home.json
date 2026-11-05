@@ -13,5 +13,13 @@
     "apiUnavailable": "Não foi possível conferir as suas fichas. Tente de novo.",
     "invalidOptions": "Não foi possível entrar com essas opções.",
     "accountDisabled": "Sua conta está desativada."
-  }
+  },
+  "playOnline": "Jogar online",
+  "playOnlineHint": "7 mesas com fichas",
+  "practiceHint": "Treino: sem fichas",
+  "payments": "Pagamentos",
+  "paymentsHint": "Comprar fichas e receber por Pix",
+  "howToPlay": "Como jogar",
+  "ranking": "Ranking",
+  "comingSoon": "em breve"
 }
