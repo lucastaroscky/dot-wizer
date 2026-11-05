@@ -13,6 +13,8 @@ import { cardText } from "./state";
 const CARD_WIDTH = 50;
 const FLIPPED_WIDTH = 44;
 const FLIPPED_OVERHANG = 30;
+const STOCK_HEIGHT = CARD_WIDTH + 6;
+const FLIPPED_TOP = (STOCK_HEIGHT - CARD_WIDTH * CARD_RATIO) / 2 - FLIPPED_OVERHANG;
 const STACK_LAYERS = 3;
 const PULSE_MS = 600;
 
@@ -43,7 +45,7 @@ export function Piles({ flipped, lifeJokers, discardTop, highlightDiscard, onSto
   const pulseStyle = useAnimatedStyle(() => ({ opacity: pulse.get() }));
 
   return (
-    <View style={styles.piles}>
+    <View style={[styles.piles, flipped && styles.pilesWithFlipped]}>
       <Measured onMeasure={onStockMeasure}>
         {flipped && (
           <View accessible accessibilityLabel={match.a11y.flipped.replace("{card}", cardText(flipped))} style={styles.flipped}>
@@ -85,9 +87,10 @@ export function Piles({ flipped, lifeJokers, discardTop, highlightDiscard, onSto
 
 const styles = StyleSheet.create({
   piles: { alignItems: "center", gap: 4, width: CARD_WIDTH * CARD_RATIO + 8 },
-  stock: { width: CARD_WIDTH * CARD_RATIO, height: CARD_WIDTH + 6, transform: [{ rotate: "90deg" }], alignItems: "center", justifyContent: "center" },
+  pilesWithFlipped: { paddingTop: -FLIPPED_TOP },
+  stock: { width: CARD_WIDTH * CARD_RATIO, height: STOCK_HEIGHT, transform: [{ rotate: "90deg" }], alignItems: "center", justifyContent: "center" },
   stockLayer: { position: "absolute" },
-  flipped: { position: "absolute", left: (CARD_WIDTH * CARD_RATIO - FLIPPED_WIDTH) / 2, top: (CARD_WIDTH + 6 - CARD_WIDTH * CARD_RATIO) / 2 - FLIPPED_OVERHANG },
+  flipped: { position: "absolute", left: (CARD_WIDTH * CARD_RATIO - FLIPPED_WIDTH) / 2, top: FLIPPED_TOP },
   seal: { height: 22, paddingHorizontal: 8, borderRadius: 11, borderWidth: 1, borderColor: colors.action, backgroundColor: colors.night, flexDirection: "row", alignItems: "center", gap: 4 },
   sealText: { color: colors.onSelected, fontSize: 11.5, fontFamily: fonts.display },
   discard: { width: CARD_WIDTH, height: CARD_WIDTH * CARD_RATIO, marginTop: 4 },
