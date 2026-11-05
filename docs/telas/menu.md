@@ -19,7 +19,7 @@ Código: `apps/mobile/src/app/index.tsx`, com `useWallet`, `useDailyBonus`, `Bal
 | Item | Vai para |
 |---|---|
 | Jogar online | pré-sala (`/lobby`) |
-| Jogar | pré-sala (`/lobby`), até a parte 5 trazer o Ajuste da partida |
+| Jogar | [ajuste da partida](ajuste-da-partida.md) (`/training`) |
 | Pagamentos | [pagamentos](pagamentos.md) (`/payments`) |
 | Perfil | [perfil](perfil.md) (`/profile`), onde fica o Sair |
 

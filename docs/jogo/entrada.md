@@ -1,6 +1,6 @@
 # Entrada do jogador
 
-O jogador pede uma sala e o servidor do jogo decide, no `onAuth` do Colyseus, se ele senta. Quem decide é o jogo; a API só informa quem é o jogador, o saldo e a partida aberta da conta. Quem dispara é o app, com `client.joinOrCreate("pontinho", { bots, table? })` na partida online e `{ bots: true, seats, table? }` no treino, e o token do Supabase em `client.auth.token`.
+O jogador pede uma sala e o servidor do jogo decide, no `onAuth` do Colyseus, se ele senta. Quem decide é o jogo; a API só informa quem é o jogador, o saldo e a partida aberta da conta. Quem dispara é o app, com `client.joinOrCreate("pontinho", { bots: false, table })` na partida online e `{ bots: true, seats, lifeJoker, table? }` no treino, e o token do Supabase (ou o do login de teste local) em `client.auth.token`.
 
 Código: `apps/game/src/rooms/pontinho/playerAuth.ts` (`createPlayerAuthenticator`) e `PontinhoRoom.onJoin`.
 
@@ -15,7 +15,7 @@ Código: `apps/game/src/rooms/pontinho/playerAuth.ts` (`createPlayerAuthenticato
 Antes da chamada, sem falar com a API:
 
 - sem token: recusa `invalidToken`;
-- opções inválidas (`createOptionsSchema`): online com `bots: false` e `table` de 1 a 7; treino com `bots: true`, `seats` de 3 a 4 e `table` opcional. Qualquer outra combinação: recusa `invalidOptions`.
+- opções inválidas (`createOptionsSchema`): online com `bots: false` e `table` de 1 a 7; treino com `bots: true`, `seats` de 3 a 6, `lifeJoker` (falso quando não vem) e `table` opcional. Qualquer outra combinação: recusa `invalidOptions`. A partida online nunca usa o coringa de vida, mesmo que a opção venha.
 
 ## Sucesso
 
