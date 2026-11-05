@@ -78,7 +78,7 @@ describe("loadEnv", () => {
   });
 
   it("accepts the test payment provider outside production", () => {
-    for (const nodeEnv of ["development", "test"]) {
+    for (const nodeEnv of ["development", "test", "staging"]) {
       const env = loadEnv({ source: { ...validSource, NODE_ENV: nodeEnv } });
 
       assert.strictEqual(env.PAYMENT_PROVIDER, "test");

@@ -18,7 +18,7 @@ import { storeRoutes } from "./modules/store/store.routes.ts";
 import { walletRoutes } from "./modules/wallet/wallet.routes.ts";
 
 const REQUEST_ID_HEADER = "x-request-id";
-const LOG_LEVELS = { development: "debug", test: "silent", production: "info" };
+const LOG_LEVELS = { development: "debug", test: "silent", staging: "info", production: "info" };
 
 interface RegisterRoutesInput {
   app: FastifyInstance;
