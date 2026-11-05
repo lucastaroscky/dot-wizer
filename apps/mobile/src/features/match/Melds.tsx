@@ -8,6 +8,7 @@ const VISIBLE_HEIGHT = CARD_WIDTH * 0.68;
 
 type Props = {
   melds: readonly { kind: string; cards: readonly CardView[] }[];
+  width: number;
   height: number;
   highlightIndex?: number;
   onMeldPress: (index: number) => void;
@@ -30,22 +31,31 @@ function inDisplayOrder(meld: Props["melds"][number]) {
 
 const CARD_HEIGHT = CARD_WIDTH * CARD_RATIO;
 const COLUMN_FRAME = 8;
+const COLUMN_WIDTH = CARD_WIDTH + COLUMN_FRAME;
+const GAP = 10;
 
-function visibleHeightFor(cardCount: number, height: number) {
-  if (cardCount < 2 || height <= 0) {
+function visibleHeightFor(cardCount: number, rowHeight: number) {
+  if (cardCount < 2 || rowHeight <= 0) {
     return VISIBLE_HEIGHT;
   }
-  return Math.min(VISIBLE_HEIGHT, (height - CARD_HEIGHT - COLUMN_FRAME) / (cardCount - 1));
+  return Math.min(VISIBLE_HEIGHT, (rowHeight - CARD_HEIGHT - COLUMN_FRAME) / (cardCount - 1));
 }
 
-export function Melds({ melds, height, highlightIndex, onMeldPress, onMeldView }: Props) {
+function rowHeightFor(meldCount: number, width: number, height: number) {
+  const columnsPerRow = Math.max(1, Math.floor((width + GAP) / (COLUMN_WIDTH + GAP)));
+  const rows = Math.max(1, Math.ceil(meldCount / columnsPerRow));
+  return (height - (rows - 1) * GAP) / rows;
+}
+
+export function Melds({ melds, width, height, highlightIndex, onMeldPress, onMeldView }: Props) {
+  const rowHeight = rowHeightFor(melds.length, width, height);
   return (
     <View style={styles.melds}>
       {melds.map((meld, index) => (
         <MeldColumn
           key={index}
           cards={inDisplayOrder(meld)}
-          visibleHeight={visibleHeightFor(meld.cards.length, height)}
+          visibleHeight={visibleHeightFor(meld.cards.length, rowHeight)}
           highlighted={index === highlightIndex}
           onPress={() => onMeldPress(index)}
           onView={(view) => onMeldView(index, view)}
@@ -78,7 +88,7 @@ function MeldColumn({ cards, visibleHeight, highlighted, onPress, onView }: Meld
 }
 
 const styles = StyleSheet.create({
-  melds: { flexDirection: "row", flexWrap: "wrap", justifyContent: "center", gap: 10 },
+  melds: { flexDirection: "row", flexWrap: "wrap", justifyContent: "center", gap: GAP },
   meld: { alignItems: "center", padding: 2, borderRadius: 6, borderWidth: 2, borderColor: "transparent" },
   highlight: { borderColor: colors.action },
 });

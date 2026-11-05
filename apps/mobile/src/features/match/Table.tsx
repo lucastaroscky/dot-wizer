@@ -27,7 +27,7 @@ type Props = { room: Room<PontinhoState>; state: GameState; onExit: () => void }
 
 export function Table({ room, state, onExit }: Props) {
   const areas = useRef<TableAreas>({ plates: {}, meldViews: [] });
-  const [feltHeight, setFeltHeight] = useState(0);
+  const [felt, setFelt] = useState({ width: 0, height: 0 });
   const play = useTablePlay(room, state, areas);
   const { flights, land } = useFlights(room, areas);
 
@@ -98,13 +98,14 @@ export function Table({ room, state, onExit }: Props) {
             style={styles.felt}
             onMeasure={(rect) => {
               areas.current.table = rect;
-              setFeltHeight(rect.height - FELT_TOP_PADDING);
+              setFelt({ width: rect.width, height: rect.height - FELT_TOP_PADDING });
             }}
           >
             <Pressable style={styles.feltArea} onPress={play.pressTable}>
               <Melds
                 melds={state.melds}
-                height={feltHeight}
+                width={felt.width}
+                height={felt.height}
                 highlightIndex={play.jokerMeldIndex}
                 onMeldPress={play.pressMeld}
                 onMeldView={(index, view) => (areas.current.meldViews[index] = view)}
