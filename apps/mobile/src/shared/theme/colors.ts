@@ -33,5 +33,6 @@ export const colors = {
   successSurface: "#17210C",
   successLine: "#3F5A1E",
   successText: "#DDF5A8",
+  warningText: "#F2E6A6",
   brandDot: "#FF5A4E",
 };

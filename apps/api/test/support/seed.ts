@@ -5,11 +5,11 @@ import { testPrisma } from "./test-database.ts";
 interface SeedUserInput {
   userId?: string;
   balance?: number;
-  name?: string | null;
+  nickname?: string | null;
 }
 
-export async function seedUser({ userId = randomUUID(), balance = 0, name = null }: SeedUserInput = {}) {
-  await testPrisma.user.create({ data: { id: userId, email: `${userId}@example.com`, name } });
+export async function seedUser({ userId = randomUUID(), balance = 0, nickname = null }: SeedUserInput = {}) {
+  await testPrisma.user.create({ data: { id: userId, email: `${userId}@example.com`, nickname } });
   if (balance > 0) {
     await testPrisma.walletEntry.create({
       data: {

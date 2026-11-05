@@ -5,7 +5,9 @@ import { fromIsoDate, toIsoDate } from "../../../common/database/dates.ts";
 const userSelect = {
   id: true,
   email: true,
-  name: true,
+  nickname: true,
+  fullName: true,
+  cpf: true,
   birthDate: true,
   photoPath: true,
   active: true,
@@ -16,7 +18,9 @@ type UserRow = Prisma.UserGetPayload<{ select: typeof userSelect }>;
 export interface UserRecord {
   id: string;
   email: string;
-  name: string | null;
+  nickname: string | null;
+  fullName: string | null;
+  cpf: string | null;
   birthDate: string | null;
   photoPath: string | null;
   active: boolean;
@@ -35,11 +39,12 @@ interface FindByIdsInput {
   ids: string[];
 }
 
-interface UpdateProfileInput {
+interface RegisterInput {
   id: string;
-  name: string;
+  fullName: string;
+  cpf: string;
   birthDate: string;
-  photoPath?: string;
+  nickname: string;
 }
 
 interface LockByIdsInput {
@@ -77,13 +82,15 @@ export class UsersRepository {
     return rows.map(toRecord);
   }
 
-  async updateProfile({ id, name, birthDate, photoPath }: UpdateProfileInput): Promise<UserRecord> {
-    const row = await this.client.user.update({
-      where: { id },
-      data: { name, birthDate: fromIsoDate({ isoDate: birthDate }), photoPath },
-      select: userSelect,
+  async register({ id, fullName, cpf, birthDate, nickname }: RegisterInput): Promise<UserRecord | null> {
+    const { count } = await this.client.user.updateMany({
+      where: { id, cpf: null },
+      data: { fullName, cpf, birthDate: fromIsoDate({ isoDate: birthDate }), nickname },
     });
-    return toRecord(row);
+    if (count === 0) {
+      return null;
+    }
+    return this.findById({ id });
   }
 
   async lockByIds({ ids }: LockByIdsInput): Promise<void> {

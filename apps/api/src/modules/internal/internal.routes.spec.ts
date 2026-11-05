@@ -22,7 +22,7 @@ describe("internal routes", () => {
   async function startMatch({ table = 1, balances = [5000, 5000, 5000] } = {}) {
     const playerIds = [];
     for (const balance of balances) {
-      playerIds.push(await seedUser({ balance, name: `Jogador ${playerIds.length + 1}` }));
+      playerIds.push(await seedUser({ balance, nickname: `Jogador ${playerIds.length + 1}` }));
     }
     const response = await post("/internal/matches", { table, playerIds });
     return { playerIds, response, matchId: response.json().matchId as string };
@@ -98,14 +98,14 @@ describe("internal routes", () => {
   });
 
   describe("player entry", () => {
-    it("returns name, photo, balance and whether the player can join the table", async () => {
+    it("returns nickname, photo, balance and whether the player can join the table", async () => {
       const { userId, headers } = await testApp.signIn();
       const accessToken = headers.authorization.replace("Bearer ", "");
       await testApp.app.inject({
-        method: "PUT",
-        url: "/profile",
+        method: "POST",
+        url: "/profile/registration",
         headers,
-        payload: { name: "Ana", birthDate: "1990-05-20" },
+        payload: { fullName: "Ana Souza Lima", cpf: "11144477735", birthDate: "1990-05-20", nickname: "Ana" },
       });
       await testApp.app.inject({
         method: "POST",
@@ -120,7 +120,7 @@ describe("internal routes", () => {
       assert.strictEqual(table2.statusCode, 200);
       assert.deepStrictEqual(table2.json(), {
         userId,
-        name: "Ana",
+        nickname: "Ana",
         photoUrl: null,
         profileComplete: true,
         balance: 5000,
@@ -132,14 +132,14 @@ describe("internal routes", () => {
       assert.strictEqual(table3.json().minimumBalance, 10_000);
     });
 
-    it("returns the name and photo without table requirements for a practice match", async () => {
+    it("returns the nickname and photo without table requirements for a practice match", async () => {
       const { userId, headers } = await testApp.signIn();
       const accessToken = headers.authorization.replace("Bearer ", "");
       await testApp.app.inject({
-        method: "PUT",
-        url: "/profile",
+        method: "POST",
+        url: "/profile/registration",
         headers,
-        payload: { name: "Ana", birthDate: "1990-05-20" },
+        payload: { fullName: "Ana Souza Lima", cpf: "11144477735", birthDate: "1990-05-20", nickname: "Ana" },
       });
 
       const response = await post("/internal/players/entry", { accessToken });
@@ -147,7 +147,7 @@ describe("internal routes", () => {
       assert.strictEqual(response.statusCode, 200);
       assert.deepStrictEqual(response.json(), {
         userId,
-        name: "Ana",
+        nickname: "Ana",
         photoUrl: null,
         profileComplete: true,
         balance: 0,
@@ -415,7 +415,7 @@ describe("internal routes", () => {
       const winner = history.players.find((player: { userId: string }) => player.userId === ana);
       assert.deepStrictEqual(winner, {
         userId: ana,
-        name: "Jogador 1",
+        nickname: "Jogador 1",
         startBalance: 5000,
         paid: 0,
         received: 50,

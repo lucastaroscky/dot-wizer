@@ -21,7 +21,7 @@ function buildService({ active = true, verifyFails = false } = {}) {
   const usersRepository = fake<UsersRepository>({
     findOrCreate: async (input) => {
       upserts.push(input);
-      return { id: input.id, email: input.email, name: null, birthDate: null, photoPath: null, active };
+      return { id: input.id, email: input.email, nickname: null, fullName: null, cpf: null, birthDate: null, photoPath: null, active };
     },
   });
   return { service: new AuthService({ tokenVerifier, usersRepository }), upserts };

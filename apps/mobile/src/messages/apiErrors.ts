@@ -15,6 +15,8 @@ export const API_ERROR_TEXTS = {
   underage: errors.underage,
   photoNotOwned: errors.generic,
   profileNotFound: errors.generic,
+  cpfAlreadyRegistered: errors.cpfAlreadyRegistered,
+  registrationLocked: errors.generic,
   dailyBonusAlreadyClaimed: wallet.dailyBonusClaimed,
   insufficientBalance: errors.generic,
   quantityAboveMaximum: errors.quantityAboveMaximum,

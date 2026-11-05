@@ -369,7 +369,7 @@ export class MatchesService {
       finishedAt: match.finishedAt?.toISOString() ?? null,
       players: summarizePlayers({
         players: match.players,
-        names: Object.fromEntries(users.map(({ id, name }) => [id, name])),
+        nicknames: Object.fromEntries(users.map(({ id, nickname }) => [id, nickname])),
         sums,
       }),
     };

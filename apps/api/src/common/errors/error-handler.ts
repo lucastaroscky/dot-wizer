@@ -71,7 +71,7 @@ function describeValidationErrors({ error }: DescribeValidationErrorsInput): str
   );
 }
 
-function isUniqueConstraintViolation(error: unknown): boolean {
+export function isUniqueConstraintViolation(error: unknown): boolean {
   return (
     error instanceof Prisma.PrismaClientKnownRequestError && error.code === UNIQUE_CONSTRAINT_VIOLATION_CODE
   );

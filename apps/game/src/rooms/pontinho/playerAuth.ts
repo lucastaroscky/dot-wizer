@@ -76,7 +76,7 @@ export function createPlayerAuthenticator(gameApi: GameApi) {
     }
     const chipsTable = parsed.data.bots ? undefined : parsed.data.table;
     const entry = await enter(gameApi, token, chipsTable);
-    if (!entry.profileComplete || entry.name === null) {
+    if (!entry.profileComplete || entry.nickname === null) {
       throw refuse("profileIncomplete");
     }
     if (entry.openMatchId) {
@@ -85,6 +85,6 @@ export function createPlayerAuthenticator(gameApi: GameApi) {
     if (entry.canJoin === false) {
       throw refuse("insufficientBalance");
     }
-    return { id: entry.userId, name: entry.name, photoUrl: entry.photoUrl ?? "", table: chipsTable ?? PRACTICE_TABLE };
+    return { id: entry.userId, name: entry.nickname, photoUrl: entry.photoUrl ?? "", table: chipsTable ?? PRACTICE_TABLE };
   };
 }

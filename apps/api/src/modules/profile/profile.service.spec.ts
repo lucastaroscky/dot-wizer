@@ -7,19 +7,20 @@ import { ProfileService } from "./profile.service.ts";
 
 const userId = randomUUID();
 const now = () => new Date("2026-11-02T12:00:00Z");
+const registration = { fullName: "Ana Souza Lima", cpf: "11144477735", birthDate: "1990-05-20", nickname: "Ana" };
 
 function userRecord(overrides: Partial<UserRecord> = {}): UserRecord {
-  return { id: userId, email: "ana@example.com", name: null, birthDate: null, photoPath: null, active: true, ...overrides };
+  return { id: userId, email: "ana@example.com", nickname: null, fullName: null, cpf: null, birthDate: null, photoPath: null, active: true, ...overrides };
 }
 
 function buildService({ user = userRecord() } = {}) {
-  const updates: unknown[] = [];
+  const registrations: unknown[] = [];
   const uploadPaths: string[] = [];
   const usersRepository = fake<UsersRepository>({
     findById: async () => user,
-    updateProfile: async (input) => {
-      updates.push(input);
-      return userRecord({ name: input.name, birthDate: input.birthDate, photoPath: input.photoPath ?? user.photoPath });
+    register: async (input) => {
+      registrations.push(input);
+      return userRecord(input);
     },
   });
   const avatarStorage: AvatarStorage = {
@@ -29,12 +30,12 @@ function buildService({ user = userRecord() } = {}) {
     },
     publicUrl: ({ path }) => `https://storage.example.com/public/${path}`,
   };
-  return { service: new ProfileService({ usersRepository, avatarStorage, now }), updates, uploadPaths };
+  return { service: new ProfileService({ usersRepository, avatarStorage, now }), registrations, uploadPaths };
 }
 
 describe("ProfileService", () => {
   describe("get", () => {
-    it("reports an incomplete profile when name and birth date are missing", async () => {
+    it("reports an incomplete profile before the registration", async () => {
       const { service } = buildService();
 
       const profile = await service.get({ userId });
@@ -42,7 +43,9 @@ describe("ProfileService", () => {
       assert.deepStrictEqual(profile, {
         id: userId,
         email: "ana@example.com",
-        name: null,
+        nickname: null,
+        fullName: null,
+        cpf: null,
         birthDate: null,
         photoUrl: null,
         complete: false,
@@ -51,7 +54,7 @@ describe("ProfileService", () => {
 
     it("reports a complete profile and the public photo url", async () => {
       const photoPath = `${userId}/${randomUUID()}.jpg`;
-      const { service } = buildService({ user: userRecord({ name: "Ana", birthDate: "1990-05-20", photoPath }) });
+      const { service } = buildService({ user: userRecord({ ...registration, photoPath }) });
 
       const profile = await service.get({ userId });
 
@@ -59,8 +62,8 @@ describe("ProfileService", () => {
       assert.strictEqual(profile.photoUrl, `https://storage.example.com/public/${photoPath}`);
     });
 
-    it("reports an incomplete profile when only the name is filled", async () => {
-      const { service } = buildService({ user: userRecord({ name: "Ana" }) });
+    it("reports an incomplete profile for an old account with nickname and birth date but no CPF", async () => {
+      const { service } = buildService({ user: userRecord({ nickname: "Ana", birthDate: "1990-05-20" }) });
 
       assert.strictEqual((await service.get({ userId })).complete, false);
     });
@@ -73,20 +76,20 @@ describe("ProfileService", () => {
     });
   });
 
-  describe("save", () => {
-    it("saves name and birth date and returns the complete profile", async () => {
-      const { service, updates } = buildService();
+  describe("register", () => {
+    it("saves the registration and returns the complete profile", async () => {
+      const { service, registrations } = buildService();
 
-      const profile = await service.save({ userId, name: "Ana", birthDate: "1990-05-20" });
+      const profile = await service.register({ userId, ...registration });
 
-      assert.deepStrictEqual(updates, [{ id: userId, name: "Ana", birthDate: "1990-05-20", photoPath: undefined }]);
+      assert.deepStrictEqual(registrations, [{ id: userId, ...registration }]);
       assert.strictEqual(profile.complete, true);
     });
 
     it("accepts someone who turns 18 today in Brasilia", async () => {
       const { service } = buildService();
 
-      const profile = await service.save({ userId, name: "Ana", birthDate: "2008-11-02" });
+      const profile = await service.register({ userId, ...registration, birthDate: "2008-11-02" });
 
       assert.strictEqual(profile.birthDate, "2008-11-02");
     });
@@ -96,48 +99,27 @@ describe("ProfileService", () => {
       const usersRepository = fake<UsersRepository>({});
       const service = new ProfileService({ usersRepository, avatarStorage: fake<AvatarStorage>({}), now: lateNightInBrasilia });
 
-      await assert.rejects(service.save({ userId, name: "Ana", birthDate: "2008-11-03" }), {
+      await assert.rejects(service.register({ userId, ...registration, birthDate: "2008-11-03" }), {
         statusCode: 422,
         code: "underage",
       });
     });
 
     it("rejects someone under 18 without saving", async () => {
-      const { service, updates } = buildService();
+      const { service, registrations } = buildService();
 
-      await assert.rejects(service.save({ userId, name: "Ana", birthDate: "2008-11-03" }), {
+      await assert.rejects(service.register({ userId, ...registration, birthDate: "2008-11-03" }), {
         statusCode: 422,
         code: "underage",
       });
-      assert.deepStrictEqual(updates, []);
+      assert.deepStrictEqual(registrations, []);
     });
 
-    it("saves a photo that was uploaded for this user", async () => {
-      const photoPath = `${userId}/${randomUUID()}.png`;
-      const { service, updates } = buildService();
+    it("answers registrationLocked when the account already has a CPF", async () => {
+      const usersRepository = fake<UsersRepository>({ register: async () => null });
+      const service = new ProfileService({ usersRepository, avatarStorage: fake<AvatarStorage>({}), now });
 
-      await service.save({ userId, name: "Ana", birthDate: "1990-05-20", photoPath });
-
-      assert.deepStrictEqual(updates, [{ id: userId, name: "Ana", birthDate: "1990-05-20", photoPath }]);
-    });
-
-    it("rejects a photo path that belongs to another user", async () => {
-      const { service, updates } = buildService();
-
-      await assert.rejects(
-        service.save({ userId, name: "Ana", birthDate: "1990-05-20", photoPath: `${randomUUID()}/${randomUUID()}.png` }),
-        { statusCode: 422, code: "photoNotOwned" },
-      );
-      assert.deepStrictEqual(updates, []);
-    });
-
-    it("rejects a photo path that climbs out of the user folder", async () => {
-      const { service } = buildService();
-
-      await assert.rejects(
-        service.save({ userId, name: "Ana", birthDate: "1990-05-20", photoPath: `${userId}/../${randomUUID()}/x.png` }),
-        { statusCode: 422 },
-      );
+      await assert.rejects(service.register({ userId, ...registration }), { statusCode: 409, code: "registrationLocked" });
     });
   });
 

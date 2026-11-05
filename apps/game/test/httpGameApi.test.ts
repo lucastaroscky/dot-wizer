@@ -26,7 +26,7 @@ function setup(replies: Reply[]) {
 
 describe("httpGameApi", () => {
   it("asks the API about a player with the service token", async () => {
-    const entry = { userId: "user-1", name: "Lucas", photoUrl: null, profileComplete: true, balance: 10, minimumBalance: 1_000, canJoin: false };
+    const entry = { userId: "user-1", nickname: "Lucas", photoUrl: null, profileComplete: true, balance: 10, minimumBalance: 1_000, canJoin: false };
     const { api, requests } = setup([{ status: 200, body: entry }]);
 
     const response = await api.playerEntry({ accessToken: "jwt", table: 1 });

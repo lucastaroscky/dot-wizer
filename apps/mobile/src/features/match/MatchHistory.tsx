@@ -55,9 +55,9 @@ export function MatchHistory({ matchId, userId, polling }: Props) {
       {mine && (
         <View style={styles.mine}>
           <View style={styles.row}>
-            <Avatar name={mine.name ?? ""} size={34} />
+            <Avatar name={mine.nickname ?? ""} size={34} />
             <Text style={styles.mineName} numberOfLines={1}>
-              {mine.name ?? ""}
+              {mine.nickname ?? ""}
             </Text>
             <View style={styles.end}>
               <Text style={styles.label}>{match.history.result}</Text>
@@ -76,10 +76,10 @@ export function MatchHistory({ matchId, userId, polling }: Props) {
       )}
       {others.map((player) => (
         <View key={player.userId} style={[styles.row, styles.other]}>
-          <Avatar name={player.name ?? ""} size={30} />
+          <Avatar name={player.nickname ?? ""} size={30} />
           <View style={styles.otherText}>
             <Text style={styles.otherName} numberOfLines={1}>
-              {player.name ?? ""}
+              {player.nickname ?? ""}
             </Text>
             <Text style={styles.label}>{paidAndReceived(player)}</Text>
           </View>

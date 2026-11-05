@@ -34,8 +34,8 @@ function openMatch(overrides: Partial<MatchRecord> = {}): MatchRecord {
   };
 }
 
-function user(id: string, name: string | null): UserRecord {
-  return { id, email: `${id}@example.com`, name, birthDate: null, photoPath: null, active: true };
+function user(id: string, nickname: string | null): UserRecord {
+  return { id, email: `${id}@example.com`, nickname, fullName: null, cpf: null, birthDate: null, photoPath: null, active: true };
 }
 
 function buildService({
@@ -583,10 +583,10 @@ describe("MatchesService", () => {
       assert.strictEqual(history.table, 2);
       assert.strictEqual(history.winnerId, ana);
       assert.strictEqual(history.finishedAt, finishedAt.toISOString());
-      assert.deepStrictEqual(history.players.map(({ userId, name, paid, received }) => ({ userId, name, paid, received })), [
-        { userId: ana, name: "Ana", paid: 0, received: 50 },
-        { userId: bia, name: "Bia", paid: 50, received: 0 },
-        { userId: caio, name: "Caio", paid: 0, received: 0 },
+      assert.deepStrictEqual(history.players.map(({ userId, nickname, paid, received }) => ({ userId, nickname, paid, received })), [
+        { userId: ana, nickname: "Ana", paid: 0, received: 50 },
+        { userId: bia, nickname: "Bia", paid: 50, received: 0 },
+        { userId: caio, nickname: "Caio", paid: 0, received: 0 },
       ]);
     });
 

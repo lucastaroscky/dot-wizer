@@ -9,5 +9,6 @@
   "underage": "É preciso ter 18 anos ou mais.",
   "quantityAboveMaximum": "Quantidade acima do máximo por compra.",
   "matchNotFound": "Partida não encontrada.",
-  "retry": "Tentar de novo"
+  "retry": "Tentar de novo",
+  "cpfAlreadyRegistered": "Este CPF já tem uma conta."
 }

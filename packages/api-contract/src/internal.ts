@@ -17,9 +17,9 @@ export type PlayerEntryBody = z.infer<typeof playerEntryBodySchema>;
 
 export const playerEntryResponseSchema = z.object({
   userId: userIdSchema,
-  name: z.string().nullable().describe("Nome de jogo."),
+  nickname: z.string().nullable().describe("Apelido no jogo."),
   photoUrl: z.string().nullable().describe("URL pública da foto, se houver."),
-  profileComplete: z.boolean().describe("Verdadeiro quando a conta tem nome e data de nascimento."),
+  profileComplete: z.boolean().describe("Verdadeiro quando a conta tem nome completo, CPF, data de nascimento e apelido."),
   balance: chipsSchema.describe("Saldo atual."),
   minimumBalance: chipsSchema.nullable().describe("Saldo mínimo da mesa. Nulo quando não foi pedida mesa."),
   canJoin: z.boolean().nullable().describe("Saldo suficiente para a mesa. Nulo quando não foi pedida mesa."),

@@ -1,5 +1,4 @@
 import assert from "node:assert";
-import { randomUUID } from "node:crypto";
 import { createTestApp } from "../../../test/support/test-app.ts";
 import type { TestApp } from "../../../test/support/test-app.ts";
 import { testPrisma } from "../../../test/support/test-database.ts";
@@ -22,7 +21,9 @@ describe("profile routes", () => {
     assert.deepStrictEqual(response.json(), {
       id: userId,
       email,
-      name: null,
+      nickname: null,
+      fullName: null,
+      cpf: null,
       birthDate: null,
       photoUrl: null,
       complete: false,
@@ -79,33 +80,91 @@ describe("profile routes", () => {
     assert.strictEqual(response.json().code, "accountDisabled");
   });
 
-  it("saves name and birth date and completes the profile", async () => {
+  const registration = { fullName: "Ana Souza Lima", cpf: "11144477735", birthDate: "1990-05-20", nickname: "Ana" };
+
+  function register(headers: { authorization: string }, payload: Record<string, unknown> = registration) {
+    return testApp.app.inject({ method: "POST", url: "/profile/registration", headers, payload });
+  }
+
+  it("registers full name, CPF, birth date and nickname and completes the profile", async () => {
     const { headers } = await testApp.signIn();
 
-    const saved = await testApp.app.inject({
-      method: "PUT",
-      url: "/profile",
-      headers,
-      payload: { name: "  Ana  ", birthDate: "1990-05-20" },
-    });
+    const saved = await register(headers, { ...registration, fullName: "  Ana Souza Lima ", nickname: "  Ana  " });
     const read = await testApp.app.inject({ method: "GET", url: "/profile", headers });
 
     assert.strictEqual(saved.statusCode, 200);
-    assert.strictEqual(read.json().name, "Ana");
+    assert.deepStrictEqual(saved.json(), read.json());
+    assert.strictEqual(read.json().fullName, "Ana Souza Lima");
+    assert.strictEqual(read.json().cpf, "11144477735");
     assert.strictEqual(read.json().birthDate, "1990-05-20");
+    assert.strictEqual(read.json().nickname, "Ana");
     assert.strictEqual(read.json().complete, true);
+  });
+
+  it("locks the registration once it is saved", async () => {
+    const { headers } = await testApp.signIn();
+    await register(headers);
+
+    const again = await register(headers, { ...registration, fullName: "Outra Pessoa", cpf: "12345678909" });
+    const read = await testApp.app.inject({ method: "GET", url: "/profile", headers });
+
+    assert.strictEqual(again.statusCode, 409);
+    assert.strictEqual(again.json().code, "registrationLocked");
+    assert.strictEqual(read.json().fullName, "Ana Souza Lima");
+    assert.strictEqual(read.json().cpf, "11144477735");
+  });
+
+  it("locks the registration when two requests of the same account arrive at the same time", async () => {
+    const { headers } = await testApp.signIn();
+    await testApp.app.inject({ method: "GET", url: "/profile", headers });
+
+    const responses = await Promise.all([register(headers), register(headers, { ...registration, cpf: "12345678909" })]);
+
+    assert.deepStrictEqual(responses.map(({ statusCode }) => statusCode).sort(), [200, 409]);
+  });
+
+  it("refuses a CPF that already has an account", async () => {
+    const first = await testApp.signIn();
+    const second = await testApp.signIn();
+    await register(first.headers);
+
+    const response = await register(second.headers, { ...registration, fullName: "Bia" });
+    const read = await testApp.app.inject({ method: "GET", url: "/profile", headers: second.headers });
+
+    assert.strictEqual(response.statusCode, 409);
+    assert.strictEqual(response.json().code, "cpfAlreadyRegistered");
+    assert.strictEqual(read.json().complete, false);
+  });
+
+  it("refuses the same CPF for two accounts registering at the same time", async () => {
+    const first = await testApp.signIn();
+    const second = await testApp.signIn();
+    await testApp.app.inject({ method: "GET", url: "/profile", headers: first.headers });
+    await testApp.app.inject({ method: "GET", url: "/profile", headers: second.headers });
+
+    const responses = await Promise.all([register(first.headers), register(second.headers)]);
+
+    assert.deepStrictEqual(responses.map(({ statusCode }) => statusCode).sort(), [200, 409]);
+    assert.ok(responses.some((response) => response.json().code === "cpfAlreadyRegistered"));
+  });
+
+  it("keeps the nickname and birth date of an old account until it registers", async () => {
+    const { userId, headers } = await testApp.signIn();
+    await testApp.app.inject({ method: "GET", url: "/profile", headers });
+    await testPrisma.user.update({ where: { id: userId }, data: { nickname: "Aninha", birthDate: new Date("1990-05-20") } });
+
+    const read = await testApp.app.inject({ method: "GET", url: "/profile", headers });
+
+    assert.strictEqual(read.json().nickname, "Aninha");
+    assert.strictEqual(read.json().birthDate, "1990-05-20");
+    assert.strictEqual(read.json().complete, false);
   });
 
   it("blocks someone under 18 using the Brasilia date", async () => {
     const { headers } = await testApp.signIn();
     testApp.clock.now = new Date("2026-11-03T01:30:00Z");
 
-    const response = await testApp.app.inject({
-      method: "PUT",
-      url: "/profile",
-      headers,
-      payload: { name: "Ana", birthDate: "2008-11-03" },
-    });
+    const response = await register(headers, { ...registration, birthDate: "2008-11-03" });
 
     assert.strictEqual(response.statusCode, 422);
     assert.strictEqual(response.json().code, "underage");
@@ -115,37 +174,24 @@ describe("profile routes", () => {
   it("rejects fields the API does not know", async () => {
     const { headers } = await testApp.signIn();
 
-    const response = await testApp.app.inject({
-      method: "PUT",
-      url: "/profile",
-      headers,
-      payload: { name: "Ana", birthDate: "1990-05-20", active: false },
-    });
+    const response = await register(headers, { ...registration, active: false });
 
     assert.strictEqual(response.statusCode, 400);
   });
 
-  it("rejects an invalid birth date and a name that is too long", async () => {
+  it("rejects an invalid birth date, an invalid CPF and a nickname that is too long", async () => {
     const { headers } = await testApp.signIn();
 
-    const badDate = await testApp.app.inject({
-      method: "PUT",
-      url: "/profile",
-      headers,
-      payload: { name: "Ana", birthDate: "1990-02-31" },
-    });
-    const longName = await testApp.app.inject({
-      method: "PUT",
-      url: "/profile",
-      headers,
-      payload: { name: "A".repeat(21), birthDate: "1990-05-20" },
-    });
+    const badDate = await register(headers, { ...registration, birthDate: "1990-02-31" });
+    const badCpf = await register(headers, { ...registration, cpf: "11144477736" });
+    const longNickname = await register(headers, { ...registration, nickname: "A".repeat(21) });
 
     assert.strictEqual(badDate.statusCode, 400);
-    assert.strictEqual(longName.statusCode, 400);
+    assert.strictEqual(badCpf.statusCode, 400);
+    assert.strictEqual(longNickname.statusCode, 400);
   });
 
-  it("hands out an upload url inside the user folder and later shows the photo url", async () => {
+  it("hands out an upload url inside the user folder", async () => {
     const { userId, headers } = await testApp.signIn();
 
     const upload = await testApp.app.inject({
@@ -155,18 +201,11 @@ describe("profile routes", () => {
       payload: { contentType: "image/png" },
     });
     const { path, uploadUrl, token } = upload.json();
-    const saved = await testApp.app.inject({
-      method: "PUT",
-      url: "/profile",
-      headers,
-      payload: { name: "Ana", birthDate: "1990-05-20", photoPath: path },
-    });
 
     assert.strictEqual(upload.statusCode, 200);
     assert.match(path, new RegExp(`^${userId}/[0-9a-f-]{36}\\.png$`));
     assert.strictEqual(uploadUrl, `https://storage.example.com/upload/${path}`);
     assert.strictEqual(token, "upload-token");
-    assert.strictEqual(saved.json().photoUrl, `https://storage.example.com/public/${path}`);
   });
 
   it("refuses to sign an upload for an unsupported content type", async () => {
@@ -182,25 +221,11 @@ describe("profile routes", () => {
     assert.strictEqual(response.statusCode, 400);
   });
 
-  it("refuses a photo that was uploaded to another user's folder", async () => {
-    const { headers } = await testApp.signIn();
-
-    const response = await testApp.app.inject({
-      method: "PUT",
-      url: "/profile",
-      headers,
-      payload: { name: "Ana", birthDate: "1990-05-20", photoPath: `${randomUUID()}/${randomUUID()}.png` },
-    });
-
-    assert.strictEqual(response.statusCode, 422);
-    assert.strictEqual(response.json().code, "photoNotOwned");
-  });
-
   it("never exposes fields outside the contract", async () => {
     const { headers } = await testApp.signIn();
 
     const response = await testApp.app.inject({ method: "GET", url: "/profile", headers });
 
-    assert.deepStrictEqual(Object.keys(response.json()).sort(), ["birthDate", "complete", "email", "id", "name", "photoUrl"]);
+    assert.deepStrictEqual(Object.keys(response.json()).sort(), ["birthDate", "complete", "cpf", "email", "fullName", "id", "nickname", "photoUrl"]);
   });
 });

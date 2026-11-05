@@ -101,7 +101,7 @@ export class FakeGameApi implements GameApi {
     const chipTable = CHIP_TABLES.find(({ id }) => id === body.table);
     return {
       userId: account.userId,
-      name: account.name,
+      nickname: account.name,
       photoUrl: account.photoUrl,
       profileComplete: account.profileComplete,
       balance: account.balance,
@@ -172,7 +172,7 @@ export class FakeGameApi implements GameApi {
       finishedAt: new Date(1).toISOString(),
       players: match.finances.map(({ playerId, startBalance, result, deficit }) => ({
         userId: playerId,
-        name: null,
+        nickname: null,
         startBalance,
         paid: 0,
         received: 0,

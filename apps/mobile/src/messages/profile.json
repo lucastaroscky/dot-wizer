@@ -1,5 +1,4 @@
 {
-  "nameLabel": "Nome",
   "birthDateLabel": "Data de nascimento",
   "birthDatePlaceholder": "DD/MM/AAAA",
   "invalidBirthDate": "Data inválida.",
@@ -10,5 +9,15 @@
   "invalidPhotoType": "Use uma foto JPEG, PNG ou WebP.",
   "photoUploadFailed": "Não foi possível enviar a foto.",
   "loadFailed": "Não foi possível carregar o seu perfil.",
-  "title": "Cadastro"
+  "title": "Cadastro",
+  "lockNotice": "Nome, CPF e data de nascimento não podem ser alterados depois.",
+  "fullNameLabel": "Nome completo",
+  "cpfLabel": "CPF",
+  "cpfPlaceholder": "000.000.000-00",
+  "invalidCpf": "CPF inválido. Confira os números.",
+  "nicknameLabel": "Apelido no jogo",
+  "nicknameHint": "É o nome que aparece na mesa.",
+  "confirmTitle": "Confira seus dados",
+  "confirmWarning": "Depois de salvar, não dá para alterar.",
+  "fix": "Corrigir"
 }

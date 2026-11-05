@@ -7,6 +7,6 @@ describe("generateOpenApiDocument", () => {
 
     assert.strictEqual(document.openapi, "3.0.3");
     assert.strictEqual(document.info.title, "Pontinho API");
-    assert.strictEqual(Object.keys(document.paths).length, 14);
+    assert.strictEqual(Object.keys(document.paths).length, 15);
   });
 });

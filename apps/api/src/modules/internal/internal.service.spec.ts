@@ -8,7 +8,7 @@ import { InternalService } from "./internal.service.ts";
 
 const userId = "11111111-1111-4111-8111-111111111111";
 
-function buildService({ balance = 5000, complete = true, name = "Ana" as string | null, openMatchId = null as string | null } = {}) {
+function buildService({ balance = 5000, complete = true, nickname = "Ana" as string | null, openMatchId = null as string | null } = {}) {
   const tokens: string[] = [];
   const authService = fake<AuthService>({
     authenticateToken: async ({ token }) => {
@@ -20,7 +20,9 @@ function buildService({ balance = 5000, complete = true, name = "Ana" as string 
     get: async () => ({
       id: userId,
       email: "ana@example.com",
-      name,
+      nickname,
+      fullName: complete ? "Ana Souza Lima" : null,
+      cpf: complete ? "11144477735" : null,
       birthDate: complete ? "1990-05-20" : null,
       photoUrl: "https://storage.example.com/ana.jpg",
       complete,
@@ -33,7 +35,7 @@ function buildService({ balance = 5000, complete = true, name = "Ana" as string 
 
 describe("InternalService", () => {
   describe("playerEntry", () => {
-    it("identifies the player by the access token and returns name, photo, balance and whether the table is open", async () => {
+    it("identifies the player by the access token and returns nickname, photo, balance and whether the table is open", async () => {
       const { service, tokens } = buildService({ balance: 5000 });
 
       const entry = await service.playerEntry({ accessToken: "user-jwt", table: 2 });
@@ -41,7 +43,7 @@ describe("InternalService", () => {
       assert.deepStrictEqual(tokens, ["user-jwt"]);
       assert.deepStrictEqual(entry, {
         userId,
-        name: "Ana",
+        nickname: "Ana",
         photoUrl: "https://storage.example.com/ana.jpg",
         profileComplete: true,
         balance: 5000,
@@ -61,12 +63,12 @@ describe("InternalService", () => {
     });
 
     it("reports an incomplete profile without deciding anything about it", async () => {
-      const { service } = buildService({ complete: false, name: null });
+      const { service } = buildService({ complete: false, nickname: null });
 
       const entry = await service.playerEntry({ accessToken: "user-jwt", table: 1 });
 
       assert.strictEqual(entry.profileComplete, false);
-      assert.strictEqual(entry.name, null);
+      assert.strictEqual(entry.nickname, null);
     });
 
     it("returns the player data without table requirements when no table is given", async () => {
@@ -76,7 +78,7 @@ describe("InternalService", () => {
 
       assert.deepStrictEqual(entry, {
         userId,
-        name: "Ana",
+        nickname: "Ana",
         photoUrl: "https://storage.example.com/ana.jpg",
         profileComplete: true,
         balance: 0,

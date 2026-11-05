@@ -39,14 +39,19 @@ enum MatchStatus {
 }
 
 model User {
-  id        String    @id @db.Uuid
-  email     String
-  name      String?
-  birthDate DateTime? @map("birth_date") @db.Date
-  photoPath String?   @map("photo_path")
-  active    Boolean   @default(true)
-  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id                 String    @id @db.Uuid
+  email              String
+  nickname           String?
+  fullName           String?   @map("full_name")
+  cpf                String?   @unique
+  birthDate          DateTime? @map("birth_date") @db.Date
+  phone              String?
+  photoPath          String?   @map("photo_path")
+  pixKeyRegisteredAt DateTime? @map("pix_key_registered_at") @db.Timestamptz(6)
+  active             Boolean   @default(true)
+  deactivatedAt      DateTime? @map("deactivated_at") @db.Timestamptz(6)
+  createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   purchases    Purchase[]
   matchPlayers MatchPlayer[]

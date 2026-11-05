@@ -11,7 +11,7 @@ export type MatchStatus = z.infer<typeof matchStatusSchema>;
 
 export const matchPlayerSummarySchema = z.object({
   userId: userIdSchema,
-  name: z.string().nullable().describe("Nome de jogo do jogador."),
+  nickname: z.string().nullable().describe("Apelido do jogador no jogo."),
   startBalance: chipsSchema.describe("Saldo ao começar a partida."),
   paid: chipsSchema.describe("Total pago aos vencedores das rodadas."),
   received: chipsSchema.describe("Total recebido dos perdedores das rodadas."),

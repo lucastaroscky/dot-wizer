@@ -1,7 +1,8 @@
 import { randomUUID } from "node:crypto";
 import { brasiliaDay } from "@pontinho/rules";
-import type { PhotoUploadBody, PhotoUploadResponse, ProfileResponse, SaveProfileBody } from "@pontinho/api-contract";
+import type { PhotoUploadBody, PhotoUploadResponse, ProfileResponse, RegistrationBody } from "@pontinho/api-contract";
 import { ApiError } from "../../common/errors/api-error.ts";
+import { isUniqueConstraintViolation } from "../../common/errors/error-handler.ts";
 import type { UserRecord, UsersRepository } from "../users/repository/users.repository.ts";
 import { isAdult } from "./adulthood.ts";
 import type { AvatarStorage } from "./avatar-storage/avatar-storage.ts";
@@ -22,18 +23,9 @@ interface UserInput {
   userId: string;
 }
 
-interface SaveInput extends SaveProfileBody, UserInput {}
+interface RegisterInput extends RegistrationBody, UserInput {}
 
 interface RequestPhotoUploadInput extends PhotoUploadBody, UserInput {}
-
-interface IsOwnPhotoPathInput {
-  userId: string;
-  photoPath: string;
-}
-
-function isOwnPhotoPath({ userId, photoPath }: IsOwnPhotoPathInput): boolean {
-  return new RegExp(`^${userId}/[0-9a-f-]{36}\\.(jpg|png|webp)$`).test(photoPath);
-}
 
 export class ProfileService {
   private readonly usersRepository: UsersRepository;
@@ -54,14 +46,18 @@ export class ProfileService {
     return this.toResponse({ user });
   }
 
-  async save({ userId, name, birthDate, photoPath }: SaveInput): Promise<ProfileResponse> {
+  async register({ userId, fullName, cpf, birthDate, nickname }: RegisterInput): Promise<ProfileResponse> {
     if (!isAdult({ birthDate, today: brasiliaDay(this.now()) })) {
       throw new ApiError({ code: "underage" });
     }
-    if (photoPath !== undefined && !isOwnPhotoPath({ userId, photoPath })) {
-      throw new ApiError({ code: "photoNotOwned" });
+    const user = await this.usersRepository
+      .register({ id: userId, fullName, cpf, birthDate, nickname })
+      .catch((error: unknown) => {
+        throw isUniqueConstraintViolation(error) ? new ApiError({ code: "cpfAlreadyRegistered" }) : error;
+      });
+    if (!user) {
+      throw new ApiError({ code: "registrationLocked" });
     }
-    const user = await this.usersRepository.updateProfile({ id: userId, name, birthDate, photoPath });
     return this.toResponse({ user });
   }
 
@@ -75,10 +71,12 @@ export class ProfileService {
     return {
       id: user.id,
       email: user.email,
-      name: user.name,
+      nickname: user.nickname,
+      fullName: user.fullName,
+      cpf: user.cpf,
       birthDate: user.birthDate,
       photoUrl: user.photoPath ? this.avatarStorage.publicUrl({ path: user.photoPath }) : null,
-      complete: Boolean(user.name && user.birthDate),
+      complete: Boolean(user.fullName && user.cpf && user.birthDate && user.nickname),
     };
   }
 }

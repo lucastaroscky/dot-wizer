@@ -56,7 +56,7 @@ export class InternalService {
     const openMatchId = await this.matchesService.openMatchIdOf({ userId });
     return {
       userId,
-      name: profile.name,
+      nickname: profile.nickname,
       photoUrl: profile.photoUrl,
       profileComplete: profile.complete,
       balance,

@@ -23,3 +23,8 @@ export function toIsoDate(text: string) {
   }
   return `${year}-${month}-${day}`;
 }
+
+export function toBirthDateInput(isoDate: string) {
+  const [year, month, day] = isoDate.split("-");
+  return `${day}/${month}/${year}`;
+}

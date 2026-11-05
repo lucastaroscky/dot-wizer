@@ -5,7 +5,7 @@ import type { MatchPlayerRecord } from "./repository/matches.repository.ts";
 
 interface SummarizePlayersInput {
   players: MatchPlayerRecord[];
-  names: Record<string, string | null>;
+  nicknames: Record<string, string | null>;
   sums: MatchEntrySum[];
 }
 
@@ -22,12 +22,12 @@ function totalOf({ sums, type, side, account }: TotalInput): number {
     .reduce((total, sum) => total + sum.amount, 0);
 }
 
-export function summarizePlayers({ players, names, sums }: SummarizePlayersInput): MatchPlayerSummary[] {
+export function summarizePlayers({ players, nicknames, sums }: SummarizePlayersInput): MatchPlayerSummary[] {
   return players.map((player) => {
     const account = userAccount({ userId: player.userId });
     return {
       userId: player.userId,
-      name: names[player.userId] ?? null,
+      nickname: nicknames[player.userId] ?? null,
       startBalance: player.startBalance,
       paid: totalOf({ sums, type: "ROUND_PAYMENT", side: "fromAccount", account }),
       received: totalOf({ sums, type: "ROUND_PAYMENT", side: "toAccount", account }),

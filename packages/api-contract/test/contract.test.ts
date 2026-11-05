@@ -9,7 +9,8 @@ import {
   eliminatePlayerResponseSchema,
   quoteQuerySchema,
   registerRoundBodySchema,
-  saveProfileBodySchema,
+  registrationBodySchema,
+  isValidCpf,
   startMatchBodySchema,
   finishMatchBodySchema,
   playerEntryBodySchema,
@@ -20,16 +21,40 @@ import {
 } from "../src/index.ts";
 
 describe("api-contract", () => {
+  const registration = { fullName: "Ana Souza", cpf: "11144477735", birthDate: "2000-01-01", nickname: "Ana" };
+
   it("rejects extra fields in request bodies", () => {
-    const result = saveProfileBodySchema.safeParse({ name: "Ana", birthDate: "2000-01-01", admin: true });
+    const result = registrationBodySchema.safeParse({ ...registration, admin: true });
 
     assert.strictEqual(result.success, false);
   });
 
-  it("trims the profile name", () => {
-    const result = saveProfileBodySchema.parse({ name: "  Ana  ", birthDate: "2000-01-01" });
+  it("trims the full name and the nickname", () => {
+    const result = registrationBodySchema.parse({ ...registration, fullName: "  Ana Souza ", nickname: "  Ana  " });
 
-    assert.strictEqual(result.name, "Ana");
+    assert.strictEqual(result.fullName, "Ana Souza");
+    assert.strictEqual(result.nickname, "Ana");
+  });
+
+  it("limits the full name to 100 characters and the nickname to 20", () => {
+    assert.strictEqual(registrationBodySchema.safeParse({ ...registration, fullName: "A".repeat(100) }).success, true);
+    assert.strictEqual(registrationBodySchema.safeParse({ ...registration, fullName: "A".repeat(101) }).success, false);
+    assert.strictEqual(registrationBodySchema.safeParse({ ...registration, nickname: "A".repeat(21) }).success, false);
+    assert.strictEqual(registrationBodySchema.safeParse({ ...registration, fullName: " " }).success, false);
+  });
+
+  it("checks the CPF digits", () => {
+    assert.strictEqual(isValidCpf("11144477735"), true);
+    assert.strictEqual(isValidCpf("12345678909"), true);
+    assert.strictEqual(isValidCpf("11144477736"), false);
+    assert.strictEqual(isValidCpf("11111111111"), false);
+    assert.strictEqual(isValidCpf("1114447773"), false);
+    assert.strictEqual(isValidCpf("111.444.777-35"), false);
+  });
+
+  it("accepts only the 11 digits of a valid CPF in the registration", () => {
+    assert.strictEqual(registrationBodySchema.safeParse({ ...registration, cpf: "111.444.777-35" }).success, false);
+    assert.strictEqual(registrationBodySchema.safeParse({ ...registration, cpf: "11144477736" }).success, false);
   });
 
   it("accepts purchase quantities in multiples of 1.000 from 1.000", () => {
@@ -106,7 +131,7 @@ describe("api-contract", () => {
   it("describes the open match of the player in the entry response", () => {
     const entry = {
       userId: randomUUID(),
-      name: "Ana",
+      nickname: "Ana",
       photoUrl: null,
       profileComplete: true,
       balance: 100,

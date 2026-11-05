@@ -14,8 +14,14 @@ describe("matches routes", () => {
 
   async function playedMatch() {
     const players = [await testApp.signIn(), await testApp.signIn(), await testApp.signIn()];
+    const cpfs = ["11144477735", "12345678909", "52998224725"];
     for (const [index, { headers }] of players.entries()) {
-      await testApp.app.inject({ method: "PUT", url: "/profile", headers, payload: { name: `Jogador ${index + 1}`, birthDate: "1990-05-20" } });
+      await testApp.app.inject({
+        method: "POST",
+        url: "/profile/registration",
+        headers,
+        payload: { fullName: `Jogador ${index + 1}`, cpf: cpfs[index], birthDate: "1990-05-20", nickname: `Jogador ${index + 1}` },
+      });
       await testApp.app.inject({
         method: "POST",
         url: "/store/purchases",
@@ -60,7 +66,7 @@ describe("matches routes", () => {
     const summaries = Object.fromEntries(history.players.map((player: { userId: string }) => [player.userId, player]));
     assert.deepStrictEqual(summaries[players[0].userId], {
       userId: players[0].userId,
-      name: "Jogador 1",
+      nickname: "Jogador 1",
       startBalance: 5000,
       paid: 0,
       received: 70,

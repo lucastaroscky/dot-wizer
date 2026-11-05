@@ -21,21 +21,21 @@ describe("summarizePlayers", () => {
       { type: "WIN_BONUS", fromAccount: HOUSE_ACCOUNT, toAccount: userAccount({ userId: ana }), amount: 50 },
     ];
 
-    const summary = summarizePlayers({ players, names: { [ana]: "Ana", [bia]: "Bia" }, sums });
+    const summary = summarizePlayers({ players, nicknames: { [ana]: "Ana", [bia]: "Bia" }, sums });
 
     assert.deepStrictEqual(summary, [
-      { userId: ana, name: "Ana", startBalance: 1000, paid: 0, received: 100, deficitCleared: 30, deficit: 0, winBonus: 50, result: 70, finalBalance: 1120 },
-      { userId: bia, name: "Bia", startBalance: 100, paid: 100, received: 0, deficitCleared: 0, deficit: 30, winBonus: 0, result: -100, finalBalance: 0 },
+      { userId: ana, nickname: "Ana", startBalance: 1000, paid: 0, received: 100, deficitCleared: 30, deficit: 0, winBonus: 50, result: 70, finalBalance: 1120 },
+      { userId: bia, nickname: "Bia", startBalance: 100, paid: 100, received: 0, deficitCleared: 0, deficit: 30, winBonus: 0, result: -100, finalBalance: 0 },
     ]);
   });
 
   it("keeps the final balance empty while the match is running and the name empty for a user without name", () => {
     const [running] = [{ ...players[0], finalBalance: null }];
 
-    const [summary] = summarizePlayers({ players: [running], names: {}, sums: [] });
+    const [summary] = summarizePlayers({ players: [running], nicknames: {}, sums: [] });
 
     assert.strictEqual(summary.finalBalance, null);
-    assert.strictEqual(summary.name, null);
+    assert.strictEqual(summary.nickname, null);
     assert.strictEqual(summary.paid, 0);
   });
 
@@ -45,7 +45,7 @@ describe("summarizePlayers", () => {
       { type: "ROUND_PAYMENT", fromAccount: userAccount({ userId: bia }), toAccount: userAccount({ userId: "other" }), amount: 25 },
     ];
 
-    const summary = summarizePlayers({ players, names: {}, sums });
+    const summary = summarizePlayers({ players, nicknames: {}, sums });
 
     assert.strictEqual(summary[1].paid, 65);
   });

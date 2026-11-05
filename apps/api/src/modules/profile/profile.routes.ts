@@ -3,34 +3,35 @@ import {
   photoUploadBodySchema,
   photoUploadResponseSchema,
   profileResponseSchema,
-  saveProfileBodySchema,
+  registrationBodySchema,
 } from "@pontinho/api-contract";
 import { APP_SECURITY, appErrors, TAGS } from "../../common/openapi/route-docs.ts";
 import type { ProfileService } from "./profile.service.ts";
 
 const getProfileSchema = {
   summary: "Ler o perfil",
-  description: "Devolve o perfil da conta. Na primeira chamada a conta é criada, ainda sem nome e sem data de nascimento.",
+  description: "Devolve o perfil da conta. Na primeira chamada a conta é criada, ainda sem cadastro.",
   tags: [TAGS.profile],
   security: APP_SECURITY,
   response: { 200: profileResponseSchema, ...appErrors({ codes: ["profileNotFound"] }) },
 };
 
-const saveProfileSchema = {
-  summary: "Salvar nome, data de nascimento e foto",
-  description: "Só quem tem 18 anos ou mais (data de Brasília) conclui o cadastro. A foto é opcional.",
+const registrationSchema = {
+  summary: "Fazer o cadastro",
+  description:
+    "Grava nome completo, CPF, data de nascimento e apelido, uma vez só: depois de salvo, o cadastro trava. Só quem tem 18 anos ou mais (data de Brasília) conclui o cadastro. Um CPF por conta.",
   tags: [TAGS.profile],
   security: APP_SECURITY,
-  body: saveProfileBodySchema,
+  body: registrationBodySchema,
   response: {
     200: profileResponseSchema,
-    ...appErrors({ codes: ["validationFailed", "badRequest", "underage", "photoNotOwned"] }),
+    ...appErrors({ codes: ["validationFailed", "badRequest", "underage", "cpfAlreadyRegistered", "registrationLocked"] }),
   },
 };
 
 const photoUploadSchema = {
   summary: "Pedir a URL assinada para enviar a foto",
-  description: "Depois do envio, mande o `path` em `photoPath` ao salvar o perfil.",
+  description: "Devolve o caminho e a URL assinada para enviar a foto ao armazenamento.",
   tags: [TAGS.profile],
   security: APP_SECURITY,
   body: photoUploadBodySchema,
@@ -40,8 +41,8 @@ const photoUploadSchema = {
 export function profileRoutes({ service }: { service: ProfileService }): FastifyPluginAsyncZod {
   return async (app) => {
     app.get("/profile", { schema: getProfileSchema }, (request) => service.get({ userId: request.auth.userId }));
-    app.put("/profile", { schema: saveProfileSchema }, (request) =>
-      service.save({ userId: request.auth.userId, ...request.body }),
+    app.post("/profile/registration", { schema: registrationSchema }, (request) =>
+      service.register({ userId: request.auth.userId, ...request.body }),
     );
     app.post("/profile/photo-upload", { schema: photoUploadSchema }, (request) =>
       service.requestPhotoUpload({ userId: request.auth.userId, ...request.body }),

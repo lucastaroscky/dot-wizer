@@ -65,8 +65,8 @@ describe("app", () => {
       const { headers } = await testApp.signIn();
 
       const response = await testApp.app.inject({
-        method: "PUT",
-        url: "/profile",
+        method: "POST",
+        url: "/profile/registration",
         headers: { ...headers, "content-type": "application/json" },
         payload: "{not json",
       });

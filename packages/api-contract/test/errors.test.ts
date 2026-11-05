@@ -14,6 +14,8 @@ const EXPECTED_STATUS: Record<string, number> = {
   underage: 422,
   photoNotOwned: 422,
   profileNotFound: 404,
+  cpfAlreadyRegistered: 409,
+  registrationLocked: 409,
   dailyBonusAlreadyClaimed: 409,
   insufficientBalance: 409,
   quantityAboveMaximum: 422,
@@ -36,8 +38,8 @@ describe("api errors", () => {
     assert.deepStrictEqual({ ...API_ERROR_STATUS }, EXPECTED_STATUS);
   });
 
-  it("has 27 codes", () => {
-    assert.strictEqual(API_ERROR_CODES.length, 27);
+  it("has 29 codes", () => {
+    assert.strictEqual(API_ERROR_CODES.length, 29);
   });
 
   it("accepts only known codes", () => {
