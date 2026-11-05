@@ -33,7 +33,7 @@ Todos os erros desta chamada têm o mesmo tratamento: abortar a partida (ver "Tr
 | Código da API | Status | Quando | Tratamento no jogo | Efeito no jogador |
 |---|---|---|---|---|
 | `tableNotFound` | 422 | A API não conhece a mesa. O jogo filtra as mesas pela mesma lista (`CHIP_TABLES`), então só acontece com jogo e API em versões diferentes. | Abortar a partida. | Sala fechada com 4410. Ninguém foi cobrado. |
-| `playerNotFound` | 404 | Alguma conta da sala não existe na API. | Abortar a partida. | Sala fechada com 4410. |
+| `playerNotFound` | 404 | Alguma conta da sala não existe na API ou foi excluída enquanto esperava na mesa. | Abortar a partida. | Sala fechada com 4410. |
 | `playerAlreadyInMatch` | 409 | Alguma conta já está em outra partida aberta, por exemplo duas salas que enchem ao mesmo tempo com o mesmo jogador. A API deixa só uma começar. | Abortar a partida. | Sala fechada com 4410. |
 | `playerBelowMinimumBalance` | 409 | O saldo de alguma conta caiu abaixo do mínimo da mesa entre a entrada e o início. A entrada só confere o saldo na hora de sentar. | Abortar a partida. | Sala fechada com 4410. |
 | `validationFailed` | 400 | A API recusou o corpo: contrato quebrado entre jogo e API. | Abortar a partida. | Sala fechada com 4410. |

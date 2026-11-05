@@ -232,6 +232,17 @@ describe("internal routes", () => {
       );
     });
 
+    it("refuses an account that was deleted while waiting at the table", async () => {
+      const playerIds = [await seedUser({ balance: 5000 }), await seedUser({ balance: 5000 }), await seedUser({ balance: 5000 })];
+      await testPrisma.user.update({ where: { id: playerIds[2] }, data: { active: false } });
+
+      const response = await post("/internal/matches", { table: 1, playerIds });
+
+      assert.strictEqual(response.statusCode, 404);
+      assert.strictEqual(response.json().code, "playerNotFound");
+      assert.strictEqual(await testPrisma.match.count(), 0);
+    });
+
     it("frees the players when the match is finished", async () => {
       const { playerIds, matchId } = await startMatch({ balances: [5000, 5000, 5000] });
 

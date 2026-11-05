@@ -250,7 +250,7 @@ export class MatchesService {
 
   private async assertPlayersExistAndAreFree({ transaction, playerIds }: PlayerIdsInput): Promise<void> {
     const users = await transaction.users.findByIds({ ids: playerIds });
-    if (users.length !== playerIds.length) {
+    if (users.filter((user) => user.active).length !== playerIds.length) {
       throw new ApiError({ code: "playerNotFound" });
     }
     const busyPlayerIds = await transaction.matches.findUsersInOpenMatches({ userIds: playerIds });
