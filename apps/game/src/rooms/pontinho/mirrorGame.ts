@@ -65,6 +65,10 @@ export function mirrorGame(state: PontinhoState, game: Game) {
   state.stockCount = game.stock.length;
   mirrorMelds(state.melds, game.melds);
 
+  if (state.flipped?.id !== game.flipped?.id) {
+    state.flipped = game.flipped ? toCardState(game.flipped) : undefined;
+  }
+
   const top = game.discard.at(-1);
   if (state.discardTop?.id !== top?.id) {
     state.discardTop = top ? toCardState(top) : undefined;

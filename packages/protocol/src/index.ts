@@ -1,6 +1,6 @@
 import { schema, t, type SchemaType } from "@colyseus/schema";
 import { z } from "zod";
-import { CHIP_TABLES, MIN_PLAYERS, ONLINE_MAX_PLAYERS, cardById, createDeck, type GameError, type Meld, type MeldKind } from "@pontinho/rules";
+import { CHIP_TABLES, MIN_PLAYERS, TRAINING_MAX_PLAYERS, cardById, createDeck, type GameError, type Meld, type MeldKind } from "@pontinho/rules";
 
 export const CardState = schema({
   id: t.string(),
@@ -59,12 +59,14 @@ export const PontinhoState = schema({
   wentOut: t.string().default(""),
   discardTop: t.ref(CardState).optional(),
   stockCount: t.uint8().default(0),
+  lifeJoker: t.boolean().default(false),
+  flipped: t.ref(CardState).optional(),
   melds: t.array(MeldState),
 });
 export type PontinhoState = SchemaType<typeof PontinhoState>;
 
 export const ROOM_NAME = "pontinho";
-export { MIN_PLAYERS, ONLINE_MAX_PLAYERS as MAX_PLAYERS } from "@pontinho/rules";
+export { MIN_PLAYERS, ONLINE_MAX_PLAYERS as MAX_PLAYERS, TRAINING_MAX_PLAYERS } from "@pontinho/rules";
 export const PRACTICE_TABLE = 0;
 export const MAX_CARDS_PER_ACTION = 14;
 
@@ -74,10 +76,10 @@ const meldIndexSchema = z.number().int().min(0);
 
 const tableSchema = z.number().int().refine((table) => CHIP_TABLES.some(({ id }) => id === table));
 
-const seatsSchema = z.number().int().min(MIN_PLAYERS).max(ONLINE_MAX_PLAYERS);
+const seatsSchema = z.number().int().min(MIN_PLAYERS).max(TRAINING_MAX_PLAYERS);
 
 export const createOptionsSchema = z.discriminatedUnion("bots", [
-  z.object({ bots: z.literal(true), seats: seatsSchema, table: tableSchema.optional() }),
+  z.object({ bots: z.literal(true), seats: seatsSchema, lifeJoker: z.boolean().default(false), table: tableSchema.optional() }),
   z.object({ bots: z.literal(false), table: tableSchema }),
 ]);
 
@@ -91,7 +93,7 @@ export const layOffMessageSchema = z.object({
   jokerTo: z.object({ meldIndex: meldIndexSchema.optional(), cardIds: cardIdsSchema }).optional(),
 });
 
-export type CreateOptions = z.infer<typeof createOptionsSchema>;
+export type CreateOptions = z.input<typeof createOptionsSchema>;
 
 export type ClientMessages = {
   draw: undefined;

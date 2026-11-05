@@ -89,6 +89,7 @@ export abstract class PontinhoRoom extends Room<{ state: PontinhoState; client: 
     this.maxClients = parsed.bots ? 1 : MAX_PLAYERS;
     this.state.seats = parsed.bots ? parsed.seats : MAX_PLAYERS;
     this.state.table = parsed.bots ? PRACTICE_TABLE : parsed.table;
+    this.state.lifeJoker = parsed.bots && parsed.lifeJoker;
   }
 
   onUncaughtException(error: Error, methodName: string) {
@@ -328,7 +329,7 @@ export abstract class PontinhoRoom extends Room<{ state: PontinhoState; client: 
     this.stopCountdown();
     this.lock();
     this.openChipsMatch();
-    this.showRound(startMatch(this.state.order.toArray(), { lifeJoker: false }));
+    this.showRound(startMatch(this.state.order.toArray(), { lifeJoker: this.state.lifeJoker }));
   }
 
   private openChipsMatch() {
