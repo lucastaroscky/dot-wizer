@@ -4,6 +4,8 @@ export const RANKS = ["A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q
 export type Suit = (typeof SUITS)[number];
 export type Rank = (typeof RANKS)[number];
 export type Card = { id: string; rank: Rank; suit: Suit } | { id: string; rank: "JOKER" };
+export type NaturalCard = Extract<Card, { suit: Suit }>;
+export type Wild = { rank: Rank; suits: Suit[] };
 
 export const HAND_SIZE = 9;
 const DECK_COPIES = 2;
@@ -60,6 +62,32 @@ export function drawFromStock({ stock, discard }: Piles, random = secureRandom):
   return { card: stock[0], stock: stock.slice(1), discard };
 }
 
+export function flipCard(stock: Card[]): { flipped: NaturalCard; stock: Card[] } {
+  const [top, ...rest] = stock;
+  if (top.rank === "JOKER") {
+    return flipCard([...rest, top]);
+  }
+  return { flipped: top, stock: rest };
+}
+
+const SAME_COLOR: Record<Suit, Suit[]> = {
+  hearts: ["hearts", "diamonds"],
+  diamonds: ["hearts", "diamonds"],
+  spades: ["spades", "clubs"],
+  clubs: ["spades", "clubs"],
+};
+
+export function lifeJokerFor(flipped: { rank: Rank; suit: Suit }): Wild {
+  return { rank: RANKS[(RANKS.indexOf(flipped.rank) + 1) % RANKS.length], suits: SAME_COLOR[flipped.suit] };
+}
+
+export function isJoker(card: Card, wild?: Wild) {
+  if (card.rank === "JOKER") {
+    return true;
+  }
+  return wild !== undefined && card.rank === wild.rank && wild.suits.includes(card.suit);
+}
+
 const CARD_POINTS: Record<Rank | "JOKER", number> = {
   JOKER: 20, A: 15, K: 10, Q: 10, J: 10,
   "10": 10, "9": 9, "8": 8, "7": 7, "6": 6, "5": 5, "4": 4, "3": 3, "2": 2,
@@ -67,8 +95,8 @@ const CARD_POINTS: Record<Rank | "JOKER", number> = {
 
 export const ELIMINATION_POINTS = 100;
 
-export function handPoints(cards: Card[]) {
-  return cards.reduce((total, card) => total + CARD_POINTS[card.rank], 0);
+export function handPoints(cards: Card[], wild?: Wild) {
+  return cards.reduce((total, card) => total + CARD_POINTS[isJoker(card, wild) ? "JOKER" : card.rank], 0);
 }
 
 const CARDS_BY_ID = new Map(createDeck().map((card) => [card.id, card]));

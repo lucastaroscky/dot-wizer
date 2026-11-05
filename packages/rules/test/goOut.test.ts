@@ -60,7 +60,7 @@ describe("findGoOut", () => {
     const taken = card("9", "clubs");
     const hand = [card("7", "clubs"), card("7", "diamonds"), card("7", "spades"), card("2", "hearts"), taken];
 
-    assert.strictEqual(findGoOut(hand, [], taken), undefined);
+    assert.strictEqual(findGoOut(hand, [], { mustUse: taken }), undefined);
   });
 
   it("never chooses the joker as the card to discard", () => {

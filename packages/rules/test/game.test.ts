@@ -42,7 +42,7 @@ function meldOf(ids: string[]) {
 }
 
 function gameWith(setup: Setup = {}): Game {
-  const base = startMatch(setup.players ?? PLAYERS, () => 0);
+  const base = startMatch(setup.players ?? PLAYERS, { lifeJoker: false }, () => 0);
   return {
     ...base,
     players: base.players.map((player) => ({
@@ -92,7 +92,7 @@ function ranks(meld: Meld) {
 
 describe("startMatch", () => {
   it("deals 9 cards to each player, turns one card up and starts with the player after the dealer", () => {
-    const game = startMatch(PLAYERS);
+    const game = startMatch(PLAYERS, { lifeJoker: false });
 
     assert.deepStrictEqual(game.players.map((player) => player.hand.length), [9, 9, 9]);
     assert.strictEqual(game.stock.length, 108 - 27 - 1);

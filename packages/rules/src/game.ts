@@ -1,5 +1,5 @@
-import { dealRound, drawFromStock, ELIMINATION_POINTS, handPoints, secureRandom, type Card } from "./cards.ts";
-import { addToMeld, canDiscard, createMeld, findGoOut, findMeldInHand, isJoker, replaceJoker, type Meld } from "./melds.ts";
+import { dealRound, drawFromStock, ELIMINATION_POINTS, flipCard, handPoints, isJoker, lifeJokerFor, secureRandom, type Card, type NaturalCard } from "./cards.ts";
+import { addToMeld, canDiscard, createMeld, findGoOut, findMeldInHand, replaceJoker, type Meld } from "./melds.ts";
 
 export type Phase = "playing" | "roundOver" | "ended";
 
@@ -28,6 +28,8 @@ export type Game = {
   melds: Meld[];
   wentOut: string;
   winner: string;
+  lifeJoker: boolean;
+  flipped?: NaturalCard;
 };
 
 export type JokerTarget = { meldIndex?: number; cardIds: string[] };
@@ -53,6 +55,7 @@ export type MatchEndReason = "points" | "walkover";
 
 export const MIN_PLAYERS = 3;
 export const ONLINE_MAX_PLAYERS = 4;
+export const TRAINING_MAX_PLAYERS = 6;
 
 const MIN_PLAYERS_TO_CONTINUE = 2;
 
@@ -83,7 +86,7 @@ export type ActionResult = { game: Game; events: GameEvent[] } | { error: GameEr
 
 type Random = () => number;
 
-export function startMatch(playerIds: string[], random: Random = secureRandom): Game {
+export function startMatch(playerIds: string[], { lifeJoker }: { lifeJoker: boolean }, random: Random = secureRandom): Game {
   const players = playerIds.map((id) => ({ id, hand: [], points: 0, roundPoints: 0, eliminated: false, sittingOut: false, leftMatch: false, awaitingReturn: false, bluffed: false }));
   const game: Game = {
     players,
@@ -98,6 +101,7 @@ export function startMatch(playerIds: string[], random: Random = secureRandom): 
     melds: [],
     wentOut: "",
     winner: "",
+    lifeJoker,
   };
   return startRound(game, random);
 }
@@ -125,7 +129,9 @@ export function startRound(game: Game, random: Random = secureRandom): Game {
   active.forEach((player, seat) => {
     player.hand = round.hands[seat];
   });
-  next.stock = round.stock;
+  const flip = next.lifeJoker ? flipCard(round.stock) : { stock: round.stock, flipped: undefined };
+  next.stock = flip.stock;
+  next.flipped = flip.flipped;
   next.discard = round.discard;
   next.melds = [];
   next.wentOut = "";
@@ -200,7 +206,7 @@ function takeDiscard(game: Game, player: GamePlayer, cardIds: string[], meldInde
   if (player.hand.length === 1) {
     return "discardWithOneCard";
   }
-  const goingOut = { goingOut: player.hand.length - cards.length <= 1 };
+  const goingOut = { goingOut: player.hand.length - cards.length <= 1, wild: wildOf(game) };
   const placed = target ? addToMeld(target, [top, ...cards], goingOut) : createMeld([top, ...cards], goingOut);
   if (!placed) {
     return "discardNeedsMeld";
@@ -221,7 +227,7 @@ function meld(game: Game, player: GamePlayer, cardIds: string[], events: GameEve
   if (!cards || !isTurnOf(game, player) || !game.hasDrawn) {
     return "notAllowed";
   }
-  const created = createMeld(cards, { goingOut: player.hand.length - cards.length <= 1 });
+  const created = createMeld(cards, { goingOut: player.hand.length - cards.length <= 1, wild: wildOf(game) });
   if (!created) {
     return "invalidMeld";
   }
@@ -238,7 +244,7 @@ function layOff(game: Game, player: GamePlayer, cardIds: string[], meldIndex: nu
   if (!cards || !target || !isTurnOf(game, player) || !game.hasDrawn) {
     return "notAllowed";
   }
-  const extended = addToMeld(target, cards, { goingOut: player.hand.length - cards.length <= 1 });
+  const extended = addToMeld(target, cards, { goingOut: player.hand.length - cards.length <= 1, wild: wildOf(game) });
   if (!extended) {
     return swapJoker(game, player, cards, meldIndex, jokerTo, events);
   }
@@ -250,7 +256,7 @@ function layOff(game: Game, player: GamePlayer, cardIds: string[], meldIndex: nu
 }
 
 function swapJoker(game: Game, player: GamePlayer, cards: Card[], meldIndex: number, jokerTo: JokerTarget | undefined, events: GameEvent[]) {
-  const swap = cards.length === 1 ? replaceJoker(game.melds[meldIndex], cards[0]) : undefined;
+  const swap = cards.length === 1 ? replaceJoker(game.melds[meldIndex], cards[0], { wild: wildOf(game) }) : undefined;
   if (!swap) {
     return "invalidLayOff";
   }
@@ -264,7 +270,7 @@ function swapJoker(game: Game, player: GamePlayer, cards: Card[], meldIndex: num
 
   const table = game.melds.map((current, index) => (index === meldIndex ? swap.meld : current));
   const jokerTarget = jokerTo.meldIndex === undefined ? undefined : table[jokerTo.meldIndex];
-  const goingOut = { goingOut: player.hand.length - cards.length - extraCards.length <= 1 };
+  const goingOut = { goingOut: player.hand.length - cards.length - extraCards.length <= 1, wild: wildOf(game) };
   const jokerMeld = jokerTarget ? addToMeld(jokerTarget, [swap.joker, ...extraCards], goingOut) : createMeld([swap.joker, ...extraCards], goingOut);
   if (!jokerMeld) {
     return "jokerPlacement";
@@ -284,10 +290,10 @@ function discard(game: Game, player: GamePlayer, cardId: string, events: GameEve
     return "notAllowed";
   }
   const [card] = cards;
-  if (isJoker(card)) {
+  if (isJoker(card, wildOf(game))) {
     return "jokerCannotBeDiscarded";
   }
-  if (!canDiscard(card, game.melds)) {
+  if (!canDiscard(card, game.melds, { wild: wildOf(game) })) {
     return "cardFitsTable";
   }
   discardCard(game, player, card, events);
@@ -306,7 +312,7 @@ function goOut(game: Game, player: GamePlayer, events: GameEvent[]) {
     return "alreadyBluffed";
   }
 
-  const found = findGoOut([...player.hand, top], game.melds, top);
+  const found = findGoOut([...player.hand, top], game.melds, { mustUse: top, wild: wildOf(game) });
   if (!found) {
     player.bluffed = true;
     events.push({ type: "bluffed", playerId: player.id });
@@ -403,7 +409,7 @@ function playMovementOnly(game: Game, player: GamePlayer, events: GameEvent[], r
 }
 
 function discardAtRandom(game: Game, player: GamePlayer, events: GameEvent[], random: Random) {
-  const discardable = player.hand.filter((card) => canDiscard(card, game.melds));
+  const discardable = player.hand.filter((card) => canDiscard(card, game.melds, { wild: wildOf(game) }));
   if (discardable.length === 0) {
     game.hasDrawn = false;
     game.discardIsFree = false;
@@ -414,8 +420,9 @@ function discardAtRandom(game: Game, player: GamePlayer, events: GameEvent[], ra
 }
 
 function meldEverythingPossible(game: Game, player: GamePlayer, events: GameEvent[]) {
-  for (let cards = findMeldInHand(player.hand); cards; cards = findMeldInHand(player.hand)) {
-    const created = createMeld(cards, { goingOut: player.hand.length - cards.length <= 1 });
+  const wild = wildOf(game);
+  for (let cards = findMeldInHand(player.hand, { wild }); cards; cards = findMeldInHand(player.hand, { wild })) {
+    const created = createMeld(cards, { goingOut: player.hand.length - cards.length <= 1, wild });
     if (!created) {
       return;
     }
@@ -427,7 +434,7 @@ function meldEverythingPossible(game: Game, player: GamePlayer, events: GameEven
 
 function layOffEverythingThatFits(game: Game, player: GamePlayer, events: GameEvent[]) {
   for (const card of [...player.hand]) {
-    const goingOut = { goingOut: player.hand.length <= 2 };
+    const goingOut = { goingOut: player.hand.length <= 2, wild: wildOf(game) };
     const meldIndex = game.melds.findIndex((current) => addToMeld(current, [card], goingOut));
     const extended = meldIndex === -1 ? undefined : addToMeld(game.melds[meldIndex], [card], goingOut);
     if (!extended) {
@@ -478,7 +485,7 @@ function endRound(game: Game, winner: GamePlayer, events: GameEvent[], reason: R
     if (player === winner || player.eliminated) {
       continue;
     }
-    player.roundPoints = handPoints(player.hand);
+    player.roundPoints = handPoints(player.hand, wildOf(game));
     player.points += player.roundPoints;
   }
   game.wentOut = winner.id;
@@ -528,7 +535,8 @@ function winnerWithoutCards(game: Game) {
   const dealerSeat = game.players.findIndex((player) => player.id === game.dealer);
   const fromDealer = [...game.players.slice(dealerSeat + 1), ...game.players.slice(0, dealerSeat + 1)];
   const active = fromDealer.filter(isPlaying);
-  return active.sort((a, b) => a.points - b.points || handPoints(a.hand) - handPoints(b.hand))[0];
+  const wild = wildOf(game);
+  return active.sort((a, b) => a.points - b.points || handPoints(a.hand, wild) - handPoints(b.hand, wild))[0];
 }
 
 function passTurn(game: Game, events: GameEvent[]) {
@@ -545,6 +553,10 @@ function nextActive(game: Game, playerId: string) {
     }
   }
   return playerId;
+}
+
+function wildOf(game: Game) {
+  return game.flipped && lifeJokerFor(game.flipped);
 }
 
 function isPlaying(player: GamePlayer) {

@@ -22,7 +22,7 @@ describe("randomness of the deck", () => {
       const reshuffled = drawFromStock({ stock: [], discard: [cardById("2-clubs-1"), cardById("3-clubs-1"), cardById("4-clubs-1")] });
       assert.strictEqual(reshuffled?.stock.length, 1);
 
-      const game = startRound({ ...startMatch(["ana", "bruno", "carla"]), phase: "roundOver" });
+      const game = startRound({ ...startMatch(["ana", "bruno", "carla"], { lifeJoker: true }), phase: "roundOver" });
       const played = applyAction(game, game.currentTurn, { type: "playAutomatically" });
       assert.ok("game" in played);
     });

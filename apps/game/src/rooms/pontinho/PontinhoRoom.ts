@@ -328,7 +328,7 @@ export abstract class PontinhoRoom extends Room<{ state: PontinhoState; client: 
     this.stopCountdown();
     this.lock();
     this.openChipsMatch();
-    this.showRound(startMatch(this.state.order.toArray()));
+    this.showRound(startMatch(this.state.order.toArray(), { lifeJoker: false }));
   }
 
   private openChipsMatch() {

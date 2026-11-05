@@ -1,9 +1,7 @@
-import type { Card, Rank, Suit } from "./cards.ts";
+import { isJoker, type Card, type NaturalCard, type Rank, type Wild } from "./cards.ts";
 
 export type MeldKind = "set" | "run";
 export type Meld = { kind: MeldKind; cards: Card[] };
-
-type NaturalCard = Extract<Card, { suit: Suit }>;
 
 const MIN_MELD_SIZE = 3;
 const MAX_JOKERS_IN_RUN = 2;
@@ -12,45 +10,41 @@ const RANK_VALUES: Record<Rank, number> = {
   A: 1, "2": 2, "3": 3, "4": 4, "5": 5, "6": 6, "7": 7, "8": 8, "9": 9, "10": 10, J: 11, Q: 12, K: 13,
 };
 
-export function isJoker(card: Card) {
-  return card.rank === "JOKER";
+function isNatural(card: Card, wild?: Wild): card is NaturalCard {
+  return !isJoker(card, wild);
 }
 
-function isNatural(card: Card): card is NaturalCard {
-  return card.rank !== "JOKER";
-}
+export type MeldOptions = { goingOut?: boolean; wild?: Wild };
 
-export type MeldOptions = { goingOut?: boolean };
-
-export function createMeld(cards: Card[], { goingOut = false }: MeldOptions = {}): Meld | undefined {
+export function createMeld(cards: Card[], { goingOut = false, wild }: MeldOptions = {}): Meld | undefined {
   if (cards.length < MIN_MELD_SIZE) {
     return undefined;
   }
-  return createSet(cards) ?? arrangeRun(cards, goingOut);
+  return createSet(cards, wild) ?? arrangeRun(cards, goingOut, wild);
 }
 
-export function addToMeld(meld: Meld, cards: Card[], { goingOut = false }: MeldOptions = {}): Meld | undefined {
+export function addToMeld(meld: Meld, cards: Card[], { goingOut = false, wild }: MeldOptions = {}): Meld | undefined {
   if (meld.kind === "set") {
-    return addToSet(meld, cards);
+    return addToSet(meld, cards, wild);
   }
-  return arrangeRun([...meld.cards, ...cards], goingOut);
+  return arrangeRun([...meld.cards, ...cards], goingOut, wild);
 }
 
-export function replaceJoker(meld: Meld, card: Card): { meld: Meld; joker: Card } | undefined {
-  const jokerIndex = meld.cards.findIndex(isJoker);
-  if (meld.kind !== "run" || jokerIndex === -1 || isJoker(card)) {
+export function replaceJoker(meld: Meld, card: Card, { wild }: MeldOptions = {}): { meld: Meld; joker: Card } | undefined {
+  const jokerIndex = meld.cards.findIndex((current) => isJoker(current, wild));
+  if (meld.kind !== "run" || jokerIndex === -1 || isJoker(card, wild)) {
     return undefined;
   }
   const rest = meld.cards.filter((_, index) => index !== jokerIndex);
-  const replaced = arrangeRun([...rest, card], false);
+  const replaced = arrangeRun([...rest, card], false, wild);
   if (!replaced) {
     return undefined;
   }
   return { meld: replaced, joker: meld.cards[jokerIndex] };
 }
 
-function createSet(cards: Card[]): Meld | undefined {
-  const naturals = cards.filter(isNatural);
+function createSet(cards: Card[], wild: Wild | undefined): Meld | undefined {
+  const naturals = cards.filter((card) => isNatural(card, wild));
   const suits = new Set(naturals.map((card) => card.suit));
   const sameRank = naturals.every((card) => card.rank === naturals[0].rank);
   if (naturals.length !== cards.length || !sameRank || suits.size !== cards.length) {
@@ -59,19 +53,19 @@ function createSet(cards: Card[]): Meld | undefined {
   return { kind: "set", cards };
 }
 
-function addToSet(meld: Meld, cards: Card[]): Meld | undefined {
-  const setCards = meld.cards.filter(isNatural);
+function addToSet(meld: Meld, cards: Card[], wild: Wild | undefined): Meld | undefined {
+  const setCards = meld.cards.filter((card) => isNatural(card));
   const suits = new Set(setCards.map((card) => card.suit));
-  const fits = cards.every((card) => isNatural(card) && card.rank === setCards[0].rank && suits.has(card.suit));
+  const fits = cards.every((card) => isNatural(card, wild) && card.rank === setCards[0].rank && suits.has(card.suit));
   if (!fits) {
     return undefined;
   }
   return { kind: "set", cards: [...meld.cards, ...cards] };
 }
 
-function arrangeRun(cards: Card[], goingOut: boolean): Meld | undefined {
-  const jokers = cards.filter(isJoker);
-  const naturals = cards.filter(isNatural);
+function arrangeRun(cards: Card[], goingOut: boolean, wild: Wild | undefined): Meld | undefined {
+  const jokers = cards.filter((card) => isJoker(card, wild));
+  const naturals = cards.filter((card) => isNatural(card, wild));
   const suits = new Set(naturals.map((card) => card.suit));
   if (jokers.length > MAX_JOKERS_IN_RUN || suits.size !== 1) {
     return undefined;
@@ -125,12 +119,12 @@ function placeAtEnds(arranged: Card[], spare: Card[], lowest: number, highest: n
 
 export type GoOut = { table: Meld[]; discard?: Card };
 
-export function findMeldInHand(hand: Card[]): Card[] | undefined {
+export function findMeldInHand(hand: Card[], { wild }: MeldOptions = {}): Card[] | undefined {
   for (let first = 0; first < hand.length; first++) {
     for (let second = first + 1; second < hand.length; second++) {
       for (let third = second + 1; third < hand.length; third++) {
         const cards = [hand[first], hand[second], hand[third]];
-        if (createMeld(cards, { goingOut: hand.length <= 4 })) {
+        if (createMeld(cards, { goingOut: hand.length <= 4, wild })) {
           return cards;
         }
       }
@@ -139,24 +133,24 @@ export function findMeldInHand(hand: Card[]): Card[] | undefined {
   return undefined;
 }
 
-export function fitsTable(card: Card, table: Meld[]) {
-  return table.some((meld) => addToMeld(meld, [card]) !== undefined || replaceJoker(meld, card) !== undefined);
+export function fitsTable(card: Card, table: Meld[], { wild }: MeldOptions = {}) {
+  return table.some((meld) => addToMeld(meld, [card], { wild }) !== undefined || replaceJoker(meld, card, { wild }) !== undefined);
 }
 
-export function canDiscard(card: Card, table: Meld[]) {
-  return !isJoker(card) && !fitsTable(card, table);
+export function canDiscard(card: Card, table: Meld[], { wild }: MeldOptions = {}) {
+  return !isJoker(card, wild) && !fitsTable(card, table, { wild });
 }
 
-export function findGoOut(hand: Card[], table: Meld[], mustUse?: Card): GoOut | undefined {
-  const withoutDiscard = meldAll(hand, table);
+export function findGoOut(hand: Card[], table: Meld[], { mustUse, wild }: { mustUse?: Card; wild?: Wild } = {}): GoOut | undefined {
+  const withoutDiscard = meldAll(hand, table, wild);
   if (withoutDiscard) {
     return { table: withoutDiscard };
   }
   for (const discard of hand) {
-    if (discard === mustUse || isJoker(discard)) {
+    if (discard === mustUse || isJoker(discard, wild)) {
       continue;
     }
-    const finalTable = meldAll(hand.filter((card) => card !== discard), table);
+    const finalTable = meldAll(hand.filter((card) => card !== discard), table, wild);
     if (finalTable) {
       return { table: finalTable, discard };
     }
@@ -164,23 +158,23 @@ export function findGoOut(hand: Card[], table: Meld[], mustUse?: Card): GoOut | 
   return undefined;
 }
 
-function meldAll(cards: Card[], table: Meld[]): Meld[] | undefined {
+function meldAll(cards: Card[], table: Meld[], wild: Wild | undefined): Meld[] | undefined {
   if (cards.length === 0) {
     return table;
   }
   const [first, ...others] = cards;
 
   for (let index = 0; index < table.length; index++) {
-    const extended = addToMeld(table[index], [first], { goingOut: true });
-    const result = extended && meldAll(others, table.map((meld, at) => (at === index ? extended : meld)));
+    const extended = addToMeld(table[index], [first], { goingOut: true, wild });
+    const result = extended && meldAll(others, table.map((meld, at) => (at === index ? extended : meld)), wild);
     if (result) {
       return result;
     }
   }
 
   for (const group of groupsOf(others)) {
-    const meld = createMeld([first, ...group], { goingOut: true });
-    const result = meld && meldAll(others.filter((card) => !group.includes(card)), [...table, meld]);
+    const meld = createMeld([first, ...group], { goingOut: true, wild });
+    const result = meld && meldAll(others.filter((card) => !group.includes(card)), [...table, meld], wild);
     if (result) {
       return result;
     }
