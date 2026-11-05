@@ -20,7 +20,7 @@ Um arquivo por caso de uso do servidor do jogo: [entrada](jogo/entrada.md), [in�
 
 ## `docs/telas`
 
-Um arquivo por tela do app: [cadastro](telas/cadastro.md) e [menu](telas/menu.md). Os erros que valem para toda rota ficam em [erros comuns](telas/erros-comuns.md). Cada um traz a chamada, o sucesso, cada erro com o efeito na tela e a chave do texto, a regra com a fonte e os testes. O "o que a tela mostra" vem do protótipo aprovado pelo Lucas.
+Um arquivo por tela do app: [cadastro](telas/cadastro.md), [menu](telas/menu.md) e [perfil](telas/perfil.md). Os erros que valem para toda rota ficam em [erros comuns](telas/erros-comuns.md). Cada um traz a chamada, o sucesso, cada erro com o efeito na tela e a chave do texto, a regra com a fonte e os testes. O "o que a tela mostra" vem do protótipo aprovado pelo Lucas.
 
 ## Como escrever um documento
 

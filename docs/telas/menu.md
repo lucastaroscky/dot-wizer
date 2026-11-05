@@ -1,6 +1,6 @@
 # Menu
 
-Primeira tela de quem já tem cadastro. Mostra o saldo, o bônus diário e leva para Jogar online, Jogar (treino com robôs) e Pagamentos. Como jogar e Ranking aparecem como "em breve".
+Primeira tela de quem já tem cadastro. Mostra o saldo, o bônus diário e leva para Jogar online, Jogar (treino com robôs), Pagamentos e Perfil. Como jogar e Ranking aparecem como "em breve".
 
 Código: `apps/mobile/src/app/index.tsx`, com `useWallet`, `useDailyBonus`, `BalanceCard` e `DailyBonus` de `apps/mobile/src/features/wallet/`.
 
@@ -21,7 +21,7 @@ Código: `apps/mobile/src/app/index.tsx`, com `useWallet`, `useDailyBonus`, `Bal
 | Jogar online | pré-sala (`/lobby`) |
 | Jogar | pré-sala (`/lobby`), até a parte 5 trazer o Ajuste da partida |
 | Pagamentos | loja (`/store`), até a parte 4 trazer a tela Pagamentos |
-| Sair | encerra a sessão, até a parte 3 levar o Sair para o Perfil |
+| Perfil | [perfil](perfil.md) (`/profile`), onde fica o Sair |
 
 Com uma sala aberta (`room` do `MatchProvider`), o menu manda direto para a mesa.
 
