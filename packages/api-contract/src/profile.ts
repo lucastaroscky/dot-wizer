@@ -28,8 +28,8 @@ const nicknameSchema = z.string().trim().min(1).max(NICKNAME_MAX_LENGTH).describ
 
 export const phoneSchema = z
   .string()
-  .regex(/^\d{2}9\d{8}$/)
-  .describe("Celular com 11 dígitos, sem máscara: o DDD e o número com o 9 na frente.");
+  .regex(/^\d{11}$/)
+  .describe("Celular com 11 dígitos, sem máscara.");
 
 export const profileResponseSchema = z.object({
   id: userIdSchema,

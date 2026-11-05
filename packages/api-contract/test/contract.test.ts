@@ -53,10 +53,9 @@ describe("api-contract", () => {
     assert.strictEqual(isValidCpf("111.444.777-35"), false);
   });
 
-  it("accepts a cell phone with area code and the leading 9, in digits only", () => {
+  it("accepts a cell phone with 11 digits only", () => {
     assert.strictEqual(updateProfileBodySchema.safeParse({ phone: "51998765432" }).success, true);
     assert.strictEqual(updateProfileBodySchema.safeParse({ phone: "5198765432" }).success, false);
-    assert.strictEqual(updateProfileBodySchema.safeParse({ phone: "51898765432" }).success, false);
     assert.strictEqual(updateProfileBodySchema.safeParse({ phone: "(51) 99876-5432" }).success, false);
   });
 

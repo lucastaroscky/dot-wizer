@@ -216,7 +216,7 @@ describe("profile routes", () => {
     assert.strictEqual(read.json().cpf, "11144477735");
   });
 
-  it("refuses to change the locked fields and a phone without the leading 9", async () => {
+  it("refuses to change the locked fields and a phone without 11 digits", async () => {
     const { headers } = await testApp.signIn();
     await register(headers);
 
