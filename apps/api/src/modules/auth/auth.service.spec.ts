@@ -22,7 +22,7 @@ function buildService({ active = true, verifyFails = false, storedEmail = "" } =
   const usersRepository = fake<UsersRepository>({
     findOrCreate: async (input) => {
       upserts.push(input);
-      return { id: input.id, email: storedEmail || input.email, nickname: null, fullName: null, cpf: null, birthDate: null, phone: null, photoPath: null, active };
+      return { id: input.id, email: storedEmail || input.email, nickname: null, fullName: null, cpf: null, birthDate: null, phone: null, photoPath: null, pixKeyRegisteredAt: null, active };
     },
     updateEmail: async (input) => {
       emailUpdates.push(input);

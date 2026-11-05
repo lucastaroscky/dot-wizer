@@ -15,6 +15,7 @@ export const API_ERROR_STATUS = {
   profileNotFound: 404,
   cpfAlreadyRegistered: 409,
   registrationLocked: 409,
+  registrationRequired: 409,
   dailyBonusAlreadyClaimed: 409,
   insufficientBalance: 409,
   quantityAboveMaximum: 422,

@@ -35,7 +35,7 @@ function openMatch(overrides: Partial<MatchRecord> = {}): MatchRecord {
 }
 
 function user(id: string, nickname: string | null): UserRecord {
-  return { id, email: `${id}@example.com`, nickname, fullName: null, cpf: null, birthDate: null, phone: null, photoPath: null, active: true };
+  return { id, email: `${id}@example.com`, nickname, fullName: null, cpf: null, birthDate: null, phone: null, photoPath: null, pixKeyRegisteredAt: null, active: true };
 }
 
 function buildService({

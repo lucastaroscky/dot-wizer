@@ -20,6 +20,7 @@ const ROUTES = [
   "POST /profile/registration",
   "PATCH /profile",
   "DELETE /profile",
+  "PUT /profile/pix-key",
   "POST /profile/photo-upload",
   "GET /wallet",
   "GET /wallet/entries",

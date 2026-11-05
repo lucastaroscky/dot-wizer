@@ -29,6 +29,7 @@ describe("profile routes", () => {
       birthDate: null,
       phone: null,
       photoUrl: null,
+      pixKeyRegistered: false,
       complete: false,
     });
     assert.strictEqual(await testPrisma.user.count({ where: { id: userId } }), 1);
@@ -294,6 +295,33 @@ describe("profile routes", () => {
     assert.strictEqual((await testPrisma.user.findUniqueOrThrow({ where: { id: userId } })).active, true);
   });
 
+  it("registers the Pix key of the CPF once, and repeating the call changes nothing", async () => {
+    const { userId, headers } = await testApp.signIn();
+    await register(headers);
+
+    const first = await testApp.app.inject({ method: "PUT", url: "/profile/pix-key", headers });
+    const registeredAt = (await testPrisma.user.findUniqueOrThrow({ where: { id: userId } })).pixKeyRegisteredAt;
+    testApp.clock.now = new Date("2026-11-03T15:00:00Z");
+    const again = await testApp.app.inject({ method: "PUT", url: "/profile/pix-key", headers });
+    const user = await testPrisma.user.findUniqueOrThrow({ where: { id: userId } });
+    testApp.clock.now = new Date("2026-11-02T15:00:00Z");
+
+    assert.strictEqual(first.statusCode, 200);
+    assert.strictEqual(first.json().pixKeyRegistered, true);
+    assert.deepStrictEqual(again.json(), first.json());
+    assert.deepStrictEqual(registeredAt, new Date("2026-11-02T15:00:00Z"));
+    assert.deepStrictEqual(user.pixKeyRegisteredAt, registeredAt);
+  });
+
+  it("refuses the Pix key before the registration", async () => {
+    const { headers } = await testApp.signIn();
+
+    const response = await testApp.app.inject({ method: "PUT", url: "/profile/pix-key", headers });
+
+    assert.strictEqual(response.statusCode, 409);
+    assert.strictEqual(response.json().code, "registrationRequired");
+  });
+
   it("refuses to sign an upload for an unsupported content type", async () => {
     const { headers } = await testApp.signIn();
 
@@ -312,6 +340,6 @@ describe("profile routes", () => {
 
     const response = await testApp.app.inject({ method: "GET", url: "/profile", headers });
 
-    assert.deepStrictEqual(Object.keys(response.json()).sort(), ["birthDate", "complete", "cpf", "email", "fullName", "id", "nickname", "phone", "photoUrl"]);
+    assert.deepStrictEqual(Object.keys(response.json()).sort(), ["birthDate", "complete", "cpf", "email", "fullName", "id", "nickname", "phone", "photoUrl", "pixKeyRegistered"]);
   });
 });

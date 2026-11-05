@@ -17,7 +17,8 @@
     "photoNotOwned": "A foto não pertence a este usuário.",
     "profileNotFound": "Perfil não encontrado.",
     "cpfAlreadyRegistered": "Este CPF já tem uma conta.",
-    "registrationLocked": "O cadastro já foi feito e não pode ser alterado."
+    "registrationLocked": "O cadastro já foi feito e não pode ser alterado.",
+    "registrationRequired": "Faça o cadastro antes de cadastrar a chave Pix."
   },
   "wallet": {
     "dailyBonusAlreadyClaimed": "O bônus de hoje já foi resgatado.",

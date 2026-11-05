@@ -40,6 +40,7 @@ export const profileResponseSchema = z.object({
   birthDate: isoDateSchema.nullable().describe("Data de nascimento. Nula até o cadastro, que trava o campo."),
   phone: z.string().nullable().describe("Celular com 11 dígitos, ou nulo quando a conta não tem."),
   photoUrl: z.string().nullable().describe("URL pública da foto, ou nulo quando a conta não tem foto."),
+  pixKeyRegistered: z.boolean().describe("Verdadeiro depois que a conta cadastrou a chave Pix do CPF para receber."),
   complete: z.boolean().describe("Verdadeiro quando a conta tem nome completo, CPF, data de nascimento e apelido."),
 });
 export type ProfileResponse = z.infer<typeof profileResponseSchema>;

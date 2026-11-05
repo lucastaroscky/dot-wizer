@@ -11,6 +11,7 @@ const userSelect = {
   birthDate: true,
   phone: true,
   photoPath: true,
+  pixKeyRegisteredAt: true,
   active: true,
 } satisfies Prisma.UserSelect;
 
@@ -25,6 +26,7 @@ export interface UserRecord {
   birthDate: string | null;
   phone: string | null;
   photoPath: string | null;
+  pixKeyRegisteredAt: Date | null;
   active: boolean;
 }
 
@@ -59,6 +61,11 @@ interface UpdateInput {
 interface UpdateEmailInput {
   id: string;
   email: string;
+}
+
+interface RegisterPixKeyInput {
+  id: string;
+  registeredAt: Date;
 }
 
 interface DeactivateInput {
@@ -119,6 +126,10 @@ export class UsersRepository {
 
   async updateEmail({ id, email }: UpdateEmailInput): Promise<void> {
     await this.client.user.update({ where: { id }, data: { email } });
+  }
+
+  async registerPixKey({ id, registeredAt }: RegisterPixKeyInput): Promise<void> {
+    await this.client.user.updateMany({ where: { id, pixKeyRegisteredAt: null }, data: { pixKeyRegisteredAt: registeredAt } });
   }
 
   async deactivate({ id, deactivatedAt }: DeactivateInput): Promise<void> {

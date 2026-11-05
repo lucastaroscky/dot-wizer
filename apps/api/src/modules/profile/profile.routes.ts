@@ -52,6 +52,15 @@ const deleteProfileSchema = {
   response: { 204: z.null().describe("Conta desativada."), ...appErrors({ codes: ["playerAlreadyInMatch"] }) },
 };
 
+const pixKeySchema = {
+  summary: "Cadastrar a chave Pix para receber",
+  description:
+    "A chave é sempre do tipo CPF e vem do cadastro, então não há corpo: a chamada vale como aceite. Grava uma vez só; repetir devolve o mesmo perfil.",
+  tags: [TAGS.profile],
+  security: APP_SECURITY,
+  response: { 200: profileResponseSchema, ...appErrors({ codes: ["registrationRequired"] }) },
+};
+
 const photoUploadSchema = {
   summary: "Pedir a URL assinada para enviar a foto",
   description: "Depois do envio, mande o `path` em `photoPath` no `PATCH /profile`.",
@@ -74,6 +83,7 @@ export function profileRoutes({ service }: { service: ProfileService }): Fastify
       await service.deactivate({ userId: request.auth.userId });
       return reply.status(204).send(null);
     });
+    app.put("/profile/pix-key", { schema: pixKeySchema }, (request) => service.registerPixKey({ userId: request.auth.userId }));
     app.post("/profile/photo-upload", { schema: photoUploadSchema }, (request) =>
       service.requestPhotoUpload({ userId: request.auth.userId, ...request.body }),
     );

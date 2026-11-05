@@ -90,6 +90,15 @@ export class ProfileService {
     return this.toResponse({ user });
   }
 
+  async registerPixKey({ userId }: UserInput): Promise<ProfileResponse> {
+    const user = await this.usersRepository.findById({ id: userId });
+    if (!user?.cpf) {
+      throw new ApiError({ code: "registrationRequired" });
+    }
+    await this.usersRepository.registerPixKey({ id: userId, registeredAt: this.now() });
+    return this.get({ userId });
+  }
+
   deactivate({ userId }: UserInput): Promise<void> {
     return this.unitOfWork.run(async (transaction) => {
       await transaction.users.lockByIds({ ids: [userId] });
@@ -117,6 +126,7 @@ export class ProfileService {
       birthDate: user.birthDate,
       phone: user.phone,
       photoUrl: user.photoPath ? this.avatarStorage.publicUrl({ path: user.photoPath }) : null,
+      pixKeyRegistered: user.pixKeyRegisteredAt !== null,
       complete: Boolean(user.fullName && user.cpf && user.birthDate && user.nickname),
     };
   }

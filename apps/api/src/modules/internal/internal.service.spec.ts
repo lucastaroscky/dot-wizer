@@ -24,6 +24,7 @@ function buildService({ balance = 5000, complete = true, nickname = "Ana" as str
       fullName: complete ? "Ana Souza Lima" : null,
       cpf: complete ? "11144477735" : null,
       phone: null,
+      pixKeyRegistered: false,
       birthDate: complete ? "1990-05-20" : null,
       photoUrl: "https://storage.example.com/ana.jpg",
       complete,
