@@ -14,6 +14,7 @@ const CARD_WIDTH = 50;
 const FLIPPED_WIDTH = 44;
 const FLIPPED_OVERHANG = 30;
 const STOCK_HEIGHT = CARD_WIDTH + 6;
+const SEAL_OVERFLOW = 12;
 const FLIPPED_TOP = (STOCK_HEIGHT - CARD_WIDTH * CARD_RATIO) / 2 - FLIPPED_OVERHANG;
 const STACK_LAYERS = 3;
 const PULSE_MS = 600;
@@ -64,7 +65,9 @@ export function Piles({ flipped, lifeJokers, discardTop, highlightDiscard, onSto
       {lifeJokers && (
         <View accessible accessibilityLabel={match.a11y.lifeJokers.replace("{cards}", lifeJokers)} style={styles.seal}>
           <Icon name="star" size={10} color={colors.action} />
-          <Text style={styles.sealText}>{lifeJokers}</Text>
+          <Text style={styles.sealText} numberOfLines={1}>
+            {lifeJokers}
+          </Text>
         </View>
       )}
 
@@ -91,7 +94,7 @@ const styles = StyleSheet.create({
   stock: { width: CARD_WIDTH * CARD_RATIO, height: STOCK_HEIGHT, transform: [{ rotate: "90deg" }], alignItems: "center", justifyContent: "center" },
   stockLayer: { position: "absolute" },
   flipped: { position: "absolute", left: (CARD_WIDTH * CARD_RATIO - FLIPPED_WIDTH) / 2, top: FLIPPED_TOP },
-  seal: { height: 22, paddingHorizontal: 8, borderRadius: 11, borderWidth: 1, borderColor: colors.action, backgroundColor: colors.night, flexDirection: "row", alignItems: "center", gap: 4 },
+  seal: { marginHorizontal: -SEAL_OVERFLOW, height: 22, paddingHorizontal: 8, borderRadius: 11, borderWidth: 1, borderColor: colors.action, backgroundColor: colors.night, flexDirection: "row", alignItems: "center", gap: 4 },
   sealText: { color: colors.onSelected, fontSize: 11.5, fontFamily: fonts.display },
   discard: { width: CARD_WIDTH, height: CARD_WIDTH * CARD_RATIO, marginTop: 4 },
   under: { position: "absolute", width: CARD_WIDTH, height: CARD_WIDTH * CARD_RATIO, borderRadius: CARD_WIDTH * 0.1, backgroundColor: "#F4F1EA", borderWidth: 1, borderColor: "#9A9A9A" },
