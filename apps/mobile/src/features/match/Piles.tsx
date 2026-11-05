@@ -1,16 +1,24 @@
 import { useEffect } from "react";
-import { Pressable, StyleSheet, View, type HostInstance } from "react-native";
+import { Pressable, StyleSheet, Text, View, type HostInstance } from "react-native";
 import Animated, { useAnimatedStyle, useSharedValue, withRepeat, withTiming } from "react-native-reanimated";
 import { Card, CardBack, type CardView, CARD_RATIO } from "@/shared/cards/Card";
+import { Icon } from "@/shared/ui/Icon";
 import { colors } from "@/shared/theme/colors";
+import { fonts } from "@/shared/theme/fonts";
+import match from "@/messages/match.json";
 import type { Rect } from "./areas";
 import { Measured } from "./Measured";
+import { cardText } from "./state";
 
 const CARD_WIDTH = 50;
+const FLIPPED_WIDTH = 44;
+const FLIPPED_OVERHANG = 30;
 const STACK_LAYERS = 3;
 const PULSE_MS = 600;
 
 type Props = {
+  flipped?: CardView;
+  lifeJokers?: string;
   discardTop?: CardView;
   highlightDiscard: boolean;
   onStockPress: () => void;
@@ -25,7 +33,7 @@ function tiltFor(id: string, layer: number) {
   return (seed % 9) - 4;
 }
 
-export function Piles({ discardTop, highlightDiscard, onStockPress, onDiscardPress, onDiscardMeasure, onDiscardView, onStockMeasure }: Props) {
+export function Piles({ flipped, lifeJokers, discardTop, highlightDiscard, onStockPress, onDiscardPress, onDiscardMeasure, onDiscardView, onStockMeasure }: Props) {
   const pulse = useSharedValue(0);
 
   useEffect(() => {
@@ -37,6 +45,11 @@ export function Piles({ discardTop, highlightDiscard, onStockPress, onDiscardPre
   return (
     <View style={styles.piles}>
       <Measured onMeasure={onStockMeasure}>
+        {flipped && (
+          <View accessible accessibilityLabel={match.a11y.flipped.replace("{card}", cardText(flipped))} style={styles.flipped}>
+            <Card card={flipped} width={FLIPPED_WIDTH} />
+          </View>
+        )}
         <Pressable onPress={onStockPress} style={styles.stock}>
           {Array.from({ length: STACK_LAYERS }, (_, layer) => (
             <View key={layer} style={[styles.stockLayer, { top: layer * -2, left: layer * 1 }]}>
@@ -45,6 +58,13 @@ export function Piles({ discardTop, highlightDiscard, onStockPress, onDiscardPre
           ))}
         </Pressable>
       </Measured>
+
+      {lifeJokers && (
+        <View accessible accessibilityLabel={match.a11y.lifeJokers.replace("{cards}", lifeJokers)} style={styles.seal}>
+          <Icon name="star" size={10} color={colors.action} />
+          <Text style={styles.sealText}>{lifeJokers}</Text>
+        </View>
+      )}
 
       <Pressable onPress={onDiscardPress}>
         <Measured onMeasure={onDiscardMeasure} onView={onDiscardView} style={styles.discard}>
@@ -67,6 +87,9 @@ const styles = StyleSheet.create({
   piles: { alignItems: "center", gap: 4, width: CARD_WIDTH * CARD_RATIO + 8 },
   stock: { width: CARD_WIDTH * CARD_RATIO, height: CARD_WIDTH + 6, transform: [{ rotate: "90deg" }], alignItems: "center", justifyContent: "center" },
   stockLayer: { position: "absolute" },
+  flipped: { position: "absolute", left: (CARD_WIDTH * CARD_RATIO - FLIPPED_WIDTH) / 2, top: (CARD_WIDTH + 6 - CARD_WIDTH * CARD_RATIO) / 2 - FLIPPED_OVERHANG },
+  seal: { height: 22, paddingHorizontal: 8, borderRadius: 11, borderWidth: 1, borderColor: colors.action, backgroundColor: colors.night, flexDirection: "row", alignItems: "center", gap: 4 },
+  sealText: { color: colors.onSelected, fontSize: 11.5, fontFamily: fonts.display },
   discard: { width: CARD_WIDTH, height: CARD_WIDTH * CARD_RATIO, marginTop: 4 },
   under: { position: "absolute", width: CARD_WIDTH, height: CARD_WIDTH * CARD_RATIO, borderRadius: CARD_WIDTH * 0.1, backgroundColor: "#F4F1EA", borderWidth: 1, borderColor: "#9A9A9A" },
   empty: { width: CARD_WIDTH, height: CARD_WIDTH * CARD_RATIO, borderRadius: 5, borderWidth: 1, borderColor: "#3A6A4E", borderStyle: "dashed" },

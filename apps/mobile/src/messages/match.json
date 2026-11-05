@@ -80,5 +80,10 @@
     "finalBalance": "Saldo final"
   },
   "reconnecting": "Reconectando…",
-  "handPointsHint": "na mão · só você vê"
+  "handPointsHint": "na mão · só você vê",
+  "a11y": {
+    "flipped": "Carta virada: {card}, fora do jogo",
+    "lifeJokers": "Coringa de vida: {cards}",
+    "turnOrder": "Ordem da vez"
+  }
 }

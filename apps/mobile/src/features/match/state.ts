@@ -1,6 +1,6 @@
 import type { useRoomState } from "@colyseus/react";
 import { toAnnouncement, type PontinhoState } from "@pontinho/protocol";
-import { CHIP_TABLES, cardById } from "@pontinho/rules";
+import { CHIP_TABLES, cardById, lifeJokerFor, type Suit, type Wild } from "@pontinho/rules";
 import { formatChips } from "@/shared/format/numbers";
 import type { CardView } from "@/shared/cards/Card";
 import lobby from "@/messages/lobby.json";
@@ -39,6 +39,24 @@ export function hasChips(state: { table: number }) {
 
 export function needsExitConfirmation(player?: { eliminated: boolean; sittingOut: boolean }) {
   return player?.eliminated !== true && !isSittingOut(player);
+}
+
+const SUIT_SYMBOLS: Record<Suit, string> = { spades: "♠", hearts: "♥", diamonds: "♦", clubs: "♣" };
+
+export function wildOf(state: GameState): Wild | undefined {
+  const flipped = state.flipped && cardById(state.flipped.id);
+  if (!flipped || flipped.rank === "JOKER") {
+    return undefined;
+  }
+  return lifeJokerFor(flipped);
+}
+
+export function cardText(card: { rank: string; suit: string }) {
+  return `${card.rank}${SUIT_SYMBOLS[card.suit as Suit]}`;
+}
+
+export function wildCardsText(wild: Wild) {
+  return wild.suits.map((suit) => cardText({ rank: wild.rank, suit })).join(" ");
 }
 
 export function tableTitle(tableId: number) {

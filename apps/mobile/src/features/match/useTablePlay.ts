@@ -5,7 +5,7 @@ import { addToMeld, canGoOutWithDiscard, cardById, replaceJoker } from "@pontinh
 import match from "@/messages/match.json";
 import { contains, measureRect, type TableAreas } from "./areas";
 import { sendAction, useServerMessage } from "./messaging";
-import { isSittingOut, type GameState } from "./state";
+import { isSittingOut, wildOf, type GameState } from "./state";
 
 const DOUBLE_TAP_MS = 350;
 
@@ -14,7 +14,8 @@ type JokerSwap = { cardId: string; meldIndex: number };
 function isJokerSwap(state: GameState, meldIndex: number, cardId: string) {
   const meld = toMeld(state.melds[meldIndex]);
   const card = cardById(cardId);
-  return !addToMeld(meld, [card]) && replaceJoker(meld, card) !== undefined;
+  const wild = wildOf(state);
+  return !addToMeld(meld, [card], { wild }) && replaceJoker(meld, card, { wild }) !== undefined;
 }
 
 export function useTablePlay(room: Room<PontinhoState>, state: GameState, areas: RefObject<TableAreas>) {

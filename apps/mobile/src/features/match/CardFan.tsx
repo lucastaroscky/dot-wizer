@@ -4,19 +4,21 @@ import { CardBack, CARD_RATIO } from "@/shared/cards/Card";
 const MAX_VISIBLE = 9;
 const CARD_WIDTH = 22;
 const SPREAD_DEGREES = 6;
+const STEP_RATIO = 0.27;
 
-export function CardFan({ count }: { count: number }) {
+export function CardFan({ count, cardWidth = CARD_WIDTH }: { count: number; cardWidth?: number }) {
   const visible = Math.min(count, MAX_VISIBLE);
   const middle = (visible - 1) / 2;
+  const step = cardWidth * STEP_RATIO;
 
   return (
-    <View style={[styles.fan, { width: CARD_WIDTH + visible * 6 }]}>
+    <View style={[styles.fan, { width: cardWidth + visible * step, height: cardWidth * CARD_RATIO + 4 }]}>
       {Array.from({ length: visible }, (_, index) => (
         <View
           key={index}
-          style={[styles.card, { left: index * 6, transform: [{ rotate: `${(index - middle) * SPREAD_DEGREES}deg` }] }]}
+          style={[styles.card, { left: index * step, transform: [{ rotate: `${(index - middle) * SPREAD_DEGREES}deg` }] }]}
         >
-          <CardBack width={CARD_WIDTH} />
+          <CardBack width={cardWidth} />
         </View>
       ))}
     </View>
@@ -24,6 +26,6 @@ export function CardFan({ count }: { count: number }) {
 }
 
 const styles = StyleSheet.create({
-  fan: { height: CARD_WIDTH * CARD_RATIO + 4, alignSelf: "center" },
+  fan: { alignSelf: "center" },
   card: { position: "absolute", top: 2, transformOrigin: "bottom center" },
 });

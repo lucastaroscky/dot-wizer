@@ -18,6 +18,7 @@ type Props = {
   isTurn?: boolean;
   turn?: TurnClock;
   wide?: boolean;
+  narrow?: boolean;
 };
 
 function details(points?: number, eliminated?: boolean, sittingOut?: boolean) {
@@ -33,7 +34,7 @@ function details(points?: number, eliminated?: boolean, sittingOut?: boolean) {
   return match.points.replace("{points}", String(points));
 }
 
-export function PlayerPlate({ name, photoUrl, points, eliminated = false, sittingOut = false, offline = false, isTurn = false, turn, wide = false }: Props) {
+export function PlayerPlate({ name, photoUrl, points, eliminated = false, sittingOut = false, offline = false, isTurn = false, turn, wide = false, narrow = false }: Props) {
   const scale = useSharedValue(1);
   const info = details(points, eliminated, sittingOut);
 
@@ -44,16 +45,16 @@ export function PlayerPlate({ name, photoUrl, points, eliminated = false, sittin
   const plateStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.get() }] }));
 
   return (
-    <Animated.View style={[plateStyle, styles.plate, wide && styles.wide, isTurn && styles.turn, (eliminated || sittingOut) && styles.dimmed]}>
-      <View style={styles.row}>
+    <Animated.View style={[plateStyle, styles.plate, wide && styles.wide, narrow && styles.narrow, isTurn && styles.turn, (eliminated || sittingOut) && styles.dimmed]}>
+      <View style={[styles.row, narrow && styles.column]}>
         <View style={[styles.ring, isTurn && styles.ringTurn]}>
-          <Avatar name={name} size={28} photoUrl={photoUrl} />
+          <Avatar name={name} size={narrow ? 26 : 28} photoUrl={photoUrl} />
         </View>
-        <View style={styles.text}>
-          <Text style={styles.name} numberOfLines={1}>
+        <View style={[styles.text, narrow && styles.narrowText]}>
+          <Text style={[styles.name, narrow && styles.narrowName]} numberOfLines={1}>
             {name}
           </Text>
-          {info && <Text style={styles.info}>{info}</Text>}
+          {info && <Text style={styles.info} numberOfLines={1}>{info}</Text>}
           {offline && (
             <View style={styles.offline}>
               <Icon name="offline" size={10} color={colors.textSoft} />
@@ -70,6 +71,10 @@ export function PlayerPlate({ name, photoUrl, points, eliminated = false, sittin
 const styles = StyleSheet.create({
   plate: { width: 112, padding: 8, gap: 7, borderRadius: 14, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.plate },
   wide: { width: 210 },
+  narrow: { width: "100%", paddingHorizontal: 4, gap: 5 },
+  column: { flexDirection: "column", gap: 4 },
+  narrowText: { flex: 0, alignSelf: "stretch", alignItems: "center" },
+  narrowName: { fontSize: 12 },
   turn: { borderColor: colors.action },
   dimmed: { opacity: 0.45 },
   row: { flexDirection: "row", alignItems: "center", gap: 7 },

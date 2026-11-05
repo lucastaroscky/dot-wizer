@@ -22,6 +22,7 @@ export const colors = {
   gain: "#8FE3A6",
   loss: "#FF8A8A",
   feltText: "#A9C9B5",
+  turnOrder: "#6F8F7C",
   feltSoft: "#C3D6CA",
   plate: "#0E1512",
   errorText: "#FF9A9A",
