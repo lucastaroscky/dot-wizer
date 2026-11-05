@@ -19,13 +19,13 @@ Antes da chamada, sem falar com a API:
 
 ## Sucesso
 
-A API responde 200 com `userId`, `name`, `photoUrl`, `profileComplete`, `balance`, `minimumBalance`, `canJoin` e `openMatchId`. Depois o jogo confere, nesta ordem:
+A API responde 200 com `userId`, `nickname`, `photoUrl`, `profileComplete`, `balance`, `minimumBalance`, `canJoin` e `openMatchId`. Depois o jogo confere, nesta ordem:
 
-1. perfil incompleto (`profileComplete` falso ou `name` nulo): recusa `profileIncomplete`;
+1. perfil incompleto (`profileComplete` falso ou `nickname` nulo): recusa `profileIncomplete`;
 2. `openMatchId` preenchido: ver "Partida aberta" abaixo;
 3. `canJoin` falso: recusa `insufficientBalance`. Sem mesa pedida, `canJoin` vem nulo e o treino passa.
 
-Se passou, o jogador entra com `{ id: userId, name, photoUrl ("" se não houver), table }`, e `table` é `0` no treino. No `onJoin`, a mesa do jogador precisa ser a da sala (senão `invalidOptions`), e o plugin de sessão única recusa a segunda cadeira da mesma conta (`alreadyInRoom`).
+Se passou, o jogador entra com `{ id: userId, name: nickname, photoUrl ("" se não houver), table }`, e `table` é `0` no treino. No `onJoin`, a mesa do jogador precisa ser a da sala (senão `invalidOptions`), e o plugin de sessão única recusa a segunda cadeira da mesma conta (`alreadyInRoom`).
 
 No treino com robôs a queda de conexão conta como saída: a sala não reserva a cadeira e o plugin solta a sessão na hora, então a mesma conta pode entrar em outra sala logo em seguida. Nas partidas com fichas a cadeira continua reservada depois da queda (ver "Partida aberta").
 
@@ -65,7 +65,7 @@ O jogo recusa com `ServerError(code, message)`. O app lê o `message`, que é a 
 |---|---|---|
 | `invalidToken` | 401 | Sem token, ou a API respondeu `invalidToken`. |
 | `accountDisabled` | 403 | A API respondeu `accountDisabled`. |
-| `profileIncomplete` | 403 | Perfil sem nome ou data de nascimento. |
+| `profileIncomplete` | 403 | Cadastro incompleto: falta nome completo, CPF, data de nascimento ou apelido. |
 | `insufficientBalance` | 403 | `canJoin` falso na partida online. |
 | `invalidOptions` | 400 | Opções inválidas, ou mesa do jogador diferente da mesa da sala. |
 | `apiUnavailable` | 503 | API fora do ar, lenta, com segredo errado ou partida presa que não fechou. |
@@ -94,7 +94,7 @@ Ao subir, o jogo chama `GET /internal/ping` (`verifyApiAtBoot`). Se a API respon
 - Enquanto a partida do jogador não acabar, ele não entra em outra, nem no treino. Quem foi eliminado fica livre. Quem volta à partida não precisa do saldo mínimo da mesa. (Regras.md, «Quem cai ou sai»)
 - Partida que cai por falha nossa acaba sem vencedor. É o que se aplica à partida presa fechada na entrada. (Regras.md, «Fim da partida»)
 - Uma cadeira por conta. (Arquitetura.md, «Servidor do jogo»)
-- Exigir perfil completo (nome e data de nascimento) para sentar é comportamento do código. A regra escrita mais próxima é a «Idade» do Plano.md («Decisões»), que pede data de nascimento no cadastro e bloqueia menores.
+- Para sentar, o cadastro precisa estar completo: nome completo, CPF, data de nascimento e apelido. Contas sem CPF vão para o cadastro. (Plano.md, fatia 2, «Decisões do Lucas (04/11/2026)»; Regras.md, «Tipos de partida»)
 
 Regras.md, Plano.md e Arquitetura.md ficam no Obsidian, em `dotwize/`, fora do repositório.
 
