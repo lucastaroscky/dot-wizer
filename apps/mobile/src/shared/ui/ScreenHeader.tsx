@@ -21,7 +21,7 @@ export function ScreenHeader({ title, backLabel, onBack, children }: Props) {
 }
 
 const styles = StyleSheet.create({
-  header: { height: 48, flexDirection: "row", alignItems: "center", gap: 12 },
+  header: { minHeight: 48, flexDirection: "row", alignItems: "center", gap: 12 },
   back: { width: 44, height: 44, borderRadius: 14, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.surface, alignItems: "center", justifyContent: "center" },
   title: { flex: 1, color: colors.text, fontSize: 20, fontFamily: fonts.display },
 });
